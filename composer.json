@@ -1,9 +1,17 @@
 {
   "name": "artisanpack-ui/analytics",
-  "description": "placeholder description",
+  "description": "Privacy-first analytics package for Laravel with local database storage, external provider support (GA4, Plausible), and a beautiful Livewire dashboard.",
   "type": "library",
   "license": "GPL-3.0-or-later",
   "version": "1.0.0",
+  "keywords": [
+    "laravel",
+    "analytics",
+    "privacy",
+    "tracking",
+    "dashboard",
+    "livewire"
+  ],
   "autoload": {
     "psr-4": {
       "ArtisanPackUI\\Analytics\\": "src/"
@@ -25,17 +33,45 @@
   ],
   "require": {
     "php": "^8.2",
-    "illuminate/support": ">=5.3"
+    "illuminate/cache": "^11.0|^12.0",
+    "illuminate/console": "^11.0|^12.0",
+    "illuminate/contracts": "^11.0|^12.0",
+    "illuminate/database": "^11.0|^12.0",
+    "illuminate/http": "^11.0|^12.0",
+    "illuminate/queue": "^11.0|^12.0",
+    "illuminate/routing": "^11.0|^12.0",
+    "illuminate/support": "^11.0|^12.0",
+    "nesbot/carbon": "^2.0|^3.0"
   },
   "require-dev": {
+    "artisanpack-ui/code-style": "^1.0.0",
+    "artisanpack-ui/code-style-pint": "^1.0.0",
+    "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+    "friendsofphp/php-cs-fixer": "^3.75",
+    "laravel/pint": "^1.26",
+    "orchestra/testbench": "^9.0|^10.0",
     "pestphp/pest": "^3.8",
-    "pestphp/pest-plugin-laravel": "^3.1"
+    "pestphp/pest-plugin-laravel": "^3.2"
+  },
+  "scripts": {
+    "lint": [
+      "./vendor/bin/php-cs-fixer fix --dry-run --diff",
+      "./vendor/bin/phpcs"
+    ],
+    "fix": "./vendor/bin/php-cs-fixer fix",
+    "cs": "./vendor/bin/phpcs",
+    "cs:fix": "./vendor/bin/phpcbf",
+    "test": "./vendor/bin/pest"
   },
   "config": {
     "allow-plugins": {
+      "dealerdirect/phpcodesniffer-composer-installer": true,
       "pestphp/pest-plugin": true
-    }
+    },
+    "sort-packages": true
   },
+  "minimum-stability": "dev",
+  "prefer-stable": true,
   "extra": {
     "laravel": {
       "providers": [
