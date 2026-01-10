@@ -4,26 +4,42 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\Analytics\Models;
 
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * Event model for analytics.
  *
  * Represents a custom event tracked by the application.
  *
- * @property string      $id
- * @property string      $session_id
- * @property string      $visitor_id
- * @property string      $name
- * @property string|null $category
- * @property array|null  $properties
- * @property float|null  $value
- * @property string|null $path
- * @property \Carbon\Carbon $created_at
- * @property \Carbon\Carbon $updated_at
+ * @property int             $id
+ * @property int|null        $site_id
+ * @property string|null     $session_id
+ * @property string|null     $visitor_id
+ * @property int|null        $page_view_id
+ * @property string          $name
+ * @property string|null     $category
+ * @property string|null     $action
+ * @property string|null     $label
+ * @property array|null      $properties
+ * @property float|null      $value
+ * @property string|null     $source_package
+ * @property string|null     $path
+ * @property int|string|null $tenant_id
+ * @property Carbon          $created_at
+ *
+ * @method static Builder named(string $name)
+ * @method static Builder inCategory(string $category)
+ * @method static Builder forSite(int $siteId)
+ * @method static Builder forTenant(string|int $tenantId)
+ * @method static Builder fromPackage(string $package)
+ * @method static Builder formSubmissions()
+ * @method static Builder purchases()
+ * @method static Builder bookings()
  *
  * @since   1.0.0
  *
@@ -32,7 +48,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Event extends Model
 {
 	use HasFactory;
-	use HasUuids;
+
+	/**
+	 * Indicates if the model should be timestamped.
+	 *
+	 * @var bool
+	 */
+	public $timestamps = false;
 
 	/**
 	 * The table associated with the model.
@@ -47,15 +69,33 @@ class Event extends Model
 	 * @var array<int, string>
 	 */
 	protected $fillable = [
+		'site_id',
 		'session_id',
 		'visitor_id',
+		'page_view_id',
 		'name',
 		'category',
+		'action',
+		'label',
 		'properties',
 		'value',
+		'source_package',
 		'path',
 		'tenant_id',
+		'created_at',
 	];
+
+	/**
+	 * Get the site that this event belongs to.
+	 *
+	 * @return BelongsTo<Site, Event>
+	 *
+	 * @since 1.0.0
+	 */
+	public function site(): BelongsTo
+	{
+		return $this->belongsTo( Site::class );
+	}
 
 	/**
 	 * Get the session that owns this event.
@@ -82,6 +122,30 @@ class Event extends Model
 	}
 
 	/**
+	 * Get the page view that this event belongs to.
+	 *
+	 * @return BelongsTo<PageView, Event>
+	 *
+	 * @since 1.0.0
+	 */
+	public function pageView(): BelongsTo
+	{
+		return $this->belongsTo( PageView::class );
+	}
+
+	/**
+	 * Get the conversion for this event.
+	 *
+	 * @return HasOne<Conversion, Event>
+	 *
+	 * @since 1.0.0
+	 */
+	public function conversion(): HasOne
+	{
+		return $this->hasOne( Conversion::class );
+	}
+
+	/**
 	 * Get the connection name for the model.
 	 *
 	 * @return string|null
@@ -92,16 +156,31 @@ class Event extends Model
 	}
 
 	/**
-	 * Scope a query to filter by tenant.
+	 * Scope a query to filter by site.
 	 *
-	 * @param \Illuminate\Database\Eloquent\Builder $query    The query builder.
-	 * @param int|string                            $tenantId The tenant ID.
+	 * @param Builder $query  The query builder.
+	 * @param int     $siteId The site ID.
 	 *
-	 * @return \Illuminate\Database\Eloquent\Builder
+	 * @return Builder
 	 *
 	 * @since 1.0.0
 	 */
-	public function scopeForTenant( $query, string|int $tenantId )
+	public function scopeForSite( Builder $query, int $siteId ): Builder
+	{
+		return $query->where( 'site_id', $siteId );
+	}
+
+	/**
+	 * Scope a query to filter by tenant.
+	 *
+	 * @param Builder    $query    The query builder.
+	 * @param int|string $tenantId The tenant ID.
+	 *
+	 * @return Builder
+	 *
+	 * @since 1.0.0
+	 */
+	public function scopeForTenant( Builder $query, string|int $tenantId ): Builder
 	{
 		if ( config( 'artisanpack.analytics.multi_tenant.enabled', false ) ) {
 			return $query->where( 'tenant_id', $tenantId );
@@ -113,14 +192,14 @@ class Event extends Model
 	/**
 	 * Scope a query to filter by event name.
 	 *
-	 * @param \Illuminate\Database\Eloquent\Builder $query The query builder.
-	 * @param string                                $name  The event name.
+	 * @param Builder $query The query builder.
+	 * @param string  $name  The event name.
 	 *
-	 * @return \Illuminate\Database\Eloquent\Builder
+	 * @return Builder
 	 *
 	 * @since 1.0.0
 	 */
-	public function scopeNamed( $query, string $name )
+	public function scopeNamed( Builder $query, string $name ): Builder
 	{
 		return $query->where( 'name', $name );
 	}
@@ -128,16 +207,85 @@ class Event extends Model
 	/**
 	 * Scope a query to filter by category.
 	 *
-	 * @param \Illuminate\Database\Eloquent\Builder $query    The query builder.
-	 * @param string                                $category The event category.
+	 * @param Builder $query    The query builder.
+	 * @param string  $category The event category.
 	 *
-	 * @return \Illuminate\Database\Eloquent\Builder
+	 * @return Builder
 	 *
 	 * @since 1.0.0
 	 */
-	public function scopeInCategory( $query, string $category )
+	public function scopeInCategory( Builder $query, string $category ): Builder
 	{
 		return $query->where( 'category', $category );
+	}
+
+	/**
+	 * Scope a query to filter by source package.
+	 *
+	 * @param Builder $query   The query builder.
+	 * @param string  $package The source package name.
+	 *
+	 * @return Builder
+	 *
+	 * @since 1.0.0
+	 */
+	public function scopeFromPackage( Builder $query, string $package ): Builder
+	{
+		return $query->where( 'source_package', $package );
+	}
+
+	/**
+	 * Scope a query to get form submission events.
+	 *
+	 * @param Builder $query The query builder.
+	 *
+	 * @return Builder
+	 *
+	 * @since 1.0.0
+	 */
+	public function scopeFormSubmissions( Builder $query ): Builder
+	{
+		return $query->where( 'name', 'form_submitted' );
+	}
+
+	/**
+	 * Scope a query to get purchase events.
+	 *
+	 * @param Builder $query The query builder.
+	 *
+	 * @return Builder
+	 *
+	 * @since 1.0.0
+	 */
+	public function scopePurchases( Builder $query ): Builder
+	{
+		return $query->where( 'name', 'purchase' );
+	}
+
+	/**
+	 * Scope a query to get booking events.
+	 *
+	 * @param Builder $query The query builder.
+	 *
+	 * @return Builder
+	 *
+	 * @since 1.0.0
+	 */
+	public function scopeBookings( Builder $query ): Builder
+	{
+		return $query->where( 'name', 'booking_created' );
+	}
+
+	/**
+	 * The "booted" method of the model.
+	 *
+	 * @return void
+	 */
+	protected static function booted(): void
+	{
+		static::creating( function ( Event $event ): void {
+			$event->created_at = $event->created_at ?? now();
+		} );
 	}
 
 	/**
@@ -148,8 +296,9 @@ class Event extends Model
 	protected function casts(): array
 	{
 		return [
+			'created_at' => 'datetime',
 			'properties' => 'array',
-			'value'      => 'float',
+			'value'      => 'decimal:4',
 		];
 	}
 }
