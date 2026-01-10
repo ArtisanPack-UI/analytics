@@ -1,71 +1,143 @@
 <?php
 
-use ArtisanPackUI\Analytics\A11y;
+declare( strict_types=1 );
 
-if ( !function_exists( 'a11y' ) ) {
-	/**
-	 * Get the Eventy instance.
-	 *
-	 * @return A11y
-	 */
-	function a11y()
-	{
-		return app( 'a11y' );
-	}
-}
+use ArtisanPackUI\Analytics\Analytics;
+use ArtisanPackUI\Analytics\Data\DateRange;
+use ArtisanPackUI\Analytics\Data\EventData;
+use ArtisanPackUI\Analytics\Data\PageViewData;
 
-if ( !function_exists( 'a11yCSSVarBlackOrWhite' ) ) {
+if ( ! function_exists( 'analytics' ) ) {
 	/**
-	 * Returns whether a text color should be black or white based on the background color.
+	 * Get the Analytics instance.
 	 *
-	 * @param string $hexColor The hex code for the background color.
-	 * @return string
+	 * @return Analytics
+	 *
 	 * @since 1.0.0
 	 */
-	function a11yCSSVarBlackOrWhite( string $hexColor ): string
+	function analytics(): Analytics
 	{
-		return a11y()->a11yCSSVarBlackOrWhite( $hexColor );
+		return app( 'analytics' );
 	}
 }
 
-if ( !function_exists( 'a11yGetContrastColor' ) ) {
+if ( ! function_exists( 'trackPageView' ) ) {
 	/**
-	 * Returns whether a text color should be black or white based on the background color.
+	 * Track a page view.
 	 *
-	 * @param string $hexColor The hex code for the background color.
-	 * @return string
+	 * @param string                    $path       The page path.
+	 * @param string|null               $title      The page title.
+	 * @param array<string, mixed>|null $customData Optional custom data.
+	 *
 	 * @since 1.0.0
 	 */
-	function a11yGetContrastColor( string $hexColor ): string
+	function trackPageView( string $path, ?string $title = null, ?array $customData = null ): void
 	{
-		return a11y()->a11yGetContrastColor( $hexColor );
+		$data = new PageViewData(
+			path: $path,
+			title: $title,
+			customData: $customData,
+		);
+
+		analytics()->trackPageView( $data );
 	}
 }
 
-if ( !function_exists( 'getToastDuration' ) ) {
+if ( ! function_exists( 'trackEvent' ) ) {
 	/**
-	 * Gets the user's setting for how long the toast element should stay on the screen.
+	 * Track a custom event.
 	 *
-	 * @return float|int
+	 * @param string                    $name       The event name.
+	 * @param array<string, mixed>|null $properties Optional event properties.
+	 * @param float|null                $value      Optional numeric value.
+	 * @param string|null               $category   Optional event category.
+	 *
 	 * @since 1.0.0
 	 */
-	function getToastDuration(): float|int
+	function trackEvent( string $name, ?array $properties = null, ?float $value = null, ?string $category = null ): void
 	{
-		return a11y()->getToastDuration();
+		$data = new EventData(
+			name: $name,
+			properties: $properties,
+			value: $value,
+			category: $category,
+		);
+
+		analytics()->trackEvent( $data );
 	}
 }
 
-if ( !function_exists( 'a11yCheckContrastColor' ) ) {
+if ( ! function_exists( 'analyticsEnabled' ) ) {
 	/**
-	 * Returns whether two given colors have the correct amount of contrast between them.
+	 * Check if analytics tracking is enabled.
 	 *
-	 * @param string $firstHexColor  The first color to check.
-	 * @param string $secondHexColor The second color to check.
 	 * @return bool
+	 *
 	 * @since 1.0.0
 	 */
-	function a11yCheckContrastColor( string $firstHexColor, string $secondHexColor ): bool
+	function analyticsEnabled(): bool
 	{
-		return a11y()->a11yCheckContrastColor( $firstHexColor, $secondHexColor );
+		return config( 'artisanpack.analytics.enabled', true );
+	}
+}
+
+if ( ! function_exists( 'dateRangeLastDays' ) ) {
+	/**
+	 * Create a DateRange for the last N days.
+	 *
+	 * @param int $days Number of days.
+	 *
+	 * @return DateRange
+	 *
+	 * @since 1.0.0
+	 */
+	function dateRangeLastDays( int $days ): DateRange
+	{
+		return DateRange::lastDays( $days );
+	}
+}
+
+if ( ! function_exists( 'dateRangeToday' ) ) {
+	/**
+	 * Create a DateRange for today.
+	 *
+	 * @return DateRange
+	 *
+	 * @since 1.0.0
+	 */
+	function dateRangeToday(): DateRange
+	{
+		return DateRange::today();
+	}
+}
+
+if ( ! function_exists( 'dateRangeThisMonth' ) ) {
+	/**
+	 * Create a DateRange for this month.
+	 *
+	 * @return DateRange
+	 *
+	 * @since 1.0.0
+	 */
+	function dateRangeThisMonth(): DateRange
+	{
+		return DateRange::thisMonth();
+	}
+}
+
+if ( ! function_exists( 'getAnalyticsConfig' ) ) {
+	/**
+	 * Get an analytics configuration value.
+	 *
+	 * @param string     $key     The configuration key.
+	 * @param mixed|null $default The default value if not found.
+	 *
+	 * @return mixed
+	 *
+	 * @since 1.0.0
+	 */
+	function getAnalyticsConfig( string $key, mixed $default = null ): mixed
+	{
+		return config( 'artisanpack.analytics.' . $key, $default );
 	}
 }

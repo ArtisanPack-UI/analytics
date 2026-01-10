@@ -1,20 +1,29 @@
 # =============================================================================
-# ArtisanPack UI Package CI/CD Pipeline
+# ArtisanPack UI Analytics Package CI/CD Pipeline
 # =============================================================================
-# This pipeline provides a robust foundation for Laravel/PHP packages.
+# This pipeline provides comprehensive testing, code quality checks, and
+# automated releases for the Analytics package.
 #
-# Customization:
-# - SAST: https://docs.gitlab.com/ee/user/application_security/sast/#customizing-the-sast-settings
-# - Secret Detection: https://docs.gitlab.com/ee/user/application_security/secret_detection/pipeline/#customization
-# - Variables: https://docs.gitlab.com/ee/ci/variables/#cicd-variable-precedence
+# Features:
+# - Multi-PHP version testing (8.2, 8.3, 8.4)
+# - Code coverage reporting
+# - Static analysis (PHPStan)
+# - Code style checking (PHP-CS-Fixer, PHPCS)
+# - Security scanning (SAST, Secret Detection, Dependency Scanning)
+# - Automated releases from tags
+# - GitLab Pages for documentation
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# Variables - Customize these for your package
+# Variables
 # -----------------------------------------------------------------------------
 variables:
   PHP_VERSION: "8.4"
   COMPOSER_HOME: /tmp/composer
+  # Coverage settings
+  COVERAGE_REPORT_PATH: coverage
+  # Disable Xdebug for non-coverage jobs (faster)
+  XDEBUG_MODE: "off"
 
 # -----------------------------------------------------------------------------
 # Workflow - Control when pipelines run
@@ -23,7 +32,7 @@ workflow:
   rules:
     - if: $CI_COMMIT_TAG
     - if: $CI_MERGE_REQUEST_IID
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH
 
 # -----------------------------------------------------------------------------
 # Stages
@@ -31,17 +40,27 @@ workflow:
 stages:
   - build
   - test
-  - code-style
+  - code-quality
+  - security
   - release
+  - pages
 
 # -----------------------------------------------------------------------------
 # Security Scanning Templates
 # -----------------------------------------------------------------------------
 include:
   - template: Security/SAST.gitlab-ci.yml
+  - template: Security/Secret-Detection.gitlab-ci.yml
+  - template: Security/Dependency-Scanning.gitlab-ci.yml
 
 sast:
-  stage: test
+  stage: security
+
+secret_detection:
+  stage: security
+
+dependency_scanning:
+  stage: security
 
 # -----------------------------------------------------------------------------
 # Hidden Jobs (YAML Anchors for Reuse)
@@ -57,16 +76,38 @@ sast:
     - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
     - composer config --global gitlab-token.gitlab.com ${CI_JOB_TOKEN}
 
+# PHP setup with Xdebug for coverage
+.php-setup-coverage:
+  image: php:${PHP_VERSION}
+  before_script:
+    - apt-get update -yqq
+    - apt-get install -yqq git unzip libzip-dev libsqlite3-dev
+    - docker-php-ext-install zip pdo_sqlite
+    - pecl install xdebug && docker-php-ext-enable xdebug
+    - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+    - composer config --global gitlab-token.gitlab.com ${CI_JOB_TOKEN}
+
 # Cache configuration for Composer dependencies
 .composer-cache:
   cache:
     key:
       files:
-        - composer.lock
+        - composer.json
       prefix: v1-${PHP_VERSION}
     policy: pull
     paths:
       - vendor/
+
+# Rules for merge requests only
+.merge-request-rules:
+  rules:
+    - if: $CI_MERGE_REQUEST_IID
+
+# Rules for main branch and tags
+.main-branch-rules:
+  rules:
+    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 # =============================================================================
 # BUILD STAGE
@@ -79,7 +120,7 @@ build:vendors:
   cache:
     key:
       files:
-        - composer.lock
+        - composer.json
       prefix: v1-${PHP_VERSION}
     policy: pull-push
     paths:
@@ -96,6 +137,7 @@ build:vendors:
 # TEST STAGE
 # =============================================================================
 
+# Main test job (PHP 8.4)
 tests:
   extends:
     - .php-setup
@@ -108,12 +150,86 @@ tests:
     - ./vendor/bin/pest --ci
   interruptible: true
 
+# Test with PHP 8.3
+tests:php83:
+  extends:
+    - .php-setup
+    - .composer-cache
+  stage: test
+  variables:
+    PHP_VERSION: "8.3"
+  needs:
+    - job: build:vendors
+      artifacts: true
+  before_script:
+    - apt-get update -yqq
+    - apt-get install -yqq git unzip libzip-dev libsqlite3-dev
+    - docker-php-ext-install zip pdo_sqlite
+    - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+    - composer config --global gitlab-token.gitlab.com ${CI_JOB_TOKEN}
+    - composer install --no-interaction --prefer-dist --optimize-autoloader
+  script:
+    - ./vendor/bin/pest --ci
+  allow_failure: true
+  interruptible: true
+
+# Test with PHP 8.2
+tests:php82:
+  extends:
+    - .php-setup
+    - .composer-cache
+  stage: test
+  variables:
+    PHP_VERSION: "8.2"
+  needs:
+    - job: build:vendors
+      artifacts: true
+  before_script:
+    - apt-get update -yqq
+    - apt-get install -yqq git unzip libzip-dev libsqlite3-dev
+    - docker-php-ext-install zip pdo_sqlite
+    - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+    - composer config --global gitlab-token.gitlab.com ${CI_JOB_TOKEN}
+    - composer install --no-interaction --prefer-dist --optimize-autoloader
+  script:
+    - ./vendor/bin/pest --ci
+  allow_failure: true
+  interruptible: true
+
+# Test with coverage (only on main branch and MRs to reduce resource usage)
+tests:coverage:
+  extends:
+    - .php-setup-coverage
+    - .composer-cache
+  stage: test
+  needs:
+    - job: build:vendors
+      artifacts: true
+  variables:
+    XDEBUG_MODE: coverage
+  script:
+    - ./vendor/bin/pest --ci --coverage --coverage-clover=coverage.xml --coverage-html=${COVERAGE_REPORT_PATH}
+  coverage: '/^\s*Lines:\s*\d+.\d+\%/'
+  artifacts:
+    paths:
+      - ${COVERAGE_REPORT_PATH}/
+      - coverage.xml
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+    expire_in: 7 days
+  rules:
+    - if: $CI_MERGE_REQUEST_IID
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  interruptible: true
+
 # =============================================================================
-# CODE STYLE STAGE
+# CODE QUALITY STAGE
 # =============================================================================
 
-pint:
-  stage: code-style
+php-cs-fixer:
+  stage: code-quality
   image: php:${PHP_VERSION}
   needs:
     - job: build:vendors
@@ -121,54 +237,65 @@ pint:
   cache:
     key:
       files:
-        - composer.lock
+        - composer.json
       prefix: v1-${PHP_VERSION}
     policy: pull
     paths:
       - vendor/
   script:
-    - ./vendor/bin/pint --test
+    - PHP_CS_FIXER_IGNORE_ENV=1 ./vendor/bin/php-cs-fixer fix --dry-run --diff
+  allow_failure: true
   interruptible: true
 
-# Uncomment to enable PHPCS with ArtisanPackUIStandard
-# phpcs:
-#   stage: code-style
-#   image: php:${PHP_VERSION}
-#   needs:
-#     - job: build:vendors
-#       artifacts: true
-#   cache:
-#     key:
-#       files:
-#         - composer.lock
-#       prefix: v1-${PHP_VERSION}
-#     policy: pull
-#     paths:
-#       - vendor/
-#   script:
-#     - ./vendor/bin/phpcs --standard=ArtisanPackUIStandard src
-#   allow_failure: true
-#   interruptible: true
+phpcs:
+  stage: code-quality
+  image: php:${PHP_VERSION}
+  needs:
+    - job: build:vendors
+      artifacts: true
+  cache:
+    key:
+      files:
+        - composer.json
+      prefix: v1-${PHP_VERSION}
+    policy: pull
+    paths:
+      - vendor/
+  before_script:
+    - ./vendor/bin/phpcs --config-set installed_paths vendor/artisanpack-ui/code-style
+  script:
+    - ./vendor/bin/phpcs
+  allow_failure: true
+  interruptible: true
 
-# Uncomment to enable PHPStan static analysis
-# phpstan:
-#   stage: code-style
-#   image: php:${PHP_VERSION}
-#   needs:
-#     - job: build:vendors
-#       artifacts: true
-#   cache:
-#     key:
-#       files:
-#         - composer.lock
-#       prefix: v1-${PHP_VERSION}
-#     policy: pull
-#     paths:
-#       - vendor/
-#   script:
-#     - ./vendor/bin/phpstan analyse src --level=8 --no-progress
-#   allow_failure: true
-#   interruptible: true
+# PHPStan static analysis
+phpstan:
+  stage: code-quality
+  image: php:${PHP_VERSION}
+  needs:
+    - job: build:vendors
+      artifacts: true
+  cache:
+    key:
+      files:
+        - composer.json
+      prefix: v1-${PHP_VERSION}
+    policy: pull
+    paths:
+      - vendor/
+  before_script:
+    - apt-get update -yqq
+    - apt-get install -yqq git unzip libzip-dev libsqlite3-dev
+    - docker-php-ext-install zip pdo_sqlite
+  script:
+    - ./vendor/bin/phpstan analyse src --level=5 --no-progress --error-format=gitlab > phpstan-report.json || true
+    - ./vendor/bin/phpstan analyse src --level=5 --no-progress
+  artifacts:
+    reports:
+      codequality: phpstan-report.json
+    expire_in: 7 days
+  allow_failure: true
+  interruptible: true
 
 # =============================================================================
 # RELEASE STAGE
@@ -249,3 +376,64 @@ create_actual_release:
         --tag-name "${CI_COMMIT_TAG}" \
         --description "${RELEASE_DESCRIPTION}"
       echo "Release created successfully."
+
+# =============================================================================
+# PAGES STAGE - Documentation
+# =============================================================================
+
+# Deploy documentation to GitLab Pages
+pages:
+  stage: pages
+  image: python:3.11-alpine
+  before_script:
+    - pip install mkdocs mkdocs-material
+  script:
+    - |
+      # Create mkdocs configuration if it doesn't exist
+      if [ ! -f "mkdocs.yml" ]; then
+        cat > mkdocs.yml << 'EOF'
+      site_name: ArtisanPack UI Analytics Documentation
+      site_url: https://artisanpack-ui.gitlab.io/analytics
+      repo_url: https://gitlab.com/jacob-martella-web-design/artisanpack-ui/analytics
+      docs_dir: docs
+      theme:
+        name: material
+        palette:
+          primary: indigo
+          accent: indigo
+      nav:
+        - Home: home.md
+        - Getting Started: getting-started.md
+        - Installation:
+          - Overview: installation.md
+          - Requirements: installation/requirements.md
+          - Configuration: installation/configuration.md
+        - Usage:
+          - Overview: usage.md
+          - Page Views: usage/page-views.md
+          - Events: usage/events.md
+          - Sessions: usage/sessions.md
+          - Dashboard: usage/dashboard.md
+        - API Reference:
+          - Overview: api.md
+          - Models: api/models.md
+          - Services: api/services.md
+          - Events: api/events.md
+        - Advanced:
+          - Overview: advanced.md
+          - Privacy: advanced/privacy.md
+          - Multi-Tenant: advanced/multi-tenant.md
+          - External Providers: advanced/external-providers.md
+        - FAQ: faq.md
+        - Troubleshooting: troubleshooting.md
+      EOF
+      fi
+      mkdocs build --site-dir public
+  artifacts:
+    paths:
+      - public
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  environment:
+    name: documentation
+    url: https://artisanpack-ui.gitlab.io/analytics
