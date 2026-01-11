@@ -41,6 +41,12 @@ Route::post( '/session/end', [ AnalyticsController::class, 'endSession' ] )
 Route::post( '/session/extend', [ AnalyticsController::class, 'extendSession' ] )
 	->name( 'analytics.session.extend' );
 
+Route::post( '/batch', [ AnalyticsController::class, 'batch' ] )
+	->name( 'analytics.batch' );
+
+Route::post( '/pageview/update', [ AnalyticsController::class, 'updatePageview' ] )
+	->name( 'analytics.pageview.update' );
+
 /*
 |--------------------------------------------------------------------------
 | Consent Routes
