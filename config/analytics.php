@@ -11,7 +11,6 @@ declare( strict_types=1 );
  *
  * After publishing, this file can be found at: config/artisanpack/analytics.php
  *
- * @package    ArtisanPackUI\Analytics
  *
  * @since      1.0.0
  */
@@ -72,7 +71,7 @@ return [
     | filtering.
     |
     */
-    'route_middleware' => [ 'api', 'analytics' ],
+    'route_middleware' => ['api', 'analytics'],
 
     /*
     |--------------------------------------------------------------------------
@@ -93,7 +92,7 @@ return [
     | Middleware to apply to the analytics dashboard route.
     |
     */
-    'dashboard_middleware' => [ 'web', 'auth' ],
+    'dashboard_middleware' => ['web', 'auth'],
 
     /*
     |--------------------------------------------------------------------------
@@ -534,6 +533,71 @@ return [
         |
         */
         'max_property_value_length' => env( 'ANALYTICS_MAX_PROPERTY_LENGTH', 500 ),
+
+        /*
+        |----------------------------------------------------------------------
+        | Event Schema Validation
+        |----------------------------------------------------------------------
+        |
+        | Define required properties for specific event types.
+        | Events not listed here will allow any properties.
+        |
+        */
+        'schema' => [
+            'purchase' => [
+                'required' => ['order_id', 'total'],
+            ],
+            'form_submitted' => [
+                'required' => ['form_id'],
+            ],
+        ],
+
+        /*
+        |----------------------------------------------------------------------
+        | Auto-Track Settings
+        |----------------------------------------------------------------------
+        |
+        | Configure automatic event tracking features.
+        |
+        */
+        'auto_track' => [
+            'outbound_links'   => env( 'ANALYTICS_AUTO_TRACK_OUTBOUND', true ),
+            'file_downloads'   => env( 'ANALYTICS_AUTO_TRACK_DOWNLOADS', true ),
+            'scroll_depth'     => env( 'ANALYTICS_AUTO_TRACK_SCROLL', true ),
+            'video_engagement' => env( 'ANALYTICS_AUTO_TRACK_VIDEO', false ),
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Goals Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Settings for conversion goals and tracking.
+    |
+    */
+    'goals' => [
+        /*
+        |----------------------------------------------------------------------
+        | Allow Multiple Conversions Per Session
+        |----------------------------------------------------------------------
+        |
+        | When false, only one conversion per goal per session is recorded.
+        | When true, multiple conversions of the same goal can be recorded
+        | within a single session.
+        |
+        */
+        'allow_multiple_per_session' => env( 'ANALYTICS_GOALS_MULTIPLE', false ),
+
+        /*
+        |----------------------------------------------------------------------
+        | Cache Duration
+        |----------------------------------------------------------------------
+        |
+        | How long to cache goal queries in seconds.
+        |
+        */
+        'cache_duration' => env( 'ANALYTICS_GOALS_CACHE', 300 ),
     ],
 
     /*
@@ -593,7 +657,7 @@ return [
         | Automatically track file download link clicks.
         |
         */
-        'track_file_downloads' => env( 'ANALYTICS_TRACK_DOWNLOADS', true ),
+        'track_file_downloads' => env( 'ANALYTICS_TRACK_DOWNLOADS', true),
 
         /*
         |----------------------------------------------------------------------
