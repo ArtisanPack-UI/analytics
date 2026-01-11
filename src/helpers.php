@@ -141,3 +141,33 @@ if ( ! function_exists( 'getAnalyticsConfig' ) ) {
 		return config( 'artisanpack.analytics.' . $key, $default );
 	}
 }
+
+if ( ! function_exists( 'country_flag' ) ) {
+	/**
+	 * Convert a two-letter country code to its flag emoji.
+	 *
+	 * Uses regional indicator symbols to create flag emojis.
+	 * For example, 'US' becomes 🇺🇸, 'GB' becomes 🇬🇧.
+	 *
+	 * @param string $countryCode The ISO 3166-1 alpha-2 country code.
+	 *
+	 * @return string The flag emoji, or empty string if invalid code.
+	 *
+	 * @since 1.0.0
+	 */
+	function country_flag( string $countryCode ): string
+	{
+		$countryCode = strtoupper( trim( $countryCode ) );
+
+		if ( 2 !== strlen( $countryCode ) || ! ctype_alpha( $countryCode ) ) {
+			return '';
+		}
+
+		// Convert each letter to its regional indicator symbol
+		// Regional indicator symbols start at U+1F1E6 (🇦)
+		$firstChar  = mb_chr( ord( $countryCode[0] ) - ord( 'A' ) + 0x1F1E6 );
+		$secondChar = mb_chr( ord( $countryCode[1] ) - ord( 'A' ) + 0x1F1E6 );
+
+		return $firstChar . $secondChar;
+	}
+}
