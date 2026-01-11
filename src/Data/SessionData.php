@@ -22,6 +22,7 @@ readonly class SessionData
 	 * Create a new SessionData instance.
 	 *
 	 * @param string          $visitorId   The visitor identifier.
+	 * @param string|null     $sessionId   The session identifier (client-provided).
 	 * @param string|null     $entryPath   The entry page path.
 	 * @param string|null     $referrer    The referrer URL.
 	 * @param string|null     $ipAddress   The visitor's IP address.
@@ -37,6 +38,7 @@ readonly class SessionData
 	 */
 	public function __construct(
 		public string $visitorId,
+		public ?string $sessionId = null,
 		public ?string $entryPath = null,
 		public ?string $referrer = null,
 		public ?string $ipAddress = null,
@@ -69,6 +71,7 @@ readonly class SessionData
 
 		return new static(
 			visitorId: $visitorId,
+			sessionId: $data['session_id'] ?? null,
 			entryPath: $data['path'] ?? $request->path(),
 			referrer: $data['referrer'] ?? $request->header( 'Referer' ),
 			ipAddress: $request->ip(),
@@ -93,6 +96,7 @@ readonly class SessionData
 	{
 		return array_filter( [
 			'visitor_id'   => $this->visitorId,
+			'session_id'   => $this->sessionId,
 			'entry_path'   => $this->entryPath,
 			'referrer'     => $this->referrer,
 			'ip_address'   => $this->ipAddress,
