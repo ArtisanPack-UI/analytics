@@ -185,7 +185,7 @@ class AnalyticsController extends Controller
 	 *
 	 * @param StartSessionRequest $request The validated request.
 	 *
-	 * @return Response|JsonResponse Returns 201 JSON on success, 204 on failure/skip.
+	 * @return JsonResponse|Response Returns 201 JSON on success, 204 on failure/skip.
 	 *
 	 * @since 1.0.0
 	 */
