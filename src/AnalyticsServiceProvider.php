@@ -6,9 +6,17 @@ namespace ArtisanPackUI\Analytics;
 
 use ArtisanPackUI\Analytics\Console\Commands\InstallCommand;
 use ArtisanPackUI\Analytics\Contracts\AnalyticsServiceInterface;
+use ArtisanPackUI\Analytics\Http\Livewire\AnalyticsDashboard;
+use ArtisanPackUI\Analytics\Http\Livewire\PageAnalytics;
+use ArtisanPackUI\Analytics\Http\Livewire\Widgets\RealtimeVisitors;
+use ArtisanPackUI\Analytics\Http\Livewire\Widgets\StatsCards;
+use ArtisanPackUI\Analytics\Http\Livewire\Widgets\TopPages;
+use ArtisanPackUI\Analytics\Http\Livewire\Widgets\TrafficSources;
+use ArtisanPackUI\Analytics\Http\Livewire\Widgets\VisitorsChart;
 use ArtisanPackUI\Analytics\Http\Middleware\AnalyticsThrottle;
 use ArtisanPackUI\Analytics\Http\Middleware\PrivacyFilter;
 use ArtisanPackUI\Analytics\Http\Middleware\TenantResolver;
+use ArtisanPackUI\Analytics\Services\AnalyticsQuery;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -53,6 +61,14 @@ class AnalyticsServiceProvider extends ServiceProvider
 
 		// Bind interface to implementation
 		$this->app->bind( AnalyticsServiceInterface::class, Analytics::class );
+
+		// Register the AnalyticsQuery service
+		$this->app->bind( AnalyticsQuery::class, function ( $app ) {
+			return new AnalyticsQuery(
+				$app->make( Analytics::class ),
+				$app->make( 'cache.store' ),
+			);
+		} );
 	}
 
 	/**
@@ -74,6 +90,7 @@ class AnalyticsServiceProvider extends ServiceProvider
 		$this->registerRoutes();
 		$this->registerCommands();
 		$this->registerBuiltInProviders();
+		$this->registerLivewireComponents();
 	}
 
 	/**
@@ -89,6 +106,7 @@ class AnalyticsServiceProvider extends ServiceProvider
 			Analytics::class,
 			'analytics',
 			AnalyticsServiceInterface::class,
+			AnalyticsQuery::class,
 		];
 	}
 
@@ -174,11 +192,11 @@ class AnalyticsServiceProvider extends ServiceProvider
 	 */
 	protected function publishViews(): void
 	{
-		$this->loadViewsFrom( __DIR__ . '/../resources/views', 'analytics' );
+		$this->loadViewsFrom( __DIR__ . '/../resources/views', 'artisanpack-analytics' );
 
 		if ( $this->app->runningInConsole() ) {
 			$this->publishes( [
-				__DIR__ . '/../resources/views' => resource_path( 'views/vendor/analytics' ),
+				__DIR__ . '/../resources/views' => resource_path( 'views/vendor/artisanpack-analytics' ),
 			], 'analytics-views' );
 		}
 	}
@@ -285,5 +303,29 @@ class AnalyticsServiceProvider extends ServiceProvider
 				return $app->make( Providers\PlausibleProvider::class );
 			} );
 		}
+	}
+
+	/**
+	 * Register Livewire components.
+	 *
+	 * @since 1.0.0
+	 */
+	protected function registerLivewireComponents(): void
+	{
+		// Only register if Livewire is available
+		if ( ! class_exists( \Livewire\Livewire::class ) ) {
+			return;
+		}
+
+		// Register widgets
+		\Livewire\Livewire::component( 'artisanpack-analytics::stats-cards', StatsCards::class );
+		\Livewire\Livewire::component( 'artisanpack-analytics::visitors-chart', VisitorsChart::class );
+		\Livewire\Livewire::component( 'artisanpack-analytics::top-pages', TopPages::class );
+		\Livewire\Livewire::component( 'artisanpack-analytics::traffic-sources', TrafficSources::class );
+		\Livewire\Livewire::component( 'artisanpack-analytics::realtime-visitors', RealtimeVisitors::class );
+
+		// Register main components
+		\Livewire\Livewire::component( 'artisanpack-analytics::dashboard', AnalyticsDashboard::class );
+		\Livewire\Livewire::component( 'artisanpack-analytics::page-analytics', PageAnalytics::class );
 	}
 }
