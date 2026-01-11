@@ -120,6 +120,38 @@ class Analytics implements AnalyticsQueryInterface, AnalyticsServiceInterface
     }
 
     /**
+     * Track a custom event (convenience method).
+     *
+     * This is a simplified API for tracking events from PHP code.
+     * For package integrations, use the sourcePackage parameter.
+     *
+     * @param  string  $name  The event name.
+     * @param  array<string, mixed>  $properties  The event properties.
+     * @param  string|null  $category  The event category (auto-inferred if null).
+     * @param  float|null  $value  The event value.
+     * @param  string|null  $sourcePackage  The source package name.
+     *
+     * @since 1.0.0
+     */
+    public function event(
+        string $name,
+        array $properties = [],
+        ?string $category = null,
+        ?float $value = null,
+        ?string $sourcePackage = null,
+    ): void {
+        $data = new EventData(
+            name: $name,
+            properties: $properties,
+            category: $category,
+            value: $value,
+            sourcePackage: $sourcePackage,
+        );
+
+        $this->trackEvent( $data );
+    }
+
+    /**
      * Start a new session.
      *
      * @param  SessionData  $data  The session initialization data.
@@ -712,7 +744,7 @@ class Analytics implements AnalyticsQueryInterface, AnalyticsServiceInterface
         ];
 
         // Use Laravel's logger if available, fallback to error_log
-        if ( function_exists( 'logger' ) ) {
+        if ( function_exists( 'logger')) {
             logger()->error( $message, $context);
         } else {
             error_log( $message . ' ' . json_encode( $context));

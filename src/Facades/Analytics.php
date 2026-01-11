@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Facade;
  *
  * @method static void trackPageView(PageViewData $data)
  * @method static void trackEvent(EventData $data)
+ * @method static void event(string $name, array $properties = [], ?string $category = null, ?float $value = null, ?string $sourcePackage = null)
  * @method static Session startSession(SessionData $data)
  * @method static void endSession(string $sessionId)
  * @method static void extendSession(string $sessionId)
@@ -34,20 +35,17 @@ use Illuminate\Support\Facades\Facade;
  *
  * @see AnalyticsManager
  * @since   1.0.0
- *
- * @package ArtisanPackUI\Analytics\Facades
  */
 class Analytics extends Facade
 {
-	/**
-	 * Get the registered name of the component.
-	 *
-	 * @return string
-	 *
-	 * @since 1.0.0
-	 */
-	protected static function getFacadeAccessor(): string
-	{
-		return 'analytics';
-	}
+    /**
+     * Get the registered name of the component.
+     *
+     *
+     * @since 1.0.0
+     */
+    protected static function getFacadeAccessor(): string
+    {
+        return 'analytics';
+    }
 }
