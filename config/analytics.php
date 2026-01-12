@@ -257,6 +257,38 @@ return [
 
         /*
         |----------------------------------------------------------------------
+        | Consent Cookie Lifetime
+        |----------------------------------------------------------------------
+        |
+        | Number of days before consent expires and must be renewed.
+        |
+        */
+        'consent_cookie_lifetime' => env( 'ANALYTICS_CONSENT_LIFETIME', 365 ),
+
+        /*
+        |----------------------------------------------------------------------
+        | Consent Categories
+        |----------------------------------------------------------------------
+        |
+        | Categories of consent that can be granted or revoked.
+        | Each category can be marked as required (always enabled).
+        |
+        */
+        'consent_categories' => [
+            'analytics' => [
+                'name'        => 'Analytics',
+                'description' => 'Helps us understand how visitors use our website.',
+                'required'    => false,
+            ],
+            'marketing' => [
+                'name'        => 'Marketing',
+                'description' => 'Used to track visitors across websites for advertising.',
+                'required'    => false,
+            ],
+        ],
+
+        /*
+        |----------------------------------------------------------------------
         | Respect Do Not Track
         |----------------------------------------------------------------------
         |
@@ -265,6 +297,31 @@ return [
         |
         */
         'respect_dnt' => env( 'ANALYTICS_RESPECT_DNT', true ),
+
+        /*
+        |----------------------------------------------------------------------
+        | Anonymization Settings
+        |----------------------------------------------------------------------
+        |
+        | Configure what data should be anonymized for privacy.
+        |
+        */
+        'anonymization' => [
+            /*
+            | Anonymize IP addresses (zero last octet for IPv4, last 80 bits for IPv6)
+            */
+            'ip_address' => env( 'ANALYTICS_ANONYMIZE_IP', true ),
+
+            /*
+            | Hash user agent strings instead of storing them directly
+            */
+            'user_agent' => env( 'ANALYTICS_ANONYMIZE_UA', false ),
+
+            /*
+            | Round screen resolution to nearest 100 pixels
+            */
+            'screen_resolution' => env( 'ANALYTICS_ANONYMIZE_SCREEN', false ),
+        ],
 
         /*
         |----------------------------------------------------------------------
@@ -657,7 +714,7 @@ return [
         | Automatically track file download link clicks.
         |
         */
-        'track_file_downloads' => env( 'ANALYTICS_TRACK_DOWNLOADS', true),
+        'track_file_downloads' => env( 'ANALYTICS_TRACK_DOWNLOADS', true ),
 
         /*
         |----------------------------------------------------------------------

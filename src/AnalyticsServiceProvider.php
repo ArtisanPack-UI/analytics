@@ -17,9 +17,14 @@ use ArtisanPackUI\Analytics\Http\Middleware\AnalyticsThrottle;
 use ArtisanPackUI\Analytics\Http\Middleware\PrivacyFilter;
 use ArtisanPackUI\Analytics\Http\Middleware\TenantResolver;
 use ArtisanPackUI\Analytics\Services\AnalyticsQuery;
+use ArtisanPackUI\Analytics\Services\ConsentService;
+use ArtisanPackUI\Analytics\Services\DataDeletionService;
+use ArtisanPackUI\Analytics\Services\DataExportService;
 use ArtisanPackUI\Analytics\Services\EventProcessor;
 use ArtisanPackUI\Analytics\Services\FunnelAnalyzer;
 use ArtisanPackUI\Analytics\Services\GoalMatcher;
+use ArtisanPackUI\Analytics\Services\IpAnonymizer;
+use ArtisanPackUI\Analytics\Services\PrivacyIntegration;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -86,6 +91,37 @@ class AnalyticsServiceProvider extends ServiceProvider
         $this->app->bind( FunnelAnalyzer::class, function ( $app ) {
             return new FunnelAnalyzer;
         } );
+
+        // Register the IpAnonymizer service
+        $this->app->singleton( IpAnonymizer::class, function () {
+            return new IpAnonymizer;
+        } );
+
+        // Register the ConsentService
+        $this->app->singleton( ConsentService::class, function ( $app ) {
+            return new ConsentService(
+                $app->make( IpAnonymizer::class ),
+            );
+        } );
+
+        // Register the DataExportService
+        $this->app->singleton( DataExportService::class, function () {
+            return new DataExportService;
+        } );
+
+        // Register the DataDeletionService
+        $this->app->singleton( DataDeletionService::class, function () {
+            return new DataDeletionService;
+        } );
+
+        // Register the PrivacyIntegration service
+        $this->app->singleton( PrivacyIntegration::class, function ( $app ) {
+            return new PrivacyIntegration(
+                $app->make( DataExportService::class ),
+                $app->make( DataDeletionService::class ),
+                $app->make( ConsentService::class ),
+            );
+        } );
     }
 
     /**
@@ -108,6 +144,7 @@ class AnalyticsServiceProvider extends ServiceProvider
         $this->registerCommands();
         $this->registerBuiltInProviders();
         $this->registerLivewireComponents();
+        $this->registerPrivacyHooks();
     }
 
     /**
@@ -127,6 +164,11 @@ class AnalyticsServiceProvider extends ServiceProvider
             GoalMatcher::class,
             EventProcessor::class,
             FunnelAnalyzer::class,
+            IpAnonymizer::class,
+            ConsentService::class,
+            DataExportService::class,
+            DataDeletionService::class,
+            PrivacyIntegration::class,
         ];
     }
 
@@ -341,11 +383,26 @@ class AnalyticsServiceProvider extends ServiceProvider
         \Livewire\Livewire::component( 'artisanpack-analytics::stats-cards', StatsCards::class );
         \Livewire\Livewire::component( 'artisanpack-analytics::visitors-chart', VisitorsChart::class );
         \Livewire\Livewire::component( 'artisanpack-analytics::top-pages', TopPages::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::traffic-sources', TrafficSources::class);
-        \Livewire\Livewire::component( 'artisanpack-analytics::realtime-visitors', RealtimeVisitors::class);
+        \Livewire\Livewire::component( 'artisanpack-analytics::traffic-sources', TrafficSources::class );
+        \Livewire\Livewire::component( 'artisanpack-analytics::realtime-visitors', RealtimeVisitors::class );
 
         // Register main components
-        \Livewire\Livewire::component( 'artisanpack-analytics::dashboard', AnalyticsDashboard::class);
-        \Livewire\Livewire::component( 'artisanpack-analytics::page-analytics', PageAnalytics::class);
+        \Livewire\Livewire::component( 'artisanpack-analytics::dashboard', AnalyticsDashboard::class );
+        \Livewire\Livewire::component( 'artisanpack-analytics::page-analytics', PageAnalytics::class );
+    }
+
+    /**
+     * Register privacy package integration hooks.
+     *
+     * These hooks allow the future ArtisanPack UI Privacy package
+     * to integrate with the analytics package for GDPR compliance.
+     *
+     * @since 1.0.0
+     */
+    protected function registerPrivacyHooks(): void
+    {
+        /** @var PrivacyIntegration $privacyIntegration */
+        $privacyIntegration = $this->app->make( PrivacyIntegration::class );
+        $privacyIntegration->register();
     }
 }
