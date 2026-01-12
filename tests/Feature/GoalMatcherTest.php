@@ -565,14 +565,14 @@ test( 'goal model matches operator in array', function (): void {
             ],
         ],
         'is_active' => true,
-    ]);
+    ] );
 
     $event = Event::create( [
         'name'       => 'test_event',
         'properties' => ['plan' => 'pro'],
         'session_id' => Str::uuid()->toString(),
         'visitor_id' => Str::uuid()->toString(),
-    ]);
+    ] );
 
-    expect( $goal->matches( $event))->toBeTrue();
+    expect( $goal->matches( $event ) )->toBeTrue();
 });

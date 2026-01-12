@@ -583,7 +583,7 @@ class GoogleAnalyticsProvider extends AbstractAnalyticsProvider
         Log::debug(
             __( 'Google Analytics provider does not support query method ":method". Use the local provider for querying.', [
                 'method' => $method,
-            ]),
+            ] ),
             [
                 'provider' => $this->getName(),
                 'method'   => $method,

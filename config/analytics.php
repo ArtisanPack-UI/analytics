@@ -541,14 +541,120 @@ return [
 
         /*
         |----------------------------------------------------------------------
-        | Tenant Resolver
+        | Tenant Resolver (Legacy)
         |----------------------------------------------------------------------
         |
         | Class responsible for resolving the current tenant. Must implement
         | ArtisanPackUI\Analytics\Contracts\TenantResolverInterface.
         |
+        | Note: Consider using the 'resolvers' array below for more flexibility.
+        |
         */
         'resolver' => env( 'ANALYTICS_TENANT_RESOLVER' ),
+
+        /*
+        |----------------------------------------------------------------------
+        | Site Resolvers
+        |----------------------------------------------------------------------
+        |
+        | Array of resolver classes to use for site resolution. Resolvers
+        | are tried in priority order (lower numbers first).
+        |
+        | Available resolvers:
+        | - ArtisanPackUI\Analytics\Resolvers\ApiKeyResolver (priority: 10)
+        | - ArtisanPackUI\Analytics\Resolvers\HeaderResolver (priority: 50)
+        | - ArtisanPackUI\Analytics\Resolvers\SubdomainResolver (priority: 90)
+        | - ArtisanPackUI\Analytics\Resolvers\DomainResolver (priority: 100)
+        |
+        */
+        'resolvers' => [
+            ArtisanPackUI\Analytics\Resolvers\ApiKeyResolver::class,
+            ArtisanPackUI\Analytics\Resolvers\HeaderResolver::class,
+            ArtisanPackUI\Analytics\Resolvers\DomainResolver::class,
+        ],
+
+        /*
+        |----------------------------------------------------------------------
+        | Base Domain
+        |----------------------------------------------------------------------
+        |
+        | The base domain for subdomain-based tenant resolution.
+        | E.g., 'example.com' to resolve 'tenant.example.com'.
+        |
+        */
+        'base_domain' => env( 'ANALYTICS_BASE_DOMAIN' ),
+
+        /*
+        |----------------------------------------------------------------------
+        | Site Header
+        |----------------------------------------------------------------------
+        |
+        | HTTP header name used for header-based site resolution.
+        |
+        */
+        'site_header' => env( 'ANALYTICS_SITE_HEADER', 'X-Site-ID' ),
+
+        /*
+        |----------------------------------------------------------------------
+        | Allow API Key in Query String
+        |----------------------------------------------------------------------
+        |
+        | When enabled, API keys can be passed via query parameter (?api_key=xxx).
+        | This is disabled by default because query parameters may be logged
+        | in server access logs, creating a security risk. Enable only if you
+        | have a specific need and understand the implications.
+        |
+        */
+        'allow_query_api_key' => env( 'ANALYTICS_ALLOW_QUERY_API_KEY', false ),
+
+        /*
+        |----------------------------------------------------------------------
+        | Default Site ID
+        |----------------------------------------------------------------------
+        |
+        | Default site ID to use when no site can be resolved.
+        |
+        */
+        'default_site_id' => env( 'ANALYTICS_DEFAULT_SITE_ID' ),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Site Defaults
+    |--------------------------------------------------------------------------
+    |
+    | Default settings for new sites. These values are used when a site
+    | doesn't have a specific setting configured.
+    |
+    */
+    'site_defaults' => [
+        'tracking' => [
+            'enabled'            => true,
+            'respect_dnt'        => true,
+            'anonymize_ip'       => true,
+            'track_hash_changes' => false,
+        ],
+        'dashboard' => [
+            'public'              => false,
+            'default_date_range'  => 30,
+            'realtime_enabled'    => true,
+            'show_conversions'    => true,
+            'show_goals'          => true,
+        ],
+        'privacy' => [
+            'consent_required'        => false,
+            'consent_cookie_lifetime' => 365,
+            'excluded_paths'          => [],
+            'excluded_ips'            => [],
+        ],
+        'features' => [
+            'events'      => true,
+            'goals'       => true,
+            'conversions' => true,
+            'heatmaps'    => false,
+            'recordings'  => false,
+            'funnels'     => true,
+        ],
     ],
 
     /*

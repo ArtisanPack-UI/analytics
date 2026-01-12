@@ -51,6 +51,42 @@ readonly class DateRange
 	}
 
 	/**
+	 * Create a date range for the last 7 days.
+	 *
+	 * @return static
+	 *
+	 * @since 1.0.0
+	 */
+	public static function last7Days(): static
+	{
+		return static::lastDays( 7 );
+	}
+
+	/**
+	 * Create a date range for the last 30 days.
+	 *
+	 * @return static
+	 *
+	 * @since 1.0.0
+	 */
+	public static function last30Days(): static
+	{
+		return static::lastDays( 30 );
+	}
+
+	/**
+	 * Create a date range for the last 90 days.
+	 *
+	 * @return static
+	 *
+	 * @since 1.0.0
+	 */
+	public static function last90Days(): static
+	{
+		return static::lastDays( 90 );
+	}
+
+	/**
 	 * Create a date range for today.
 	 *
 	 * @return static
@@ -214,6 +250,33 @@ readonly class DateRange
 			$this->startDate->copy()->subDays( $days ),
 			$this->startDate->copy()->subDay()->endOfDay(),
 		);
+	}
+
+	/**
+	 * Alias for getPreviousPeriod().
+	 *
+	 * @return static
+	 *
+	 * @since 1.0.0
+	 */
+	public function previousPeriod(): static
+	{
+		return $this->getPreviousPeriod();
+	}
+
+	/**
+	 * Create a DateRange from Carbon instances.
+	 *
+	 * @param CarbonInterface $startDate The start date.
+	 * @param CarbonInterface $endDate   The end date.
+	 *
+	 * @return static
+	 *
+	 * @since 1.0.0
+	 */
+	public static function fromCarbon( CarbonInterface $startDate, CarbonInterface $endDate ): static
+	{
+		return new static( $startDate, $endDate );
 	}
 
 	/**

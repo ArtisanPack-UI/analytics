@@ -212,14 +212,14 @@ test( 'google provider generates client id when visitor id is missing', function
         $body = $request->data();
 
         return isset( $body['client_id'] )
-            && ! empty( $body['client_id']);
-    });
-});
+            && ! empty( $body['client_id'] );
+    } );
+} );
 
 test( 'google provider returns config array', function (): void {
     $provider = new GoogleAnalyticsProvider;
     $config   = $provider->getConfig();
 
-    expect( $config)->toBeArray();
-    expect( $config)->toHaveKeys( ['enabled', 'measurement_id', 'api_secret']);
+    expect( $config )->toBeArray();
+    expect( $config )->toHaveKeys( ['enabled', 'measurement_id', 'api_secret']);
 });

@@ -764,7 +764,7 @@ class AnalyticsQuery
             'value'    => $previous,
             'change'   => $change,
             'trend'    => $trend,
-            'positive' => ( $change > 0 && ! $invertBetter) || ( $change < 0 && $invertBetter),
+            'positive' => ( $change > 0 && ! $invertBetter ) || ( $change < 0 && $invertBetter ),
         ];
     }
 
@@ -777,9 +777,9 @@ class AnalyticsQuery
      *
      * @since 1.0.0
      */
-    protected function buildCacheKey( string $method, DateRange $range, mixed ...$params): string
+    protected function buildCacheKey( string $method, DateRange $range, mixed ...$params ): string
     {
-        $paramsHash = md5( serialize( $params));
+        $paramsHash = md5( serialize( $params ) );
 
         return sprintf(
             '%s%s_%s_%s',
@@ -804,16 +804,16 @@ class AnalyticsQuery
      *
      * @since 1.0.0
      */
-    protected function cached( string $key, callable $callback): mixed
+    protected function cached( string $key, callable $callback ): mixed
     {
-        if ( ! $this->cacheEnabled) {
+        if ( ! $this->cacheEnabled ) {
             return $callback();
         }
 
         $store = Cache::getStore();
 
         // Use cache tags if the driver supports them
-        if ( method_exists( $store, 'tags')) {
+        if ( method_exists( $store, 'tags' ) ) {
             return Cache::tags( $this->cacheTag)->remember( $key, $this->cacheDuration, $callback);
         }
 

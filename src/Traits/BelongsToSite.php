@@ -5,16 +5,22 @@ declare( strict_types=1 );
 namespace ArtisanPackUI\Analytics\Traits;
 
 use ArtisanPackUI\Analytics\Models\Site;
+use ArtisanPackUI\Analytics\Services\TenantManager;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Scope;
 
 /**
  * Trait for models that belong to a site.
  *
- * Provides common site relationship and scoping functionality.
+ * Provides common site relationship, scoping functionality,
+ * and automatic global scope for multi-tenant data isolation.
  *
  * @method static Builder forSite(int $siteId)
  * @method static Builder forCurrentSite()
+ * @method static Builder withoutSiteScope()
+ * @method static Builder allSites()
  *
  * @property int|null $site_id
  *
@@ -24,6 +30,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 trait BelongsToSite
 {
+	/**
+	 * Whether the site scope is enabled for this model instance.
+	 *
+	 * @var bool
+	 */
+	protected static bool $siteScopeEnabled = true;
+
 	/**
 	 * Get the site that this model belongs to.
 	 *
@@ -48,13 +61,13 @@ trait BelongsToSite
 	 */
 	public function scopeForSite( Builder $query, int $siteId ): Builder
 	{
-		return $query->where( 'site_id', $siteId );
+		return $query->withoutGlobalScope( 'site' )->where( 'site_id', $siteId );
 	}
 
 	/**
 	 * Scope a query to filter by current site.
 	 *
-	 * Uses the configured site resolver to determine the current site.
+	 * Uses the TenantManager to determine the current site.
 	 *
 	 * @param Builder $query The query builder.
 	 *
@@ -70,7 +83,37 @@ trait BelongsToSite
 			return $query;
 		}
 
-		return $query->where( 'site_id', $siteId );
+		return $query->withoutGlobalScope( 'site' )->where( 'site_id', $siteId );
+	}
+
+	/**
+	 * Scope a query to remove the site scope.
+	 *
+	 * Use this to query across all sites (admin queries).
+	 *
+	 * @param Builder $query The query builder.
+	 *
+	 * @return Builder
+	 *
+	 * @since 1.0.0
+	 */
+	public function scopeWithoutSiteScope( Builder $query ): Builder
+	{
+		return $query->withoutGlobalScope( 'site' );
+	}
+
+	/**
+	 * Get all records across all sites.
+	 *
+	 * This is an alias for withoutSiteScope() for semantic clarity.
+	 *
+	 * @return Builder
+	 *
+	 * @since 1.0.0
+	 */
+	public static function allSites(): Builder
+	{
+		return static::query()->withoutGlobalScope( 'site' );
 	}
 
 	/**
@@ -110,15 +153,55 @@ trait BelongsToSite
 	}
 
 	/**
+	 * Disable the site scope for a callback.
+	 *
+	 * @param callable $callback The callback to execute.
+	 *
+	 * @return mixed The callback return value.
+	 *
+	 * @since 1.0.0
+	 */
+	public static function withoutSiteScopeCallback( callable $callback ): mixed
+	{
+		if ( app()->bound( TenantManager::class ) ) {
+			return app( TenantManager::class )->withoutSite( $callback );
+		}
+
+		return $callback();
+	}
+
+	/**
 	 * Boot the trait.
 	 *
 	 * @return void
 	 */
 	protected static function bootBelongsToSite(): void
 	{
-		// Automatically set site_id when creating new records if a current site is set
+		// Add global scope for automatic site filtering when multi-tenant is enabled
+		if ( config( 'artisanpack.analytics.multi_tenant.enabled', false ) ) {
+			static::addGlobalScope( 'site', new class implements Scope {
+				/**
+				 * Apply the scope to a given Eloquent query builder.
+				 *
+				 * @param Builder $builder The query builder.
+				 * @param Model   $model   The model.
+				 *
+				 * @return void
+				 */
+				public function apply( Builder $builder, Model $model ): void
+				{
+					$tenantManager = app( TenantManager::class );
+
+					if ( $tenantManager->hasCurrent() ) {
+						$builder->where( $model->getTable() . '.site_id', $tenantManager->currentId() );
+					}
+				}
+			} );
+		}
+
+		// Automatically set site_id when creating new records
 		static::creating( function ( $model ): void {
-			if ( null === $model->site_id && method_exists( static::class, 'getCurrentSiteId' ) ) {
+			if ( null === $model->site_id ) {
 				$model->site_id = static::getCurrentSiteId();
 			}
 		} );
@@ -127,9 +210,8 @@ trait BelongsToSite
 	/**
 	 * Get the current site ID.
 	 *
-	 * This method checks for a site resolver in the config and uses it
-	 * to determine the current site. Falls back to null if no resolver
-	 * is configured.
+	 * Uses the TenantManager to determine the current site.
+	 * Falls back to configuration if no TenantManager context.
 	 *
 	 * @return int|null
 	 *
@@ -137,6 +219,16 @@ trait BelongsToSite
 	 */
 	protected static function getCurrentSiteId(): ?int
 	{
+		// First, check TenantManager
+		if ( app()->bound( TenantManager::class ) ) {
+			$tenantManager = app( TenantManager::class );
+
+			if ( $tenantManager->hasCurrent() ) {
+				return $tenantManager->currentId();
+			}
+		}
+
+		// Fall back to legacy resolver configuration
 		$resolver = config( 'artisanpack.analytics.multi_site.resolver' );
 
 		if ( null === $resolver ) {

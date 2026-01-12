@@ -362,11 +362,11 @@ test( 'local provider respects date range', function (): void {
         'path'       => '/yesterday',
         'session_id' => 'session-2',
         'visitor_id' => 'visitor-2',
-        'created_at' => now()->subDays( 2),
-    ]);
+        'created_at' => now()->subDays( 2 ),
+    ] );
 
     $range = DateRange::today();
-    $count = $provider->getPageViews( $range);
+    $count = $provider->getPageViews( $range );
 
-    expect( $count)->toBe( 1);
+    expect( $count )->toBe( 1 );
 });

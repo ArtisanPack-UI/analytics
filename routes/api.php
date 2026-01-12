@@ -5,6 +5,7 @@ declare( strict_types=1 );
 use ArtisanPackUI\Analytics\Http\Controllers\AnalyticsController;
 use ArtisanPackUI\Analytics\Http\Controllers\AnalyticsQueryController;
 use ArtisanPackUI\Analytics\Http\Controllers\ConsentController;
+use ArtisanPackUI\Analytics\Http\Controllers\SiteApiController;
 use Illuminate\Support\Facades\Route;
 
 /**
@@ -90,4 +91,85 @@ Route::middleware( config( 'artisanpack.analytics.dashboard_middleware', [ 'auth
 
 	Route::get( '/realtime', [ AnalyticsQueryController::class, 'realtime' ] )
 		->name( 'analytics.realtime' );
+} );
+
+/*
+|--------------------------------------------------------------------------
+| API Key Authenticated Routes (Multi-Tenant)
+|--------------------------------------------------------------------------
+|
+| These routes require API key authentication and are used for multi-tenant
+| integrations where each site has its own API key.
+|
+*/
+Route::middleware( [ 'analytics.api-key' ] )->prefix( 'v1' )->group( function (): void {
+	/*
+	|--------------------------------------------------------------------------
+	| Tracking Endpoints
+	|--------------------------------------------------------------------------
+	*/
+	Route::post( '/track/pageview', [ AnalyticsController::class, 'pageview' ] )
+		->name( 'analytics.api.track.pageview' );
+
+	Route::post( '/track/event', [ AnalyticsController::class, 'event' ] )
+		->name( 'analytics.api.track.event' );
+
+	Route::post( '/track/session/start', [ AnalyticsController::class, 'startSession' ] )
+		->name( 'analytics.api.track.session.start' );
+
+	Route::post( '/track/session/end', [ AnalyticsController::class, 'endSession' ] )
+		->name( 'analytics.api.track.session.end' );
+
+	Route::post( '/track/batch', [ AnalyticsController::class, 'batch' ] )
+		->name( 'analytics.api.track.batch' );
+
+	/*
+	|--------------------------------------------------------------------------
+	| Query Endpoints
+	|--------------------------------------------------------------------------
+	*/
+	Route::get( '/stats', [ AnalyticsQueryController::class, 'stats' ] )
+		->name( 'analytics.api.stats' );
+
+	Route::get( '/visitors', [ AnalyticsQueryController::class, 'visitors' ] )
+		->name( 'analytics.api.visitors' );
+
+	Route::get( '/pages', [ AnalyticsQueryController::class, 'pages' ] )
+		->name( 'analytics.api.pages' );
+
+	Route::get( '/events', [ AnalyticsQueryController::class, 'events' ] )
+		->name( 'analytics.api.events' );
+
+	Route::get( '/sources', [ AnalyticsQueryController::class, 'sources' ] )
+		->name( 'analytics.api.sources' );
+
+	Route::get( '/devices', [ AnalyticsQueryController::class, 'devices' ] )
+		->name( 'analytics.api.devices' );
+
+	Route::get( '/countries', [ AnalyticsQueryController::class, 'countries' ] )
+		->name( 'analytics.api.countries' );
+
+	Route::get( '/realtime', [ AnalyticsQueryController::class, 'realtime' ] )
+		->name( 'analytics.api.realtime' );
+
+	/*
+	|--------------------------------------------------------------------------
+	| Site Management Endpoints
+	|--------------------------------------------------------------------------
+	*/
+	Route::get( '/site', [ SiteApiController::class, 'show' ] )
+		->name( 'analytics.api.site.show' );
+
+	Route::put( '/site/settings', [ SiteApiController::class, 'updateSettings' ] )
+		->name( 'analytics.api.site.settings' );
+
+	Route::get( '/site/stats', [ SiteApiController::class, 'stats' ] )
+		->name( 'analytics.api.site.stats' );
+
+	Route::get( '/site/goals', [ SiteApiController::class, 'goals' ] )
+		->name( 'analytics.api.site.goals' );
+
+	// Note: API key rotation is intentionally NOT exposed via API key auth
+	// to prevent key holders from locking out site owners.
+	// Rotation should be done via dashboard with session auth.
 } );

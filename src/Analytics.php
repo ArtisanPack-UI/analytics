@@ -744,10 +744,10 @@ class Analytics implements AnalyticsQueryInterface, AnalyticsServiceInterface
         ];
 
         // Use Laravel's logger if available, fallback to error_log
-        if ( function_exists( 'logger')) {
-            logger()->error( $message, $context);
+        if ( function_exists( 'logger' ) ) {
+            logger()->error( $message, $context );
         } else {
-            error_log( $message . ' ' . json_encode( $context));
+            error_log( $message . ' ' . json_encode( $context ) );
         }
     }
 
@@ -760,7 +760,7 @@ class Analytics implements AnalyticsQueryInterface, AnalyticsServiceInterface
      *
      * @since 1.0.0
      */
-    protected function createProvider( string $name): AnalyticsProviderInterface
+    protected function createProvider( string $name ): AnalyticsProviderInterface
     {
         if ( isset( $this->customCreators[ $name ])) {
             return call_user_func( $this->customCreators[ $name ], $this->app);

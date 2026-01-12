@@ -136,6 +136,6 @@ readonly class EventData
             'source_package' => $this->sourcePackage,
             'page_view_id'   => $this->pageViewId,
             'tenant_id'      => $this->tenantId,
-        ], fn ( $value ) => null !== $value);
+        ], fn ( $value ) => null !== $value );
     }
 }
