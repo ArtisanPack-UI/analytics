@@ -8,7 +8,15 @@ use ArtisanPackUI\Analytics\AnalyticsServiceProvider;
 use Illuminate\Support\Facades\Blade;
 use Livewire\LivewireServiceProvider;
 use Orchestra\Testbench\TestCase as BaseTestCase;
+use Tests\Stubs\ButtonComponent;
+use Tests\Stubs\CardComponent;
+use Tests\Stubs\DropdownComponent;
 use Tests\Stubs\IconComponent;
+use Tests\Stubs\LoadingComponent;
+use Tests\Stubs\MenuItemComponent;
+use Tests\Stubs\ProgressComponent;
+use Tests\Stubs\SelectComponent;
+use Tests\Stubs\StatComponent;
 
 /**
  * Base test case for Analytics package tests.
@@ -26,8 +34,16 @@ abstract class TestCase extends BaseTestCase
 	{
 		parent::setUp();
 
-		// Register stub icon component for testing
+		// Register stub UI components for testing
 		Blade::component( 'artisanpack-icon', IconComponent::class );
+		Blade::component( 'artisanpack-button', ButtonComponent::class );
+		Blade::component( 'artisanpack-card', CardComponent::class );
+		Blade::component( 'artisanpack-dropdown', DropdownComponent::class );
+		Blade::component( 'artisanpack-menu-item', MenuItemComponent::class );
+		Blade::component( 'artisanpack-loading', LoadingComponent::class );
+		Blade::component( 'artisanpack-select', SelectComponent::class );
+		Blade::component( 'artisanpack-stat', StatComponent::class );
+		Blade::component( 'artisanpack-progress', ProgressComponent::class );
 	}
 
 	/**
