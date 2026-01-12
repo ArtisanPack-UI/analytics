@@ -5,7 +5,15 @@ declare( strict_types=1 );
 namespace ArtisanPackUI\Analytics;
 
 use ArtisanPackUI\Analytics\Auth\ApiKeyGuard;
+use ArtisanPackUI\Analytics\Console\Commands\CacheClearCommand;
+use ArtisanPackUI\Analytics\Console\Commands\CleanupCommand;
+use ArtisanPackUI\Analytics\Console\Commands\GoalsListCommand;
 use ArtisanPackUI\Analytics\Console\Commands\InstallCommand;
+use ArtisanPackUI\Analytics\Console\Commands\RealtimeCommand;
+use ArtisanPackUI\Analytics\Console\Commands\SiteApiKeyCommand;
+use ArtisanPackUI\Analytics\Console\Commands\SiteCreateCommand;
+use ArtisanPackUI\Analytics\Console\Commands\SitesListCommand;
+use ArtisanPackUI\Analytics\Console\Commands\StatsCommand;
 use ArtisanPackUI\Analytics\Contracts\AnalyticsServiceInterface;
 use ArtisanPackUI\Analytics\Http\Livewire\AnalyticsDashboard;
 use ArtisanPackUI\Analytics\Http\Livewire\MultiTenantDashboard;
@@ -30,12 +38,14 @@ use ArtisanPackUI\Analytics\Services\DataExportService;
 use ArtisanPackUI\Analytics\Services\EventProcessor;
 use ArtisanPackUI\Analytics\Services\FunnelAnalyzer;
 use ArtisanPackUI\Analytics\Services\GoalMatcher;
+use ArtisanPackUI\Analytics\Services\GoalService;
 use ArtisanPackUI\Analytics\Services\IpAnonymizer;
 use ArtisanPackUI\Analytics\Services\PrivacyIntegration;
 use ArtisanPackUI\Analytics\Services\SiteSettingsService;
 use ArtisanPackUI\Analytics\Services\TenantManager;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -91,6 +101,13 @@ class AnalyticsServiceProvider extends ServiceProvider
         // Register the GoalMatcher service
         $this->app->bind( GoalMatcher::class, function ( $app ) {
             return new GoalMatcher;
+        } );
+
+        // Register the GoalService
+        $this->app->bind( GoalService::class, function ( $app ) {
+            return new GoalService(
+                $app->make( GoalMatcher::class ),
+            );
         } );
 
         // Register the EventProcessor service
@@ -183,6 +200,7 @@ class AnalyticsServiceProvider extends ServiceProvider
         $this->registerCommands();
         $this->registerBuiltInProviders();
         $this->registerLivewireComponents();
+        $this->registerBladeDirectives();
         $this->registerPrivacyHooks();
         $this->registerAuthGuard();
     }
@@ -202,6 +220,7 @@ class AnalyticsServiceProvider extends ServiceProvider
             AnalyticsServiceInterface::class,
             AnalyticsQuery::class,
             GoalMatcher::class,
+            GoalService::class,
             EventProcessor::class,
             FunnelAnalyzer::class,
             IpAnonymizer::class,
@@ -385,6 +404,14 @@ class AnalyticsServiceProvider extends ServiceProvider
         if ( $this->app->runningInConsole() ) {
             $this->commands( [
                 InstallCommand::class,
+                StatsCommand::class,
+                CleanupCommand::class,
+                CacheClearCommand::class,
+                SitesListCommand::class,
+                SiteCreateCommand::class,
+                SiteApiKeyCommand::class,
+                GoalsListCommand::class,
+                RealtimeCommand::class,
             ] );
         }
     }
@@ -446,6 +473,77 @@ class AnalyticsServiceProvider extends ServiceProvider
         \Livewire\Livewire::component( 'artisanpack-analytics::site-selector', SiteSelector::class );
         \Livewire\Livewire::component( 'artisanpack-analytics::multi-tenant-dashboard', MultiTenantDashboard::class );
         \Livewire\Livewire::component( 'artisanpack-analytics::platform-dashboard', PlatformDashboard::class );
+    }
+
+    /**
+     * Register Blade directives for analytics.
+     *
+     * @return void
+     *
+     * @since 1.0.0
+     */
+    protected function registerBladeDirectives(): void
+    {
+        // @analyticsScripts - Output tracker script
+        Blade::directive( 'analyticsScripts', function ( $expression ): string {
+            $config = $expression ?: '[]';
+
+            return "<?php echo view('artisanpack-analytics::components.tracker-script', ['config' => {$config}])->render(); ?>";
+        } );
+
+        // @analyticsConsentBanner - Output consent banner
+        Blade::directive( 'analyticsConsentBanner', function (): string {
+            return "<?php echo view('artisanpack-analytics::components.consent-banner')->render(); ?>";
+        } );
+
+        // @analyticsConsent('type') / @endanalyticsConsent - Conditional consent block
+        Blade::directive( 'analyticsConsent', function ( $expression ): string {
+            $category = $expression ?: "'analytics'";
+
+            return "<?php if (config('artisanpack.analytics.privacy.consent_required', false) === false || (function_exists('analyticsHasConsent') && analyticsHasConsent(null, {$category}))): ?>";
+        } );
+
+        Blade::directive( 'endanalyticsConsent', function (): string {
+            return '<?php endif; ?>';
+        } );
+
+        // @analyticsPageView - Track page view inline
+        Blade::directive( 'analyticsPageView', function ( $expression ): string {
+            if ( '' === $expression || '()' === $expression ) {
+                return '<?php trackPageView(request()->path()); ?>';
+            }
+
+            return "<?php trackPageView({$expression}); ?>";
+        } );
+
+        // @analyticsEvent - Track event inline
+        Blade::directive( 'analyticsEvent', function ( $expression ): string {
+            return "<?php trackEvent({$expression}); ?>";
+        } );
+
+        // Only register Livewire directives if Livewire is available
+        if ( class_exists( \Livewire\Livewire::class ) ) {
+            // @analyticsDashboard - Render dashboard Livewire component
+            Blade::directive( 'analyticsDashboard', function (): string {
+                return "<?php echo \\Livewire\\Livewire::mount('artisanpack-analytics::analytics-dashboard')->html(); ?>";
+            } );
+
+            // @analyticsWidget - Render specific widget
+            Blade::directive( 'analyticsWidget', function ( $expression ): string {
+                $type = $expression ?: "'stats-cards'";
+
+                return "<?php echo \\Livewire\\Livewire::mount('artisanpack-analytics::' . {$type})->html(); ?>";
+            } );
+
+            // @analyticsPageStats - Show page statistics for current or specified path
+            Blade::directive( 'analyticsPageStats', function ( $expression ): string {
+                if ( '' === $expression || '()' === $expression ) {
+                    return "<?php echo \\Livewire\\Livewire::mount('artisanpack-analytics::page-analytics', ['path' => request()->path()])->html(); ?>";
+                }
+
+                return "<?php echo \\Livewire\\Livewire::mount('artisanpack-analytics::page-analytics', ['path' => {$expression}])->html(); ?>";
+            } );
+        }
     }
 
     /**
