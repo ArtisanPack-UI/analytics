@@ -648,11 +648,13 @@ class AnalyticsQuery
      * Clear all cached analytics query results.
      *
      * Uses cache tags if available (Redis, Memcached), otherwise
-     * falls back to clearing all keys matching the analytics prefix.
+     * returns false since we can't selectively clear without tags.
+     *
+     * @return bool True if cache was cleared, false if driver doesn't support tags.
      *
      * @since 1.0.0
      */
-    public function clearCache(): void
+    public function clearCache(): bool
     {
         $store = Cache::getStore();
 
@@ -660,12 +662,13 @@ class AnalyticsQuery
         if ( method_exists( $store, 'tags' ) ) {
             Cache::tags( $this->cacheTag )->flush();
 
-            return;
+            return true;
         }
 
         // For drivers that don't support tags, we can't selectively clear
-        // without tracking keys. Log a warning and skip the operation.
+        // without tracking keys. Return false to indicate cache wasn't cleared.
         // In production, consider using a cache driver that supports tags.
+        return false;
     }
 
     /**
