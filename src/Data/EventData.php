@@ -13,6 +13,8 @@ use InvalidArgumentException;
  * Encapsulates all data related to a custom event.
  *
  * @since   1.0.0
+ *
+ * @package ArtisanPackUI\Analytics\Data
  */
 readonly class EventData
 {
@@ -62,6 +64,8 @@ readonly class EventData
      * @param  Request  $request  The HTTP request.
      * @param  array<string, mixed>  $data  Additional data from the request body.
      *
+     * @return static
+     *
      * @since 1.0.0
      */
     public static function fromRequest( Request $request, array $data = [] ): static
@@ -94,6 +98,8 @@ readonly class EventData
      *
      * @param  string  $key  The property key to check.
      *
+     * @return bool True if the property exists.
+     *
      * @since 1.0.0
      */
     public function hasProperty( string $key ): bool
@@ -106,6 +112,8 @@ readonly class EventData
      *
      * @param  string  $key  The property key.
      * @param  mixed  $default  The default value if not found.
+     *
+     * @return mixed The property value or default.
      *
      * @since 1.0.0
      */

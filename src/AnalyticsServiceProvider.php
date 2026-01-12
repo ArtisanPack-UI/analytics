@@ -58,6 +58,8 @@ use Illuminate\Support\ServiceProvider;
  * UI package conventions.
  *
  * @since   1.0.0
+ *
+ * @package ArtisanPackUI\Analytics
  */
 class AnalyticsServiceProvider extends ServiceProvider
 {

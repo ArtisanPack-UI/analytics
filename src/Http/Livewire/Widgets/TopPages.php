@@ -14,7 +14,9 @@ use Livewire\Component;
  *
  * Displays a sortable list of top pages by views.
  *
- * @since 1.0.0
+ * @since   1.0.0
+ *
+ * @package ArtisanPackUI\Analytics\Http\Livewire\Widgets
  */
 class TopPages extends Component
 {
@@ -138,6 +140,8 @@ class TopPages extends Component
 
 	/**
 	 * Get the view for the component.
+	 *
+	 * @return \Illuminate\Contracts\View\View The component view.
 	 *
 	 * @since 1.0.0
 	 */

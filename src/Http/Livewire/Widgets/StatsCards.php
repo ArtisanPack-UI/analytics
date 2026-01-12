@@ -14,7 +14,9 @@ use Livewire\Component;
  * Displays key analytics metrics in a card grid format
  * with comparison to previous period.
  *
- * @since 1.0.0
+ * @since   1.0.0
+ *
+ * @package ArtisanPackUI\Analytics\Http\Livewire\Widgets
  */
 class StatsCards extends Component
 {
@@ -167,6 +169,8 @@ class StatsCards extends Component
 	 * @param mixed  $value  The value to format.
 	 * @param string $format The format type.
 	 *
+	 * @return string The formatted value.
+	 *
 	 * @since 1.0.0
 	 */
 	public function formatStatValue( mixed $value, string $format ): string
@@ -182,6 +186,8 @@ class StatsCards extends Component
 
 	/**
 	 * Get the view for the component.
+	 *
+	 * @return \Illuminate\Contracts\View\View The component view.
 	 *
 	 * @since 1.0.0
 	 */

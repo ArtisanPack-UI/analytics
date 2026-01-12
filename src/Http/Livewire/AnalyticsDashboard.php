@@ -15,7 +15,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * Main dashboard component that combines all analytics widgets
  * with period selection, tab navigation, and export functionality.
  *
- * @since 1.0.0
+ * @since   1.0.0
+ *
+ * @package ArtisanPackUI\Analytics\Http\Livewire
  */
 class AnalyticsDashboard extends Component
 {
@@ -177,6 +179,8 @@ class AnalyticsDashboard extends Component
 	/**
 	 * Export dashboard data as CSV.
 	 *
+	 * @return StreamedResponse The CSV file download response.
+	 *
 	 * @since 1.0.0
 	 */
 	public function exportCsv(): StreamedResponse
@@ -259,6 +263,8 @@ class AnalyticsDashboard extends Component
 	/**
 	 * Export dashboard data as JSON.
 	 *
+	 * @return StreamedResponse The JSON file download response.
+	 *
 	 * @since 1.0.0
 	 */
 	public function exportJson(): StreamedResponse
@@ -289,6 +295,8 @@ class AnalyticsDashboard extends Component
 
 	/**
 	 * Get the view for the component.
+	 *
+	 * @return \Illuminate\Contracts\View\View The component view.
 	 *
 	 * @since 1.0.0
 	 */

@@ -18,7 +18,9 @@ use Illuminate\Support\Facades\Cache;
  * Provides a high-level query interface with caching and
  * comparison support for analytics data.
  *
- * @since 1.0.0
+ * @since   1.0.0
+ *
+ * @package ArtisanPackUI\Analytics\Services
  */
 class AnalyticsQuery
 {
@@ -129,6 +131,8 @@ class AnalyticsQuery
      * @param  DateRange  $range  The date range to query.
      * @param  array<string, mixed>  $filters  Optional filters to apply.
      *
+     * @return int The total page view count.
+     *
      * @since 1.0.0
      */
     public function getPageViewCount( DateRange $range, array $filters = [] ): int
@@ -144,6 +148,8 @@ class AnalyticsQuery
      * @param  DateRange  $range  The date range to query.
      * @param  array<string, mixed>  $filters  Optional filters to apply.
      *
+     * @return int The unique visitor count.
+     *
      * @since 1.0.0
      */
     public function getVisitors( DateRange $range, array $filters = [] ): int
@@ -158,6 +164,8 @@ class AnalyticsQuery
      *
      * @param  DateRange  $range  The date range to query.
      * @param  array<string, mixed>  $filters  Optional filters to apply.
+     *
+     * @return int The total session count.
      *
      * @since 1.0.0
      */
@@ -210,6 +218,8 @@ class AnalyticsQuery
      * @param  DateRange  $range  The date range to query.
      * @param  array<string, mixed>  $filters  Optional filters to apply.
      *
+     * @return float The bounce rate as a percentage.
+     *
      * @since 1.0.0
      */
     public function getBounceRate( DateRange $range, array $filters = [] ): float
@@ -225,6 +235,8 @@ class AnalyticsQuery
      * @param  DateRange  $range  The date range to query.
      * @param  array<string, mixed>  $filters  Optional filters to apply.
      *
+     * @return int The average session duration in seconds.
+     *
      * @since 1.0.0
      */
     public function getAverageSessionDuration( DateRange $range, array $filters = [] ): int
@@ -239,6 +251,8 @@ class AnalyticsQuery
      *
      * @param  DateRange  $range  The date range to query.
      * @param  array<string, mixed>  $filters  Optional filters to apply.
+     *
+     * @return float The average pages per session.
      *
      * @since 1.0.0
      */
@@ -676,6 +690,8 @@ class AnalyticsQuery
      *
      * @param  bool  $enabled  Whether caching should be enabled.
      *
+     * @return static The current instance for method chaining.
+     *
      * @since 1.0.0
      */
     public function setCacheEnabled( bool $enabled ): static
@@ -689,6 +705,8 @@ class AnalyticsQuery
      * Set the cache duration.
      *
      * @param  int  $seconds  Cache duration in seconds.
+     *
+     * @return static The current instance for method chaining.
      *
      * @since 1.0.0
      */
@@ -777,6 +795,8 @@ class AnalyticsQuery
      * @param  string  $method  The method name.
      * @param  DateRange  $range  The date range.
      * @param  mixed  ...$params  Additional parameters.
+     *
+     * @return string The generated cache key.
      *
      * @since 1.0.0
      */

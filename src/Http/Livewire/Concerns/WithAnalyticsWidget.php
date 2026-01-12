@@ -13,7 +13,9 @@ use ArtisanPackUI\Analytics\Services\AnalyticsQuery;
  * Provides common features like date range handling, loading states,
  * and analytics query access for Livewire widgets.
  *
- * @since 1.0.0
+ * @since   1.0.0
+ *
+ * @package ArtisanPackUI\Analytics\Http\Livewire\Concerns
  */
 trait WithAnalyticsWidget
 {
@@ -141,6 +143,8 @@ trait WithAnalyticsWidget
 	/**
 	 * Get the label for the current date range preset.
 	 *
+	 * @return string The human-readable label for the date range.
+	 *
 	 * @since 1.0.0
 	 */
 	public function getDateRangeLabel(): string
@@ -153,6 +157,8 @@ trait WithAnalyticsWidget
 	/**
 	 * Get the analytics query service.
 	 *
+	 * @return AnalyticsQuery The analytics query service instance.
+	 *
 	 * @since 1.0.0
 	 */
 	protected function getAnalyticsQuery(): AnalyticsQuery
@@ -162,6 +168,8 @@ trait WithAnalyticsWidget
 
 	/**
 	 * Get the current date range based on the preset.
+	 *
+	 * @return DateRange The date range instance.
 	 *
 	 * @since 1.0.0
 	 */
@@ -184,6 +192,8 @@ trait WithAnalyticsWidget
 
 	/**
 	 * Get a custom date range from the custom dates.
+	 *
+	 * @return DateRange The custom date range instance.
 	 *
 	 * @since 1.0.0
 	 */
@@ -221,6 +231,8 @@ trait WithAnalyticsWidget
 	 *
 	 * @param float|int $number The number to format.
 	 *
+	 * @return string The formatted number string.
+	 *
 	 * @since 1.0.0
 	 */
 	protected function formatNumber( int|float $number ): string
@@ -241,6 +253,8 @@ trait WithAnalyticsWidget
 	 *
 	 * @param float $percentage The percentage to format.
 	 *
+	 * @return string The formatted percentage string.
+	 *
 	 * @since 1.0.0
 	 */
 	protected function formatPercentage( float $percentage ): string
@@ -252,6 +266,8 @@ trait WithAnalyticsWidget
 	 * Format a duration in seconds for display.
 	 *
 	 * @param int $seconds The duration in seconds.
+	 *
+	 * @return string The formatted duration string.
 	 *
 	 * @since 1.0.0
 	 */
@@ -280,6 +296,8 @@ trait WithAnalyticsWidget
 	 * @param float $change   The change percentage.
 	 * @param bool  $positive Whether positive change is good.
 	 *
+	 * @return string The CSS class for the trend indicator.
+	 *
 	 * @since 1.0.0
 	 */
 	protected function getTrendClass( float $change, bool $positive = true ): string
@@ -301,6 +319,8 @@ trait WithAnalyticsWidget
 	 * Get the trend indicator icon.
 	 *
 	 * @param float $change The change percentage.
+	 *
+	 * @return string The icon name for the trend indicator.
 	 *
 	 * @since 1.0.0
 	 */

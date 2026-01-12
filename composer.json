@@ -2,8 +2,8 @@
   "name": "artisanpack-ui/analytics",
   "description": "Privacy-first analytics package for Laravel with local database storage, external provider support (GA4, Plausible), and a beautiful Livewire dashboard.",
   "type": "library",
-  "license": "GPL-3.0-or-later",
-  "version": "1.0.0",
+  "license": "MIT",
+  "version": "1.0.0-beta1",
   "keywords": [
     "laravel",
     "analytics",

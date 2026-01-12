@@ -14,7 +14,9 @@ use Livewire\Component;
  *
  * Displays traffic sources with optional chart visualization.
  *
- * @since 1.0.0
+ * @since   1.0.0
+ *
+ * @package ArtisanPackUI\Analytics\Http\Livewire\Widgets
  */
 class TrafficSources extends Component
 {
@@ -161,6 +163,8 @@ class TrafficSources extends Component
 	/**
 	 * Get the total sessions.
 	 *
+	 * @return int The total number of sessions.
+	 *
 	 * @since 1.0.0
 	 */
 	public function getTotalSessions(): int
@@ -170,6 +174,8 @@ class TrafficSources extends Component
 
 	/**
 	 * Get the view for the component.
+	 *
+	 * @return \Illuminate\Contracts\View\View The component view.
 	 *
 	 * @since 1.0.0
 	 */

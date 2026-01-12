@@ -15,7 +15,9 @@ use Livewire\Component;
  * Displays a line chart of page views and visitors over time.
  * Designed for integration with Chart.js.
  *
- * @since 1.0.0
+ * @since   1.0.0
+ *
+ * @package ArtisanPackUI\Analytics\Http\Livewire\Widgets
  */
 class VisitorsChart extends Component
 {
@@ -164,6 +166,8 @@ class VisitorsChart extends Component
 	/**
 	 * Get the view for the component.
 	 *
+	 * @return \Illuminate\Contracts\View\View The component view.
+	 *
 	 * @since 1.0.0
 	 */
 	public function render(): \Illuminate\Contracts\View\View
@@ -227,6 +231,8 @@ class VisitorsChart extends Component
 	 * Format a date label based on granularity.
 	 *
 	 * @param string $date The date string.
+	 *
+	 * @return string The formatted date label.
 	 *
 	 * @since 1.0.0
 	 */

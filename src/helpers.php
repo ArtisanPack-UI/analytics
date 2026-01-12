@@ -1,5 +1,15 @@
 <?php
 
+/**
+ * ArtisanPack UI Analytics helper functions.
+ *
+ * Global helper functions for analytics tracking and querying.
+ *
+ * @since   1.0.0
+ *
+ * @package ArtisanPackUI\Analytics
+ */
+
 declare( strict_types=1 );
 
 use ArtisanPackUI\Analytics\Analytics;

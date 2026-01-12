@@ -14,7 +14,9 @@ use Livewire\Component;
  *
  * Displays the current number of active visitors with live updates.
  *
- * @since 1.0.0
+ * @since   1.0.0
+ *
+ * @package ArtisanPackUI\Analytics\Http\Livewire\Widgets
  */
 class RealtimeVisitors extends Component
 {
@@ -118,6 +120,8 @@ class RealtimeVisitors extends Component
 	/**
 	 * Get the trend indicator.
 	 *
+	 * @return string The trend direction ('up', 'down', or 'stable').
+	 *
 	 * @since 1.0.0
 	 */
 	public function getTrend(): string
@@ -136,6 +140,8 @@ class RealtimeVisitors extends Component
 	/**
 	 * Get the trend difference.
 	 *
+	 * @return int The absolute difference between current and previous count.
+	 *
 	 * @since 1.0.0
 	 */
 	public function getTrendDifference(): int
@@ -145,6 +151,8 @@ class RealtimeVisitors extends Component
 
 	/**
 	 * Get the status indicator class.
+	 *
+	 * @return string The CSS class for the status indicator.
 	 *
 	 * @since 1.0.0
 	 */
@@ -159,6 +167,8 @@ class RealtimeVisitors extends Component
 
 	/**
 	 * Get the pulse animation class.
+	 *
+	 * @return string The CSS class for the pulse animation.
 	 *
 	 * @since 1.0.0
 	 */
@@ -180,6 +190,8 @@ class RealtimeVisitors extends Component
 
 	/**
 	 * Get the view for the component.
+	 *
+	 * @return \Illuminate\Contracts\View\View The component view.
 	 *
 	 * @since 1.0.0
 	 */

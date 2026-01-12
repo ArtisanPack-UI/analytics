@@ -33,8 +33,10 @@ use Illuminate\Support\Facades\Facade;
  * @method static AnalyticsManager setDefaultProvider(string $name)
  * @method static array getProviderNames()
  *
- * @see AnalyticsManager
+ * @see     AnalyticsManager
  * @since   1.0.0
+ *
+ * @package ArtisanPackUI\Analytics\Facades
  */
 class Analytics extends Facade
 {
