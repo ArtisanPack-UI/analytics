@@ -140,6 +140,9 @@ class AnalyticsDashboard extends Component
 	public function refreshData(): void
 	{
 		$this->loadAllData();
+
+		// Dispatch event to refresh all child widget components
+		$this->dispatch( 'refresh-analytics-widgets' );
 	}
 
 	/**

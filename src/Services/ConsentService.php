@@ -38,14 +38,14 @@ class ConsentService
 	/**
 	 * Check if a visitor has active consent for a category.
 	 *
-	 * @param string $visitorFingerprint The visitor's fingerprint.
-	 * @param string $category           The consent category.
+	 * @param string|null $visitorFingerprint The visitor's fingerprint (null for server-side checks).
+	 * @param string      $category           The consent category.
 	 *
 	 * @return bool True if consent is granted.
 	 *
 	 * @since 1.0.0
 	 */
-	public function hasConsent( string $visitorFingerprint, string $category = 'analytics' ): bool
+	public function hasConsent( ?string $visitorFingerprint, string $category = 'analytics' ): bool
 	{
 		// Check with future privacy package first
 		if ( $this->hasPrivacyPackage() ) {
@@ -59,6 +59,11 @@ class ConsentService
 
 		// Check for DNT header
 		if ( $this->shouldRespectDnt() && $this->isDntEnabled() ) {
+			return false;
+		}
+
+		// If no fingerprint provided, cannot check stored consent
+		if ( null === $visitorFingerprint ) {
 			return false;
 		}
 

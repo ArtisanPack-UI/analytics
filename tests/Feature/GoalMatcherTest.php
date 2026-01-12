@@ -575,4 +575,4 @@ test( 'goal model matches operator in array', function (): void {
     ] );
 
     expect( $goal->matches( $event ) )->toBeTrue();
-});
+} );

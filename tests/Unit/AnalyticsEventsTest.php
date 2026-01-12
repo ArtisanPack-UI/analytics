@@ -88,4 +88,4 @@ test( 'event tracked uses dispatchable trait', function (): void {
 test( 'goal converted uses dispatchable trait', function (): void {
     expect( class_uses_recursive( GoalConverted::class ) )
         ->toContain( Illuminate\Foundation\Events\Dispatchable::class );
-});
+} );

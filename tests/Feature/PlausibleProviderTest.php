@@ -355,5 +355,5 @@ test( 'plausible provider returns config array', function (): void {
     $config   = $provider->getConfig();
 
     expect( $config )->toBeArray();
-    expect( $config )->toHaveKeys( ['enabled', 'domain', 'api_url', 'api_key']);
+    expect( $config )->toHaveKeys( ['enabled', 'domain', 'api_url', 'api_key'] );
 });

@@ -226,4 +226,4 @@ test( 'funnel analyzer calculates step conversion rates', function (): void {
         expect( $step )->toHaveKey( 'conversion_rate' );
         expect( $step )->toHaveKey( 'dropoff_rate' );
     }
-});
+} );

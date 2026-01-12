@@ -33,6 +33,7 @@ readonly class EventData
      * @param  string|null  $sourcePackage  The package that triggered the event.
      * @param  int|null  $pageViewId  The page view ID if associated.
      * @param  int|string|null  $tenantId  The tenant identifier for multi-tenant apps.
+     * @param  int|null  $siteId  The site identifier.
      *
      * @since 1.0.0
      */
@@ -51,6 +52,7 @@ readonly class EventData
         public ?string $sourcePackage = null,
         public ?int $pageViewId = null,
         public string|int|null $tenantId = null,
+        public ?int $siteId = null,
     ) {
     }
 
@@ -136,6 +138,7 @@ readonly class EventData
             'source_package' => $this->sourcePackage,
             'page_view_id'   => $this->pageViewId,
             'tenant_id'      => $this->tenantId,
+            'site_id'        => $this->siteId,
         ], fn ( $value ) => null !== $value );
     }
 }

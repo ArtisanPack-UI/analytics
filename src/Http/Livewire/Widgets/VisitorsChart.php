@@ -6,6 +6,7 @@ namespace ArtisanPackUI\Analytics\Http\Livewire\Widgets;
 
 use ArtisanPackUI\Analytics\Http\Livewire\Concerns\WithAnalyticsWidget;
 use Illuminate\Support\Collection;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 /**
@@ -110,6 +111,7 @@ class VisitorsChart extends Component
 	 *
 	 * @since 1.0.0
 	 */
+	#[On( 'refresh-analytics-widgets' )]
 	public function refreshData(): void
 	{
 		$this->loadChartData();

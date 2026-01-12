@@ -369,4 +369,4 @@ test( 'local provider respects date range', function (): void {
     $count = $provider->getPageViews( $range );
 
     expect( $count )->toBe( 1 );
-});
+} );

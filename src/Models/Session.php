@@ -266,7 +266,8 @@ class Session extends Model
 
 		$end = $this->ended_at ?? $this->last_activity_at ?? $this->started_at;
 
-		return $end->diffInSeconds( $this->started_at );
+		// Ensure duration is never negative (can happen with timezone issues)
+		return max( 0, (int) $end->diffInSeconds( $this->started_at ) );
 	}
 
 	/**

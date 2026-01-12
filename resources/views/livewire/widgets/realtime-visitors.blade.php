@@ -1,36 +1,22 @@
 <div wire:poll.{{ $pollingInterval }}ms="poll">
-	<div class="card bg-base-100 shadow-sm">
-		<div class="card-body">
-			{{-- Header --}}
-			<div class="flex items-center justify-between">
-				<h3 class="font-semibold text-base-content">
-					{{ __( 'Active Visitors' ) }}
-				</h3>
-				<div class="flex items-center gap-2">
-					{{-- Polling Toggle --}}
-					<button
-						type="button"
-						wire:click="togglePolling"
-						class="btn btn-ghost btn-xs"
-						title="{{ $pollingEnabled ? __( 'Pause updates' ) : __( 'Resume updates' ) }}"
-					>
-						@if ( $pollingEnabled )
-							<x-artisanpack-icon name="o-pause" class="w-4 h-4" />
-						@else
-							<x-artisanpack-icon name="o-play" class="w-4 h-4" />
-						@endif
-					</button>
-					{{-- Refresh Button --}}
-					<button
-						type="button"
-						wire:click="refreshData"
-						class="btn btn-ghost btn-xs"
-						title="{{ __( 'Refresh' ) }}"
-					>
-						<x-artisanpack-icon name="o-arrow-path" class="w-4 h-4" />
-					</button>
-				</div>
-			</div>
+	<x-artisanpack-card :title="__( 'Active Visitors' )">
+		<x-slot:menu>
+			{{-- Polling Toggle --}}
+			<x-artisanpack-button
+				wire:click="togglePolling"
+				class="btn-ghost btn-xs"
+				:icon="$pollingEnabled ? 'o-pause' : 'o-play'"
+				:tooltip="$pollingEnabled ? __( 'Pause updates' ) : __( 'Resume updates' )"
+			/>
+			{{-- Refresh Button --}}
+			<x-artisanpack-button
+				wire:click="refreshData"
+				class="btn-ghost btn-xs"
+				icon="o-arrow-path"
+				spinner
+				:tooltip="__( 'Refresh' )"
+			/>
+		</x-slot:menu>
 
 			{{-- Main Display --}}
 			<div class="flex flex-col items-center justify-center py-6">
@@ -84,17 +70,16 @@
 				@endif
 			</div>
 
-			{{-- Footer --}}
-			<div class="flex items-center justify-between text-xs text-base-content/50">
+		{{-- Footer --}}
+		<div class="flex items-center justify-between text-xs text-base-content/50">
+			<span>
+				{{ __( 'Active in last :minutes minutes', ['minutes' => $activeMinutes] ) }}
+			</span>
+			@if ( $lastUpdated )
 				<span>
-					{{ __( 'Active in last :minutes minutes', ['minutes' => $activeMinutes] ) }}
+					{{ __( 'Updated' ) }}: {{ \Carbon\Carbon::parse( $lastUpdated )->diffForHumans() }}
 				</span>
-				@if ( $lastUpdated )
-					<span>
-						{{ __( 'Updated' ) }}: {{ \Carbon\Carbon::parse( $lastUpdated )->diffForHumans() }}
-					</span>
-				@endif
-			</div>
+			@endif
 		</div>
-	</div>
+	</x-artisanpack-card>
 </div>

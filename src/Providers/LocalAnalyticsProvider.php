@@ -109,6 +109,7 @@ class LocalAnalyticsProvider extends AbstractAnalyticsProvider
     public function storePageView( PageViewData $data ): void
     {
         PageView::create( [
+            'site_id'     => $data->siteId,
             'session_id'  => $data->sessionId,
             'visitor_id'  => $data->visitorId,
             'path'        => $data->path,
@@ -135,6 +136,7 @@ class LocalAnalyticsProvider extends AbstractAnalyticsProvider
     public function storeEvent( EventData $data ): void
     {
         Event::create( [
+            'site_id'    => $data->siteId,
             'session_id' => $data->sessionId,
             'visitor_id' => $data->visitorId,
             'name'       => $data->name,
@@ -597,25 +599,29 @@ class LocalAnalyticsProvider extends AbstractAnalyticsProvider
      *
      * @param  Builder  $query  The query builder.
      * @param  array<string, mixed>  $filters  The filters to apply.
+     * @param  string|null  $tablePrefix  Optional table name prefix for qualified column names.
      *
      * @since 1.0.0
      */
-    protected function applyFilters( Builder $query, array $filters ): Builder
+    protected function applyFilters( Builder $query, array $filters, ?string $tablePrefix = null ): Builder
     {
+        // Get the table name from the query's model if not provided
+        $table = $tablePrefix ?? $query->getModel()->getTable();
+
         if ( isset( $filters['site_id'] ) ) {
-            $query->where( 'site_id', $filters['site_id'] );
+            $query->where( $table . '.site_id', $filters['site_id'] );
         }
 
         if ( isset( $filters['tenant_id'] ) && config( 'artisanpack.analytics.multi_tenant.enabled', false ) ) {
-            $query->where( 'tenant_id', $filters['tenant_id'] );
+            $query->where( $table . '.tenant_id', $filters['tenant_id'] );
         }
 
         if ( isset( $filters['path'] ) ) {
-            $query->where( 'path', $filters['path'] );
+            $query->where( $table . '.path', $filters['path'] );
         }
 
         if ( isset( $filters['visitor_id'] ) ) {
-            $query->where( 'visitor_id', $filters['visitor_id'] );
+            $query->where( $table . '.visitor_id', $filters['visitor_id'] );
         }
 
         return $query;
@@ -632,7 +638,7 @@ class LocalAnalyticsProvider extends AbstractAnalyticsProvider
      */
     protected function getDateFormatForGranularity( string $granularity ): string
     {
-        return match ( $granularity) {
+        return match ( $granularity ) {
             'hour'  => '%Y-%m-%d %H:00',
             'week'  => '%Y-%W',
             'month' => '%Y-%m',

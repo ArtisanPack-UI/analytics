@@ -1,36 +1,28 @@
 <div>
 	{{-- Loading State --}}
 	@if ( $isLoading )
-		<div class="card bg-base-100 shadow-sm">
-			<div class="card-body">
-				<div class="h-4 bg-base-300 rounded w-1/4 mb-4 animate-pulse"></div>
-				<div class="flex gap-4">
-					<div class="h-48 w-48 bg-base-300 rounded-full animate-pulse"></div>
-					<div class="flex-1 space-y-2">
-						@foreach ( range( 1, 5 ) as $i )
-							<div class="h-4 bg-base-300 rounded animate-pulse"></div>
-						@endforeach
-					</div>
+		<x-artisanpack-card>
+			<div class="h-4 bg-base-300 rounded w-1/4 mb-4 animate-pulse"></div>
+			<div class="flex gap-4">
+				<div class="h-48 w-48 bg-base-300 rounded-full animate-pulse"></div>
+				<div class="flex-1 space-y-2">
+					@foreach ( range( 1, 5 ) as $i )
+						<div class="h-4 bg-base-300 rounded animate-pulse"></div>
+					@endforeach
 				</div>
 			</div>
-		</div>
+		</x-artisanpack-card>
 	@else
-		<div class="card bg-base-100 shadow-sm">
-			<div class="card-body">
-				{{-- Header --}}
-				<div class="flex items-center justify-between mb-4">
-					<h3 class="font-semibold text-base-content">
-						{{ __( 'Traffic Sources' ) }}
-					</h3>
-					<button
-						type="button"
-						wire:click="refreshData"
-						class="btn btn-ghost btn-xs"
-						title="{{ __( 'Refresh' ) }}"
-					>
-						<x-artisanpack-icon name="o-arrow-path" class="w-4 h-4" />
-					</button>
-				</div>
+		<x-artisanpack-card :title="__( 'Traffic Sources' )">
+			<x-slot:menu>
+				<x-artisanpack-button
+					wire:click="refreshData"
+					class="btn-ghost btn-xs"
+					icon="o-arrow-path"
+					spinner
+					:tooltip="__( 'Refresh' )"
+				/>
+			</x-slot:menu>
 
 				@if ( $sources->isEmpty() )
 					<div class="flex flex-col items-center justify-center py-8 text-base-content/50">
@@ -125,7 +117,6 @@
 						</div>
 					</div>
 				@endif
-			</div>
-		</div>
+		</x-artisanpack-card>
 	@endif
 </div>

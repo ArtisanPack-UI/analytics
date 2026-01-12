@@ -221,5 +221,5 @@ test( 'google provider returns config array', function (): void {
     $config   = $provider->getConfig();
 
     expect( $config )->toBeArray();
-    expect( $config )->toHaveKeys( ['enabled', 'measurement_id', 'api_secret']);
+    expect( $config )->toHaveKeys( ['enabled', 'measurement_id', 'api_secret'] );
 });

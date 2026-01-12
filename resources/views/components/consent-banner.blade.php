@@ -79,6 +79,13 @@
             // Store locally
             localStorage.setItem( this.storageKey, JSON.stringify( this.categories ) );
 
+            // Also set a cookie so the server can read consent status
+            const consentValue = JSON.stringify( this.categories );
+            const expiryDays = 365;
+            const date = new Date();
+            date.setTime( date.getTime() + ( expiryDays * 24 * 60 * 60 * 1000 ) );
+            document.cookie = `ap_consent=${encodeURIComponent( consentValue )}; expires=${date.toUTCString()}; path=/; SameSite=Lax`;
+
             // Notify the JavaScript tracker if available
             if ( window.ArtisanPackAnalytics ) {
                 Object.entries( this.categories ).forEach( ( [ cat, granted ] ) => {
@@ -98,7 +105,7 @@
                         headers: {
                             'Content-Type': 'application/json',
                             'Accept': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector( 'meta[name=\"csrf-token\"]' )?.content || '',
+                            'X-CSRF-TOKEN': document.querySelector( 'meta[name=&quot;csrf-token&quot;]' )?.content || '',
                         },
                         body: JSON.stringify( {
                             visitor_id: this.visitorId,
@@ -164,15 +171,14 @@
                         {{ __( 'We use cookies to understand how you use our website and improve your experience.' ) }}
                     </p>
                 </div>
-                <button
+                <x-artisanpack-button
                     @click="showDetails = !showDetails"
-                    type="button"
-                    class="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 underline focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
-                    :aria-expanded="showDetails"
+                    class="btn-link btn-sm"
+                    x-bind:aria-expanded="showDetails"
                     aria-controls="consent-details"
                 >
                     <span x-text="showDetails ? '{{ __( 'Hide Details' ) }}' : '{{ __( 'Show Details' ) }}'"></span>
-                </button>
+                </x-artisanpack-button>
             </div>
 
             {{-- Category Details --}}
@@ -214,28 +220,22 @@
 
             {{-- Actions --}}
             <div class="flex flex-wrap items-center justify-end gap-3">
-                <button
+                <x-artisanpack-button
                     @click="rejectAll"
-                    type="button"
-                    class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-gray-500 rounded-lg"
-                >
-                    {{ __( 'Reject All' ) }}
-                </button>
-                <button
+                    class="btn-ghost btn-sm"
+                    :label="__( 'Reject All' )"
+                />
+                <x-artisanpack-button
                     x-show="showDetails"
                     @click="savePreferences"
-                    type="button"
-                    class="px-4 py-2 text-sm font-medium bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
-                >
-                    {{ __( 'Save Preferences' ) }}
-                </button>
-                <button
+                    class="btn-neutral btn-sm"
+                    :label="__( 'Save Preferences' )"
+                />
+                <x-artisanpack-button
                     @click="acceptAll"
-                    type="button"
-                    class="px-4 py-2 text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
-                >
-                    {{ __( 'Accept All' ) }}
-                </button>
+                    class="btn-primary btn-sm"
+                    :label="__( 'Accept All' )"
+                />
             </div>
         </div>
     </div>

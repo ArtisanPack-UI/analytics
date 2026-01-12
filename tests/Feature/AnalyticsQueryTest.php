@@ -404,4 +404,4 @@ test( 'analytics query returns conversions over time', function (): void {
     $conversions = $query->getConversionsOverTime( $range, 'day' );
 
     expect( $conversions )->toBeInstanceOf( Illuminate\Support\Collection::class );
-});
+} );

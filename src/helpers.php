@@ -410,14 +410,14 @@ if ( ! function_exists( 'analyticsHasConsent' ) ) {
 	/**
 	 * Check if a visitor has analytics consent.
 	 *
-	 * @param string $fingerprint The visitor's fingerprint.
-	 * @param string $category    The consent category.
+	 * @param string|null $fingerprint The visitor's fingerprint (null for server-side checks).
+	 * @param string      $category    The consent category.
 	 *
 	 * @return bool True if consent is granted.
 	 *
 	 * @since 1.0.0
 	 */
-	function analyticsHasConsent( string $fingerprint, string $category = 'analytics' ): bool
+	function analyticsHasConsent( ?string $fingerprint, string $category = 'analytics' ): bool
 	{
 		return app( ConsentService::class )->hasConsent( $fingerprint, $category );
 	}

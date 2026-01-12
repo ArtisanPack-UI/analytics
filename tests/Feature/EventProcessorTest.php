@@ -217,4 +217,4 @@ test( 'event processor handles path context', function (): void {
     $event = $processor->process( $data );
 
     expect( $event->path )->toBe( '/long-article' );
-});
+} );

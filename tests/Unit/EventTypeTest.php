@@ -154,5 +154,5 @@ test( 'can get engagement events', function (): void {
 
     expect( $engagementEvents )->toContain( EventType::CLICK );
     expect( $engagementEvents )->toContain( EventType::SCROLL );
-    expect( $engagementEvents )->toContain( EventType::DOWNLOAD);
-});
+    expect( $engagementEvents )->toContain( EventType::DOWNLOAD );
+} );

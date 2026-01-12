@@ -45,6 +45,7 @@ readonly class PageViewData
 	 * @param float|null                $loadTime        The page load time in milliseconds.
 	 * @param array<string, mixed>|null $customData      Custom data to store with the page view.
 	 * @param int|string|null           $tenantId        The tenant identifier for multi-tenant apps.
+	 * @param int|null                  $siteId          The site identifier.
 	 *
 	 * @since 1.0.0
 	 */
@@ -74,6 +75,7 @@ readonly class PageViewData
 		public ?float $loadTime = null,
 		public ?array $customData = null,
 		public string|int|null $tenantId = null,
+		public ?int $siteId = null,
 	) {
 	}
 
@@ -153,6 +155,7 @@ readonly class PageViewData
 			'load_time'       => $this->loadTime,
 			'custom_data'     => $this->customData,
 			'tenant_id'       => $this->tenantId,
+			'site_id'         => $this->siteId,
 		], fn ( $value ) => null !== $value );
 	}
 }

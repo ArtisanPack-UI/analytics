@@ -500,7 +500,22 @@ class AnalyticsServiceProvider extends ServiceProvider
         Blade::directive( 'analyticsConsent', function ( $expression ): string {
             $category = $expression ?: "'analytics'";
 
-            return "<?php if (config('artisanpack.analytics.privacy.consent_required', false) === false || (function_exists('analyticsHasConsent') && analyticsHasConsent(null, {$category}))): ?>";
+            // Check consent from cookie (set by consent banner) for server-side rendering
+            // Use $_COOKIE directly to read the unencrypted JS-set cookie
+            return "<?php
+                \$__consentRequired = config('artisanpack.analytics.privacy.consent_required', false);
+                \$__hasConsent = false;
+                if ( ! \$__consentRequired ) {
+                    \$__hasConsent = true;
+                } else {
+                    \$__consentCookie = isset( \$_COOKIE['ap_consent'] ) ? urldecode( \$_COOKIE['ap_consent'] ) : null;
+                    if ( \$__consentCookie ) {
+                        \$__consentData = json_decode( \$__consentCookie, true );
+                        \$__category = {$category};
+                        \$__hasConsent = isset( \$__consentData[ \$__category ] ) && \$__consentData[ \$__category ] === true;
+                    }
+                }
+                if ( \$__hasConsent ): ?>";
         } );
 
         Blade::directive( 'endanalyticsConsent', function (): string {

@@ -1,34 +1,26 @@
 <div>
 	{{-- Loading State --}}
 	@if ( $isLoading )
-		<div class="card bg-base-100 shadow-sm">
-			<div class="card-body">
-				<div class="h-4 bg-base-300 rounded w-1/4 mb-4 animate-pulse"></div>
-				@foreach ( range( 1, 5 ) as $i )
-					<div class="flex justify-between py-2 animate-pulse">
-						<div class="h-4 bg-base-300 rounded w-2/3"></div>
-						<div class="h-4 bg-base-300 rounded w-16"></div>
-					</div>
-				@endforeach
-			</div>
-		</div>
-	@else
-		<div class="card bg-base-100 shadow-sm">
-			<div class="card-body">
-				{{-- Header --}}
-				<div class="flex items-center justify-between mb-4">
-					<h3 class="font-semibold text-base-content">
-						{{ __( 'Top Pages' ) }}
-					</h3>
-					<button
-						type="button"
-						wire:click="refreshData"
-						class="btn btn-ghost btn-xs"
-						title="{{ __( 'Refresh' ) }}"
-					>
-						<x-artisanpack-icon name="o-arrow-path" class="w-4 h-4" />
-					</button>
+		<x-artisanpack-card>
+			<div class="h-4 bg-base-300 rounded w-1/4 mb-4 animate-pulse"></div>
+			@foreach ( range( 1, 5 ) as $i )
+				<div class="flex justify-between py-2 animate-pulse">
+					<div class="h-4 bg-base-300 rounded w-2/3"></div>
+					<div class="h-4 bg-base-300 rounded w-16"></div>
 				</div>
+			@endforeach
+		</x-artisanpack-card>
+	@else
+		<x-artisanpack-card :title="__( 'Top Pages' )">
+			<x-slot:menu>
+				<x-artisanpack-button
+					wire:click="refreshData"
+					class="btn-ghost btn-xs"
+					icon="o-arrow-path"
+					spinner
+					:tooltip="__( 'Refresh' )"
+				/>
+			</x-slot:menu>
 
 				{{-- Table --}}
 				@if ( $pages->isEmpty() )
@@ -87,7 +79,6 @@
 						</table>
 					</div>
 				@endif
-			</div>
-		</div>
+		</x-artisanpack-card>
 	@endif
 </div>

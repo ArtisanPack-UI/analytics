@@ -78,8 +78,38 @@ class TrackingService
 			// Increment visitor counters
 			$this->visitorResolver->incrementCounter( $visitor, 'pageviews' );
 
+			// Update enrichedData with resolved visitor and session IDs for storage
+			$finalData = new PageViewData(
+				path: $enrichedData->path,
+				title: $enrichedData->title,
+				referrer: $enrichedData->referrer,
+				sessionId: null !== $session ? $session->id : $enrichedData->sessionId,
+				visitorId: $visitor->id,
+				ipAddress: $enrichedData->ipAddress,
+				userAgent: $enrichedData->userAgent,
+				country: $enrichedData->country,
+				deviceType: $enrichedData->deviceType,
+				browser: $enrichedData->browser,
+				browserVersion: $enrichedData->browserVersion,
+				os: $enrichedData->os,
+				osVersion: $enrichedData->osVersion,
+				screenWidth: $enrichedData->screenWidth,
+				screenHeight: $enrichedData->screenHeight,
+				viewportWidth: $enrichedData->viewportWidth,
+				viewportHeight: $enrichedData->viewportHeight,
+				utmSource: $enrichedData->utmSource,
+				utmMedium: $enrichedData->utmMedium,
+				utmCampaign: $enrichedData->utmCampaign,
+				utmTerm: $enrichedData->utmTerm,
+				utmContent: $enrichedData->utmContent,
+				loadTime: $enrichedData->loadTime,
+				customData: $enrichedData->customData,
+				tenantId: $enrichedData->tenantId,
+				siteId: $siteId,
+			);
+
 			// Dispatch job for processing
-			$this->dispatchPageView( $enrichedData, $siteId );
+			$this->dispatchPageView( $finalData, $siteId );
 		} catch ( Throwable $e ) {
 			Log::error( 'Analytics tracking error (pageview)', [
 				'error' => $e->getMessage(),
@@ -155,22 +185,42 @@ class TrackingService
 	public function trackEvent( EventData $data, Request $request, ?int $siteId = null ): void
 	{
 		try {
-			// Resolve visitor if we have an ID
-			if ( null !== $data->visitorId ) {
-				$visitor = $this->visitorResolver->resolveById( $data->visitorId, $siteId );
+			// Resolve or create visitor from request
+			$visitorData = $this->createVisitorDataFromRequest( $request, $data->toArray() );
+			$visitor     = $this->visitorResolver->resolve( $visitorData, $siteId );
 
-				if ( null !== $visitor ) {
-					$this->visitorResolver->incrementCounter( $visitor, 'events' );
-				}
+			// Increment visitor counter
+			$this->visitorResolver->incrementCounter( $visitor, 'events' );
+
+			// Get or create session if we have a session ID
+			$sessionId = $data->sessionId ?? '';
+			$session   = null;
+
+			if ( '' !== $sessionId ) {
+				$session = $this->sessionManager->getOrCreate( $sessionId, $visitor, $siteId );
 			}
 
-			// Extend session if we have one
-			if ( null !== $data->sessionId ) {
-				$this->sessionManager->extend( $data->sessionId, $siteId );
-			}
+			// Create final EventData with resolved visitor and session IDs
+			$finalData = new EventData(
+				name: $data->name,
+				properties: $data->properties,
+				sessionId: null !== $session ? $session->id : $data->sessionId,
+				visitorId: $visitor->id,
+				path: $data->path,
+				ipAddress: $this->ipAnonymizer->anonymize( $request->ip() ),
+				userAgent: $request->userAgent(),
+				value: $data->value,
+				category: $data->category,
+				action: $data->action,
+				label: $data->label,
+				sourcePackage: $data->sourcePackage,
+				pageViewId: $data->pageViewId,
+				tenantId: $data->tenantId ?? $this->getTenantId( $request ),
+				siteId: $siteId,
+			);
 
 			// Dispatch job for processing
-			$this->dispatchEvent( $data, $siteId );
+			$this->dispatchEvent( $finalData, $siteId );
 		} catch ( Throwable $e ) {
 			Log::error( 'Analytics tracking error (event)', [
 				'error' => $e->getMessage(),

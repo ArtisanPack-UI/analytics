@@ -1,34 +1,24 @@
 <div>
 	{{-- Loading State --}}
 	@if ( $isLoading )
-		<div class="card bg-base-100 shadow-sm">
-			<div class="card-body">
-				<div class="h-4 bg-base-300 rounded w-1/4 mb-4 animate-pulse"></div>
-				<div class="bg-base-300 rounded animate-pulse" style="height: {{ $height }}px"></div>
-			</div>
-		</div>
+		<x-artisanpack-card>
+			<div class="h-4 bg-base-300 rounded w-1/4 mb-4 animate-pulse"></div>
+			<div class="bg-base-300 rounded animate-pulse" style="height: {{ $height }}px"></div>
+		</x-artisanpack-card>
 	@else
-		<div class="card bg-base-100 shadow-sm">
-			<div class="card-body">
-				{{-- Header --}}
-				<div class="flex items-center justify-between mb-4">
-					<h3 class="font-semibold text-base-content">
-						{{ __( 'Visitors Over Time' ) }}
-					</h3>
-
-					{{-- Granularity Selector --}}
-					<div class="flex gap-1">
-						@foreach ( ['hour' => __( 'Hourly' ), 'day' => __( 'Daily' ), 'week' => __( 'Weekly' ), 'month' => __( 'Monthly' )] as $key => $label )
-							<button
-								type="button"
-								wire:click="setGranularity('{{ $key }}')"
-								class="btn btn-xs {{ $granularity === $key ? 'btn-primary' : 'btn-ghost' }}"
-							>
-								{{ $label }}
-							</button>
-						@endforeach
-					</div>
+		<x-artisanpack-card :title="__( 'Visitors Over Time' )">
+			<x-slot:menu>
+				{{-- Granularity Selector --}}
+				<div class="flex gap-1">
+					@foreach ( ['hour' => __( 'Hourly' ), 'day' => __( 'Daily' ), 'week' => __( 'Weekly' ), 'month' => __( 'Monthly' )] as $key => $label )
+						<x-artisanpack-button
+							wire:click="setGranularity('{{ $key }}')"
+							:class="'btn-xs ' . ( $granularity === $key ? 'btn-primary' : 'btn-ghost' )"
+							:label="$label"
+						/>
+					@endforeach
 				</div>
+			</x-slot:menu>
 
 				{{-- Chart Container or Empty State --}}
 				@if ( ! empty( $chartData['labels'] ) )
@@ -37,14 +27,21 @@
 						x-data="{
 							chart: null,
 							init() {
-								this.renderChart();
-								$wire.on('chartDataUpdated', () => {
+								this.$nextTick(() => {
 									this.renderChart();
+								});
+								$wire.on('chartDataUpdated', () => {
+									this.$nextTick(() => {
+										this.renderChart();
+									});
 								});
 							},
 							renderChart() {
 								if (this.chart) {
 									this.chart.destroy();
+								}
+								if (!this.$refs.canvas) {
+									return;
 								}
 								const ctx = this.$refs.canvas.getContext('2d');
 								this.chart = new Chart(ctx, @js( $this->getChartConfig() ));
@@ -64,7 +61,6 @@
 						<p>{{ __( 'No data available for this period' ) }}</p>
 					</div>
 				@endif
-			</div>
-		</div>
+		</x-artisanpack-card>
 	@endif
 </div>
