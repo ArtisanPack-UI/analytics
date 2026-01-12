@@ -4,11 +4,11 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\Analytics\Models;
 
+use ArtisanPackUI\Analytics\Traits\BelongsToSite;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Aggregate model for analytics.
@@ -46,6 +46,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class Aggregate extends Model
 {
+	use BelongsToSite;
 	use HasFactory;
 
 	/**
@@ -111,18 +112,6 @@ class Aggregate extends Model
 	];
 
 	/**
-	 * Get the site that this aggregate belongs to.
-	 *
-	 * @return BelongsTo<Site, Aggregate>
-	 *
-	 * @since 1.0.0
-	 */
-	public function site(): BelongsTo
-	{
-		return $this->belongsTo( Site::class );
-	}
-
-	/**
 	 * Get the connection name for the model.
 	 *
 	 * @return string|null
@@ -130,21 +119,6 @@ class Aggregate extends Model
 	public function getConnectionName(): ?string
 	{
 		return config( 'artisanpack.analytics.local.connection' );
-	}
-
-	/**
-	 * Scope a query to filter by site.
-	 *
-	 * @param Builder $query  The query builder.
-	 * @param int     $siteId The site ID.
-	 *
-	 * @return Builder
-	 *
-	 * @since 1.0.0
-	 */
-	public function scopeForSite( Builder $query, int $siteId ): Builder
-	{
-		return $query->where( 'site_id', $siteId );
 	}
 
 	/**

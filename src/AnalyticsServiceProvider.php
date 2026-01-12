@@ -4,20 +4,27 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\Analytics;
 
+use ArtisanPackUI\Analytics\Auth\ApiKeyGuard;
 use ArtisanPackUI\Analytics\Console\Commands\InstallCommand;
 use ArtisanPackUI\Analytics\Contracts\AnalyticsServiceInterface;
 use ArtisanPackUI\Analytics\Http\Livewire\AnalyticsDashboard;
+use ArtisanPackUI\Analytics\Http\Livewire\MultiTenantDashboard;
 use ArtisanPackUI\Analytics\Http\Livewire\PageAnalytics;
+use ArtisanPackUI\Analytics\Http\Livewire\PlatformDashboard;
+use ArtisanPackUI\Analytics\Http\Livewire\SiteSelector;
 use ArtisanPackUI\Analytics\Http\Livewire\Widgets\RealtimeVisitors;
 use ArtisanPackUI\Analytics\Http\Livewire\Widgets\StatsCards;
 use ArtisanPackUI\Analytics\Http\Livewire\Widgets\TopPages;
 use ArtisanPackUI\Analytics\Http\Livewire\Widgets\TrafficSources;
 use ArtisanPackUI\Analytics\Http\Livewire\Widgets\VisitorsChart;
 use ArtisanPackUI\Analytics\Http\Middleware\AnalyticsThrottle;
+use ArtisanPackUI\Analytics\Http\Middleware\AuthenticateWithApiKey;
 use ArtisanPackUI\Analytics\Http\Middleware\PrivacyFilter;
+use ArtisanPackUI\Analytics\Http\Middleware\ResolveSite;
 use ArtisanPackUI\Analytics\Http\Middleware\TenantResolver;
 use ArtisanPackUI\Analytics\Services\AnalyticsQuery;
 use ArtisanPackUI\Analytics\Services\ConsentService;
+use ArtisanPackUI\Analytics\Services\CrossTenantReporting;
 use ArtisanPackUI\Analytics\Services\DataDeletionService;
 use ArtisanPackUI\Analytics\Services\DataExportService;
 use ArtisanPackUI\Analytics\Services\EventProcessor;
@@ -25,7 +32,10 @@ use ArtisanPackUI\Analytics\Services\FunnelAnalyzer;
 use ArtisanPackUI\Analytics\Services\GoalMatcher;
 use ArtisanPackUI\Analytics\Services\IpAnonymizer;
 use ArtisanPackUI\Analytics\Services\PrivacyIntegration;
+use ArtisanPackUI\Analytics\Services\SiteSettingsService;
+use ArtisanPackUI\Analytics\Services\TenantManager;
 use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -55,6 +65,9 @@ class AnalyticsServiceProvider extends ServiceProvider
             __DIR__ . '/../config/analytics.php',
             'artisanpack-analytics-temp',
         );
+
+        // Merge configuration early so it's available for service registration
+        $this->mergeConfiguration();
 
         // Register the main Analytics manager
         $this->app->singleton( Analytics::class, function ( $app ) {
@@ -122,6 +135,32 @@ class AnalyticsServiceProvider extends ServiceProvider
                 $app->make( ConsentService::class ),
             );
         } );
+
+        // Register TenantManager as singleton
+        $this->app->singleton( TenantManager::class, function () {
+            $manager = new TenantManager;
+
+            // Register resolvers from config
+            $resolvers = config( 'artisanpack.analytics.multi_tenant.resolvers', [] );
+
+            if ( ! empty( $resolvers ) ) {
+                $manager->registerResolversFromConfig( $resolvers );
+            }
+
+            return $manager;
+        } );
+
+        // Register SiteSettingsService
+        $this->app->singleton( SiteSettingsService::class, function ( $app ) {
+            return new SiteSettingsService(
+                $app->make( TenantManager::class ),
+            );
+        } );
+
+        // Register CrossTenantReporting
+        $this->app->singleton( CrossTenantReporting::class, function () {
+            return new CrossTenantReporting;
+        } );
     }
 
     /**
@@ -145,6 +184,7 @@ class AnalyticsServiceProvider extends ServiceProvider
         $this->registerBuiltInProviders();
         $this->registerLivewireComponents();
         $this->registerPrivacyHooks();
+        $this->registerAuthGuard();
     }
 
     /**
@@ -169,6 +209,9 @@ class AnalyticsServiceProvider extends ServiceProvider
             DataExportService::class,
             DataDeletionService::class,
             PrivacyIntegration::class,
+            TenantManager::class,
+            SiteSettingsService::class,
+            CrossTenantReporting::class,
         ];
     }
 
@@ -291,12 +334,20 @@ class AnalyticsServiceProvider extends ServiceProvider
         $router->aliasMiddleware( 'analytics.throttle', AnalyticsThrottle::class );
         $router->aliasMiddleware( 'analytics.privacy', PrivacyFilter::class );
         $router->aliasMiddleware( 'analytics.tenant', TenantResolver::class );
+        $router->aliasMiddleware( 'analytics.site', ResolveSite::class );
+        $router->aliasMiddleware( 'analytics.api-key', AuthenticateWithApiKey::class );
 
         // Register middleware group
         $router->middlewareGroup( 'analytics', [
             AnalyticsThrottle::class,
             PrivacyFilter::class,
             TenantResolver::class,
+        ] );
+
+        // Register middleware group for API key authenticated routes
+        $router->middlewareGroup( 'analytics-api', [
+            AuthenticateWithApiKey::class,
+            AnalyticsThrottle::class,
         ] );
     }
 
@@ -388,7 +439,13 @@ class AnalyticsServiceProvider extends ServiceProvider
 
         // Register main components
         \Livewire\Livewire::component( 'artisanpack-analytics::dashboard', AnalyticsDashboard::class );
+        \Livewire\Livewire::component( 'artisanpack-analytics::analytics-dashboard', AnalyticsDashboard::class );
         \Livewire\Livewire::component( 'artisanpack-analytics::page-analytics', PageAnalytics::class );
+
+        // Register multi-tenant components
+        \Livewire\Livewire::component( 'artisanpack-analytics::site-selector', SiteSelector::class );
+        \Livewire\Livewire::component( 'artisanpack-analytics::multi-tenant-dashboard', MultiTenantDashboard::class );
+        \Livewire\Livewire::component( 'artisanpack-analytics::platform-dashboard', PlatformDashboard::class );
     }
 
     /**
@@ -404,5 +461,22 @@ class AnalyticsServiceProvider extends ServiceProvider
         /** @var PrivacyIntegration $privacyIntegration */
         $privacyIntegration = $this->app->make( PrivacyIntegration::class );
         $privacyIntegration->register();
+    }
+
+    /**
+     * Register the analytics API key authentication guard.
+     *
+     * @return void
+     *
+     * @since 1.0.0
+     */
+    protected function registerAuthGuard(): void
+    {
+        Auth::extend( 'analytics-api', function ( $app, $name, array $config ) {
+            return new ApiKeyGuard(
+                $app->make( TenantManager::class ),
+                $app->make( 'request' ),
+            );
+        } );
     }
 }

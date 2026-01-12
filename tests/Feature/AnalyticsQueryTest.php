@@ -391,17 +391,17 @@ test( 'analytics query returns conversions over time', function (): void {
         'goal_id'    => $goal->id,
         'value'      => 100.00,
         'created_at' => now(),
-    ]);
+    ] );
 
     ArtisanPackUI\Analytics\Models\Conversion::create( [
         'goal_id'    => $goal->id,
         'value'      => 50.00,
         'created_at' => now()->subDay(),
-    ]);
+    ] );
 
-    $query       = app( AnalyticsQuery::class);
-    $range       = DateRange::lastDays( 7);
-    $conversions = $query->getConversionsOverTime( $range, 'day');
+    $query       = app( AnalyticsQuery::class );
+    $range       = DateRange::lastDays( 7 );
+    $conversions = $query->getConversionsOverTime( $range, 'day' );
 
-    expect( $conversions)->toBeInstanceOf( Illuminate\Support\Collection::class);
+    expect( $conversions )->toBeInstanceOf( Illuminate\Support\Collection::class );
 });

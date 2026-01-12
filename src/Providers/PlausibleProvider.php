@@ -769,11 +769,11 @@ class PlausibleProvider extends AbstractAnalyticsProvider
     {
         $plausibleFilters = [];
 
-        if ( isset( $filters['path'])) {
+        if ( isset( $filters['path'] ) ) {
             $plausibleFilters[] = 'event:page==' . $filters['path'];
         }
 
-        return implode( ';', $plausibleFilters);
+        return implode( ';', $plausibleFilters );
     }
 
     /**
@@ -785,9 +785,9 @@ class PlausibleProvider extends AbstractAnalyticsProvider
      *
      * @since 1.0.0
      */
-    protected function mapGranularityToPlausible( string $granularity): string
+    protected function mapGranularityToPlausible( string $granularity ): string
     {
-        return match ( $granularity) {
+        return match ( $granularity ) {
             'hour'  => 'hour',
             'week'  => 'week',
             'month' => 'month',
@@ -802,7 +802,7 @@ class PlausibleProvider extends AbstractAnalyticsProvider
      *
      * @since 1.0.0
      */
-    protected function logMissingApiKey( string $method): void
+    protected function logMissingApiKey( string $method ): void
     {
         Log::debug(
             __( 'Plausible provider method ":method" requires an API key. Set ANALYTICS_PLAUSIBLE_API_KEY to enable querying.', [

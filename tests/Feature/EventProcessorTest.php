@@ -206,7 +206,7 @@ test( 'event processor associates with session and visitor', function (): void {
 } );
 
 test( 'event processor handles path context', function (): void {
-    $processor = new EventProcessor( new GoalMatcher);
+    $processor = new EventProcessor( new GoalMatcher );
 
     $data = new EventData(
         name: 'scroll_depth',
@@ -214,7 +214,7 @@ test( 'event processor handles path context', function (): void {
         properties: ['depth' => 75],
     );
 
-    $event = $processor->process( $data);
+    $event = $processor->process( $data );
 
-    expect( $event->path)->toBe( '/long-article');
+    expect( $event->path )->toBe( '/long-article' );
 });

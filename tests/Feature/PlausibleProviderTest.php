@@ -342,18 +342,18 @@ test( 'plausible provider includes revenue in event with value', function (): vo
 
     $provider->trackEvent( $data );
 
-    Http::assertSent( function ( $request) {
+    Http::assertSent( function ( $request ) {
         $body = $request->data();
 
-        return isset( $body['revenue'])
+        return isset( $body['revenue'] )
             && 99.99 === $body['revenue']['amount'];
-    });
-});
+    } );
+} );
 
 test( 'plausible provider returns config array', function (): void {
     $provider = new PlausibleProvider;
     $config   = $provider->getConfig();
 
-    expect( $config)->toBeArray();
-    expect( $config)->toHaveKeys( ['enabled', 'domain', 'api_url', 'api_key']);
+    expect( $config )->toBeArray();
+    expect( $config )->toHaveKeys( ['enabled', 'domain', 'api_url', 'api_key']);
 });

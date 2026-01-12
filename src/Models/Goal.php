@@ -4,11 +4,11 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\Analytics\Models;
 
+use ArtisanPackUI\Analytics\Traits\BelongsToSite;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -42,6 +42,7 @@ use Illuminate\Support\Str;
  */
 class Goal extends Model
 {
+    use BelongsToSite;
     use HasFactory;
 
     /**
@@ -91,18 +92,6 @@ class Goal extends Model
     ];
 
     /**
-     * Get the site that this goal belongs to.
-     *
-     * @return BelongsTo<Site, Goal>
-     *
-     * @since 1.0.0
-     */
-    public function site(): BelongsTo
-    {
-        return $this->belongsTo( Site::class );
-    }
-
-    /**
      * Get the conversions for this goal.
      *
      * @return HasMany<Conversion, Goal>
@@ -120,19 +109,6 @@ class Goal extends Model
     public function getConnectionName(): ?string
     {
         return config( 'artisanpack.analytics.local.connection' );
-    }
-
-    /**
-     * Scope a query to filter by site.
-     *
-     * @param  Builder  $query  The query builder.
-     * @param  int  $siteId  The site ID.
-     *
-     * @since 1.0.0
-     */
-    public function scopeForSite( Builder $query, int $siteId ): Builder
-    {
-        return $query->where( 'site_id', $siteId );
     }
 
     /**
@@ -409,9 +385,9 @@ class Goal extends Model
             return null;
         }
 
-        $value = data_get( $subject->properties, $this->dynamic_value_path);
+        $value = data_get( $subject->properties, $this->dynamic_value_path );
 
-        return is_numeric( $value) ? (float) $value : null;
+        return is_numeric( $value ) ? (float) $value : null;
     }
 
     /**

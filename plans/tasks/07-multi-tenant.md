@@ -10,119 +10,119 @@ Implement multi-tenant architecture supporting both single-site deployments and 
 
 ### Site Model & Migration
 
-- [ ] Create `analytics_sites` migration
-- [ ] Add UUID, name, domain fields
-- [ ] Add polymorphic tenant relationship (tenant_type, tenant_id)
-- [ ] Add settings JSON column
-- [ ] Add timezone and currency fields
-- [ ] Add tracking_enabled and public_dashboard flags
-- [ ] Add api_key and api_key_last_used_at fields
-- [ ] Add soft deletes
-- [ ] Create `Site` Eloquent model
-- [ ] Implement relationships (visitors, sessions, pageViews, events, goals, conversions, consents, aggregates)
-- [ ] Implement API key management (generate, rotate, revoke, recordUsage)
-- [ ] Implement settings helpers (getSetting, setSetting)
-- [ ] Implement getTrackingScript() method
-- [ ] Create model scopes (forDomain, forTenant, trackingEnabled, publicDashboard)
+- [x] Create `analytics_sites` migration
+- [x] Add UUID, name, domain fields
+- [x] Add polymorphic tenant relationship (tenant_type, tenant_id)
+- [x] Add settings JSON column
+- [x] Add timezone and currency fields
+- [x] Add tracking_enabled and public_dashboard flags
+- [x] Add api_key and api_key_last_used_at fields
+- [x] Add soft deletes
+- [x] Create `Site` Eloquent model
+- [x] Implement relationships (visitors, sessions, pageViews, events, goals, conversions, consents, aggregates)
+- [x] Implement API key management (generate, rotate, revoke, recordUsage)
+- [x] Implement settings helpers (getSetting, setSetting)
+- [x] Implement getTrackingScript() method
+- [x] Create model scopes (forDomain, forTenant, trackingEnabled, publicDashboard)
 
 ### Tenant Resolution
 
-- [ ] Create `TenantResolverInterface` contract
-- [ ] Implement `DomainResolver` (match by domain)
-- [ ] Implement `SubdomainResolver` (extract subdomain from host)
-- [ ] Implement `HeaderResolver` (X-Site-ID header)
-- [ ] Implement `ApiKeyResolver` (Bearer token, X-API-Key, query param)
-- [ ] Create `TenantManager` service
-- [ ] Implement resolver registration with priority sorting
-- [ ] Implement `resolve()` with fallback to default site
-- [ ] Implement `current()` and `setCurrent()` methods
-- [ ] Implement `forSite()` context switching
-- [ ] Create `ResolveTenant` middleware
-- [ ] Share site with views in middleware
+- [x] Create `TenantResolverInterface` contract
+- [x] Implement `DomainResolver` (match by domain)
+- [x] Implement `SubdomainResolver` (extract subdomain from host)
+- [x] Implement `HeaderResolver` (X-Site-ID header)
+- [x] Implement `ApiKeyResolver` (Bearer token, X-API-Key, query param)
+- [x] Create `TenantManager` service
+- [x] Implement resolver registration with priority sorting
+- [x] Implement `resolve()` with fallback to default site
+- [x] Implement `current()` and `setCurrent()` methods
+- [x] Implement `forSite()` context switching
+- [x] Create `ResolveTenant` middleware
+- [x] Share site with views in middleware
 
 ### Data Isolation (BelongsToSite Trait)
 
-- [ ] Create `BelongsToSite` trait
-- [ ] Implement automatic global scope for site_id filtering
-- [ ] Implement automatic site_id assignment on create
-- [ ] Add `site()` BelongsTo relationship
-- [ ] Create `scopeForSite()` for explicit site queries
-- [ ] Create `withoutSiteScope()` for bypassing scope
-- [ ] Create `allSites()` static method for admin queries
-- [ ] Apply trait to all analytics models (PageView, Session, Visitor, Event, Goal, Conversion, Consent, Aggregate)
+- [x] Create `BelongsToSite` trait
+- [x] Implement automatic global scope for site_id filtering
+- [x] Implement automatic site_id assignment on create
+- [x] Add `site()` BelongsTo relationship
+- [x] Create `scopeForSite()` for explicit site queries
+- [x] Create `withoutSiteScope()` for bypassing scope
+- [x] Create `allSites()` static method for admin queries
+- [x] Apply trait to all analytics models (PageView, Session, Visitor, Event, Goal, Conversion, Consent, Aggregate)
 
 ### Per-Tenant Configuration
 
-- [ ] Define site settings schema (tracking, dashboard, privacy, features, providers)
-- [ ] Create `SiteSettingsService` class
-- [ ] Implement `get()` with defaults fallback
-- [ ] Implement `set()` for current site
-- [ ] Implement `all()` merged with defaults
-- [ ] Implement `featureEnabled()` helper
-- [ ] Add site_defaults to package configuration
+- [x] Define site settings schema (tracking, dashboard, privacy, features, providers)
+- [x] Create `SiteSettingsService` class
+- [x] Implement `get()` with defaults fallback
+- [x] Implement `set()` for current site
+- [x] Implement `all()` merged with defaults
+- [x] Implement `featureEnabled()` helper
+- [x] Add site_defaults to package configuration
 
 ### Site Selector Component
 
-- [ ] Create `SiteSelector` Livewire component
-- [ ] Implement site selection dropdown
-- [ ] Dispatch `site-changed` event on selection
-- [ ] Create `getAccessibleSitesProperty` computed
-- [ ] Implement authorization check `canAccessSite()`
-- [ ] Create site-selector Blade view
-- [ ] Show site name and domain in dropdown
-- [ ] Add visual indicator for selected site
+- [x] Create `SiteSelector` Livewire component
+- [x] Implement site selection dropdown
+- [x] Dispatch `site-changed` event on selection
+- [x] Create `getAccessibleSitesProperty` computed
+- [x] Implement authorization check `canAccessSite()`
+- [x] Create site-selector Blade view
+- [x] Show site name and domain in dropdown
+- [x] Add visual indicator for selected site
 
 ### Multi-Tenant Dashboard
 
-- [ ] Create `MultiTenantDashboard` Livewire component
-- [ ] Listen for `site-changed` event
-- [ ] Update TenantManager context on site change
-- [ ] Conditionally show site selector based on multi-tenant mode
-- [ ] Ensure all queries use site context
+- [x] Create `MultiTenantDashboard` Livewire component
+- [x] Listen for `site-changed` event
+- [x] Update TenantManager context on site change
+- [x] Conditionally show site selector based on multi-tenant mode
+- [x] Ensure all queries use site context
 
 ### Cross-Tenant Reporting
 
-- [ ] Create `CrossTenantReporting` service
-- [ ] Implement `getPlatformStats()` (total sites, visitors, sessions, page views)
-- [ ] Implement `getTopSitesByTraffic()` with counts
-- [ ] Implement `getSitesWithGrowth()` with period comparison
-- [ ] Implement `getAggregatesBySite()` for specific metrics
-- [ ] Implement `exportPlatformReport()`
-- [ ] Create `PlatformDashboard` admin Livewire component
+- [x] Create `CrossTenantReporting` service
+- [x] Implement `getPlatformStats()` (total sites, visitors, sessions, page views)
+- [x] Implement `getTopSitesByTraffic()` with counts
+- [x] Implement `getSitesWithGrowth()` with period comparison
+- [x] Implement `getAggregatesBySite()` for specific metrics
+- [x] Implement `exportPlatformReport()`
+- [x] Create `PlatformDashboard` admin Livewire component
 
 ### API Authentication
 
-- [ ] Create `ApiKeyGuard` implementing Guard interface
-- [ ] Implement `user()` returning Site
-- [ ] Implement `validate()` for credentials check
-- [ ] Support Bearer token, X-API-Key header, query param
-- [ ] Record API key usage on authentication
-- [ ] Create `AuthenticateWithApiKey` middleware
-- [ ] Set TenantManager context in middleware
-- [ ] Return 401 JSON for invalid/missing key
-- [ ] Register analytics-api guard in auth config
+- [x] Create `ApiKeyGuard` implementing Guard interface
+- [x] Implement `user()` returning Site
+- [x] Implement `validate()` for credentials check
+- [x] Support Bearer token, X-API-Key header, query param
+- [x] Record API key usage on authentication
+- [x] Create `AuthenticateWithApiKey` middleware
+- [x] Set TenantManager context in middleware
+- [x] Return 401 JSON for invalid/missing key
+- [x] Register analytics-api guard in auth config
 
 ### API Routes
 
-- [ ] Create tracking endpoints (POST /track/pageview, /track/event)
-- [ ] Create query endpoints (GET /stats, /visitors, /pages, /events, /goals)
-- [ ] Create site management endpoints (GET /site, PUT /site/settings)
-- [ ] Apply AuthenticateWithApiKey middleware
+- [x] Create tracking endpoints (POST /track/pageview, /track/event)
+- [x] Create query endpoints (GET /stats, /visitors, /pages, /events, /goals)
+- [x] Create site management endpoints (GET /site, PUT /site/settings)
+- [x] Apply AuthenticateWithApiKey middleware
 
 ### Configuration
 
-- [ ] Add multi_tenant config section
-- [ ] Add enabled toggle (ANALYTICS_MULTI_TENANT env)
-- [ ] Add resolvers array configuration
-- [ ] Add base_domain for subdomain resolution
-- [ ] Add site_header for header-based resolution
+- [x] Add multi_tenant config section
+- [x] Add enabled toggle (ANALYTICS_MULTI_TENANT env)
+- [x] Add resolvers array configuration
+- [x] Add base_domain for subdomain resolution
+- [x] Add site_header for header-based resolution
 
 ## Accessibility Notes
 
-- [ ] Site selector must be keyboard accessible
-- [ ] Dropdown must support arrow key navigation
-- [ ] Focus trap within dropdown when open
-- [ ] ARIA labels for site selector button
+- [x] Site selector must be keyboard accessible
+- [x] Dropdown must support arrow key navigation
+- [x] Focus trap within dropdown when open
+- [x] ARIA labels for site selector button
 
 ## UX Notes
 

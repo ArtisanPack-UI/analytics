@@ -212,8 +212,8 @@ class EventProcessor
 
         $query = Session::query()->where( 'session_id', $sessionId );
 
-        if ( null !== $siteId) {
-            $query->where( 'site_id', $siteId);
+        if ( null !== $siteId ) {
+            $query->where( 'site_id', $siteId );
         }
 
         return $query->first();

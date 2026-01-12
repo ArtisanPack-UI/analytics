@@ -220,10 +220,10 @@ test( 'funnel analyzer calculates step conversion rates', function (): void {
     $result   = $analyzer->analyze( $goal, $range );
 
     // Check step structure
-    foreach ( $result['steps'] as $step) {
-        expect( $step)->toHaveKey( 'name');
-        expect( $step)->toHaveKey( 'visitors');
-        expect( $step)->toHaveKey( 'conversion_rate');
-        expect( $step)->toHaveKey( 'dropoff_rate');
+    foreach ( $result['steps'] as $step ) {
+        expect( $step )->toHaveKey( 'name' );
+        expect( $step )->toHaveKey( 'visitors' );
+        expect( $step )->toHaveKey( 'conversion_rate' );
+        expect( $step )->toHaveKey( 'dropoff_rate' );
     }
 });

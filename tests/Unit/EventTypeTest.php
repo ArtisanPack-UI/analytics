@@ -139,20 +139,20 @@ test( 'can get ecommerce events', function (): void {
     $ecommerceEvents = EventType::ecommerceEvents();
 
     expect( $ecommerceEvents )->toContain( EventType::PURCHASE );
-    expect( $ecommerceEvents )->toContain( EventType::ADD_TO_CART);
-});
+    expect( $ecommerceEvents )->toContain( EventType::ADD_TO_CART );
+} );
 
 test( 'can get booking events', function (): void {
     $bookingEvents = EventType::bookingEvents();
 
-    expect( $bookingEvents)->toContain( EventType::BOOKING_START);
-    expect( $bookingEvents)->toContain( EventType::BOOKING_CREATED);
-});
+    expect( $bookingEvents )->toContain( EventType::BOOKING_START );
+    expect( $bookingEvents )->toContain( EventType::BOOKING_CREATED );
+} );
 
 test( 'can get engagement events', function (): void {
     $engagementEvents = EventType::engagementEvents();
 
-    expect( $engagementEvents)->toContain( EventType::CLICK);
-    expect( $engagementEvents)->toContain( EventType::SCROLL);
-    expect( $engagementEvents)->toContain( EventType::DOWNLOAD);
+    expect( $engagementEvents )->toContain( EventType::CLICK );
+    expect( $engagementEvents )->toContain( EventType::SCROLL );
+    expect( $engagementEvents )->toContain( EventType::DOWNLOAD);
 });

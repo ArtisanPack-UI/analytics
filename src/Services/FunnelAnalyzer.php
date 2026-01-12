@@ -353,7 +353,7 @@ class FunnelAnalyzer
                 'name'              => $currentStep['name'],
                 'current_rate'      => $currentRate,
                 'previous_rate'     => $previousRate,
-                'rate_change'       => round( $currentRate - $previousRate, 2),
+                'rate_change'       => round( $currentRate - $previousRate, 2 ),
                 'current_visitors'  => $currentStep['visitors'],
                 'previous_visitors' => $previousStep['visitors'] ?? 0,
                 'visitor_change'    => $currentStep['visitors'] - ( $previousStep['visitors'] ?? 0),

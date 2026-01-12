@@ -607,15 +607,15 @@ class LocalAnalyticsProvider extends AbstractAnalyticsProvider
         }
 
         if ( isset( $filters['tenant_id'] ) && config( 'artisanpack.analytics.multi_tenant.enabled', false ) ) {
-            $query->where( 'tenant_id', $filters['tenant_id']);
+            $query->where( 'tenant_id', $filters['tenant_id'] );
         }
 
-        if ( isset( $filters['path'])) {
-            $query->where( 'path', $filters['path']);
+        if ( isset( $filters['path'] ) ) {
+            $query->where( 'path', $filters['path'] );
         }
 
-        if ( isset( $filters['visitor_id'])) {
-            $query->where( 'visitor_id', $filters['visitor_id']);
+        if ( isset( $filters['visitor_id'] ) ) {
+            $query->where( 'visitor_id', $filters['visitor_id'] );
         }
 
         return $query;
@@ -630,7 +630,7 @@ class LocalAnalyticsProvider extends AbstractAnalyticsProvider
      *
      * @since 1.0.0
      */
-    protected function getDateFormatForGranularity( string $granularity): string
+    protected function getDateFormatForGranularity( string $granularity ): string
     {
         return match ( $granularity) {
             'hour'  => '%Y-%m-%d %H:00',
