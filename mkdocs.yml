@@ -1,0 +1,47 @@
+site_name: ArtisanPack UI Analytics Documentation
+site_url: https://jacob-martella-web-design.gitlab.io/artisanpack-ui/analytics
+repo_url: https://gitlab.com/jacob-martella-web-design/artisanpack-ui/analytics
+docs_dir: docs
+theme:
+  name: material
+  palette:
+    primary: indigo
+    accent: indigo
+nav:
+  - Home: home.md
+  - Getting Started: getting-started.md
+  - Installation:
+    - Overview: installation.md
+    - Requirements: installation/requirements.md
+    - Configuration: installation/configuration.md
+  - Usage:
+    - Overview: usage.md
+    - Page Views: usage/tracking-page-views.md
+    - Events: usage/tracking-events.md
+    - Date Ranges: usage/date-ranges.md
+    - Goals & Conversions: usage/goals-conversions.md
+    - Helper Functions: usage/helper-functions.md
+  - Components:
+    - Overview: components.md
+    - Analytics Dashboard: components/analytics-dashboard.md
+    - Stats Cards: components/stats-cards.md
+    - Visitors Chart: components/visitors-chart.md
+    - Top Pages: components/top-pages.md
+    - Traffic Sources: components/traffic-sources.md
+    - Realtime Visitors: components/realtime-visitors.md
+  - API Reference:
+    - Overview: api.md
+    - Models: api/models.md
+    - Services: api/services.md
+    - Events: api/events.md
+    - Data Objects: api/data-objects.md
+    - Contracts: api/contracts.md
+  - Advanced:
+    - Overview: advanced.md
+    - Privacy & Consent: advanced/privacy-consent.md
+    - Multi-Tenancy: advanced/multi-tenancy.md
+    - Multiple Providers: advanced/multiple-providers.md
+    - Caching: advanced/caching.md
+    - Artisan Commands: advanced/artisan-commands.md
+  - FAQ: faq.md
+  - Troubleshooting: troubleshooting.md
