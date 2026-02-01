@@ -266,7 +266,7 @@ Respect the browser's Do Not Track setting.
 ],
 ```
 
-See [Multi-Tenancy](../advanced/multi-tenancy.md) for detailed configuration.
+See [Multi-Tenancy](Advanced-Multi-Tenancy) for detailed configuration.
 
 ## Event Tracking
 

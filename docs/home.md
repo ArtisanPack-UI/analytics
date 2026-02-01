@@ -9,47 +9,47 @@ Welcome to the ArtisanPack UI Analytics documentation. This package provides com
 ## Table of Contents
 
 - **Getting Started**
-  - [Quick Start Guide](./getting-started.md)
-  - [Installation](./installation.md)
-  - [Requirements](./installation/requirements.md)
-  - [Configuration](./installation/configuration.md)
+  - [Quick Start Guide](Getting-Started)
+  - [Installation](Installation)
+  - [Requirements](Installation-Requirements)
+  - [Configuration](Installation-Configuration)
 
 - **Usage**
-  - [Usage Overview](./usage.md)
-  - [Tracking Page Views](./usage/tracking-page-views.md)
-  - [Tracking Events](./usage/tracking-events.md)
-  - [Goals & Conversions](./usage/goals-conversions.md)
-  - [Date Ranges](./usage/date-ranges.md)
-  - [Helper Functions](./usage/helper-functions.md)
+  - [Usage Overview](Usage)
+  - [Tracking Page Views](Usage-Tracking-Page-Views)
+  - [Tracking Events](Usage-Tracking-Events)
+  - [Goals & Conversions](Usage-Goals-Conversions)
+  - [Date Ranges](Usage-Date-Ranges)
+  - [Helper Functions](Usage-Helper-Functions)
 
 - **Livewire Components**
-  - [Components Overview](./components.md)
-  - [Analytics Dashboard](./components/analytics-dashboard.md)
-  - [Stats Cards](./components/stats-cards.md)
-  - [Visitors Chart](./components/visitors-chart.md)
-  - [Top Pages](./components/top-pages.md)
-  - [Traffic Sources](./components/traffic-sources.md)
-  - [Realtime Visitors](./components/realtime-visitors.md)
+  - [Components Overview](Components)
+  - [Analytics Dashboard](Components-Analytics-Dashboard)
+  - [Stats Cards](Components-Stats-Cards)
+  - [Visitors Chart](Components-Visitors-Chart)
+  - [Top Pages](Components-Top-Pages)
+  - [Traffic Sources](Components-Traffic-Sources)
+  - [Realtime Visitors](Components-Realtime-Visitors)
 
 - **API Reference**
-  - [API Overview](./api.md)
-  - [Models](./api/models.md)
-  - [Services](./api/services.md)
-  - [Data Objects](./api/data-objects.md)
-  - [Events](./api/events.md)
-  - [Contracts](./api/contracts.md)
+  - [API Overview](Api)
+  - [Models](Api-Models)
+  - [Services](Api-Services)
+  - [Data Objects](Api-Data-Objects)
+  - [Events](Api-Events)
+  - [Contracts](Api-Contracts)
 
 - **Advanced Topics**
-  - [Advanced Overview](./advanced.md)
-  - [Multi-Tenancy](./advanced/multi-tenancy.md)
-  - [Privacy & Consent](./advanced/privacy-consent.md)
-  - [Multiple Providers](./advanced/multiple-providers.md)
-  - [Caching](./advanced/caching.md)
-  - [Artisan Commands](./advanced/artisan-commands.md)
+  - [Advanced Overview](Advanced)
+  - [Multi-Tenancy](Advanced-Multi-Tenancy)
+  - [Privacy & Consent](Advanced-Privacy-Consent)
+  - [Multiple Providers](Advanced-Multiple-Providers)
+  - [Caching](Advanced-Caching)
+  - [Artisan Commands](Advanced-Artisan-Commands)
 
 - **Help**
-  - [FAQ](./faq.md)
-  - [Troubleshooting](./troubleshooting.md)
+  - [FAQ](Faq)
+  - [Troubleshooting](Troubleshooting)
 
 ## Features
 

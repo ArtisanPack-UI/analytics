@@ -128,8 +128,8 @@ Or use individual widgets:
 
 ## Next Steps
 
-- [Installation Details](./installation/installation.md) - Detailed installation guide
-- [Configuration](./installation/configuration.md) - Configure the package for your needs
-- [Tracking Page Views](./usage/tracking-page-views.md) - Learn about page view tracking
-- [Tracking Events](./usage/tracking-events.md) - Learn about event tracking
-- [Dashboard Components](./components.md) - Explore available Livewire components
+- [Installation Details](Installation-Installation) - Detailed installation guide
+- [Configuration](Installation-Configuration) - Configure the package for your needs
+- [Tracking Page Views](Usage-Tracking-Page-Views) - Learn about page view tracking
+- [Tracking Events](Usage-Tracking-Events) - Learn about event tracking
+- [Dashboard Components](Components) - Explore available Livewire components

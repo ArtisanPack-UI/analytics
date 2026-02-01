@@ -167,4 +167,4 @@ php artisan migrate:rollback --path=vendor/artisanpack-ui/analytics/database/mig
 - Check the `analytics` queue specifically
 - Review failed jobs: `php artisan queue:failed`
 
-For more help, see the [Troubleshooting](../troubleshooting.md) guide.
+For more help, see the [Troubleshooting](Troubleshooting) guide.

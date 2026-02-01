@@ -422,7 +422,7 @@ php artisan migrate
 
 If you can't resolve an issue:
 
-1. Check the [FAQ](./faq.md) for common questions
+1. Check the [FAQ](Faq) for common questions
 2. Search existing issues on GitLab
 3. Create a new issue with:
    - Laravel version
