@@ -50,6 +50,7 @@
     "artisanpack-ui/code-style-pint": "^1.0.0",
     "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
     "friendsofphp/php-cs-fixer": "^3.75",
+    "inertiajs/inertia-laravel": "^3.0",
     "laravel/pint": "^1.26",
     "orchestra/testbench": "^9.0|^10.0",
     "pestphp/pest": "^3.8",
@@ -71,6 +72,9 @@
       "pestphp/pest-plugin": true
     },
     "sort-packages": true
+  },
+  "suggest": {
+    "inertiajs/inertia-laravel": "Required for Inertia.js dashboard driver support (^2.0|^3.0)"
   },
   "minimum-stability": "dev",
   "prefer-stable": true,
