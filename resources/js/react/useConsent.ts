@@ -112,30 +112,45 @@ function generateUuid(): string {
  * and the visitor cookie so subsequent calls return the same ID.
  */
 function getVisitorId(): string | null {
-    if ( typeof localStorage === 'undefined' ) {
-        return null;
-    }
-
     // Check localStorage first
-    let id = localStorage.getItem( VISITOR_KEY );
+    try {
+        if ( typeof localStorage !== 'undefined' ) {
+            const stored = localStorage.getItem( VISITOR_KEY );
 
-    if ( id ) {
-        return id;
+            if ( stored ) {
+                return stored;
+            }
+        }
+    } catch {
+        // localStorage may be blocked (e.g. Safari private browsing)
     }
 
     // Fall back to the tracker cookie
-    id = getCookie( VISITOR_COOKIE );
+    const cookieId = getCookie( VISITOR_COOKIE );
 
-    if ( id ) {
-        localStorage.setItem( VISITOR_KEY, id );
+    if ( cookieId ) {
+        try {
+            if ( typeof localStorage !== 'undefined' ) {
+                localStorage.setItem( VISITOR_KEY, cookieId );
+            }
+        } catch {
+            // Ignore localStorage write failure
+        }
 
-        return id;
+        return cookieId;
     }
 
     // Generate a new visitor ID
-    id = generateUuid();
-    localStorage.setItem( VISITOR_KEY, id );
+    const id = generateUuid();
     setCookie( VISITOR_COOKIE, id, COOKIE_EXPIRY_DAYS );
+
+    try {
+        if ( typeof localStorage !== 'undefined' ) {
+            localStorage.setItem( VISITOR_KEY, id );
+        }
+    } catch {
+        // Ignore localStorage write failure
+    }
 
     return id;
 }
@@ -144,13 +159,17 @@ function getVisitorId(): string | null {
  * Persist consent categories to localStorage and cookie.
  */
 function persistLocally( categories: Record<string, boolean> ): void {
-    if ( typeof localStorage === 'undefined' ) {
-        return;
-    }
-
     const value = JSON.stringify( categories );
-    localStorage.setItem( STORAGE_KEY, value );
+
     setCookie( COOKIE_NAME, value, COOKIE_EXPIRY_DAYS );
+
+    try {
+        if ( typeof localStorage !== 'undefined' ) {
+            localStorage.setItem( STORAGE_KEY, value );
+        }
+    } catch {
+        // Ignore localStorage write failure
+    }
 }
 
 /**

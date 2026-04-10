@@ -117,7 +117,13 @@ async function handleRejectAll(): Promise<void> {
 }
 
 function formatDate( dateStr: string ): string {
-    return new Date( dateStr ).toISOString().slice( 0, 10 );
+    const d = new Date( dateStr );
+
+    if ( isNaN( d.getTime() ) ) {
+        return '';
+    }
+
+    return d.toISOString().slice( 0, 10 );
 }
 </script>
 

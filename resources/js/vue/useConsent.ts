@@ -112,27 +112,45 @@ function generateUuid(): string {
  * and the visitor cookie so subsequent calls return the same ID.
  */
 function getVisitorId(): string | null {
-    if ( typeof localStorage === 'undefined' ) {
-        return null;
+    // Check localStorage first
+    try {
+        if ( typeof localStorage !== 'undefined' ) {
+            const stored = localStorage.getItem( VISITOR_KEY );
+
+            if ( stored ) {
+                return stored;
+            }
+        }
+    } catch {
+        // localStorage may be blocked (e.g. Safari private browsing)
     }
 
-    let id = localStorage.getItem( VISITOR_KEY );
+    // Fall back to the tracker cookie
+    const cookieId = getCookieValue( VISITOR_COOKIE );
 
-    if ( id ) {
-        return id;
+    if ( cookieId ) {
+        try {
+            if ( typeof localStorage !== 'undefined' ) {
+                localStorage.setItem( VISITOR_KEY, cookieId );
+            }
+        } catch {
+            // Ignore localStorage write failure
+        }
+
+        return cookieId;
     }
 
-    id = getCookieValue( VISITOR_COOKIE );
-
-    if ( id ) {
-        localStorage.setItem( VISITOR_KEY, id );
-
-        return id;
-    }
-
-    id = generateUuid();
-    localStorage.setItem( VISITOR_KEY, id );
+    // Generate a new visitor ID
+    const id = generateUuid();
     setCookie( VISITOR_COOKIE, id, COOKIE_EXPIRY_DAYS );
+
+    try {
+        if ( typeof localStorage !== 'undefined' ) {
+            localStorage.setItem( VISITOR_KEY, id );
+        }
+    } catch {
+        // Ignore localStorage write failure
+    }
 
     return id;
 }
@@ -141,13 +159,17 @@ function getVisitorId(): string | null {
  * Persist consent categories to localStorage and cookie.
  */
 function persistLocally( categories: Record<string, boolean> ): void {
-    if ( typeof localStorage === 'undefined' ) {
-        return;
-    }
-
     const value = JSON.stringify( categories );
-    localStorage.setItem( STORAGE_KEY, value );
+
     setCookie( COOKIE_NAME, value, COOKIE_EXPIRY_DAYS );
+
+    try {
+        if ( typeof localStorage !== 'undefined' ) {
+            localStorage.setItem( STORAGE_KEY, value );
+        }
+    } catch {
+        // Ignore localStorage write failure
+    }
 }
 
 /**

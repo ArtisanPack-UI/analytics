@@ -142,7 +142,7 @@ export default function ConsentPreferences( {
                                 )}
                             </div>
                             <p className="text-sm opacity-70 mt-1">{item.description}</p>
-                            {item.granted_at && (
+                            {item.granted_at && ! isNaN( Date.parse( item.granted_at ) ) && (
                                 <p className="text-xs opacity-50 mt-1">
                                     Granted on {new Date( item.granted_at ).toISOString().slice( 0, 10 )}
                                 </p>
