@@ -309,9 +309,14 @@ class InertiaDashboardController extends Controller
 	 */
 	protected function getDateRangePreset( Request $request ): string
 	{
+		$allowedPresets = [
+			'today', 'yesterday', '7d', '30d', '90d',
+			'this_week', 'last_week', 'this_month', 'last_month', 'this_year',
+		];
+
 		$period = $request->query( 'period' );
 
-		if ( is_string( $period ) && '' !== $period ) {
+		if ( is_string( $period ) && in_array( $period, $allowedPresets, true ) ) {
 			return $period;
 		}
 
@@ -357,7 +362,7 @@ class InertiaDashboardController extends Controller
 		$filters = [];
 
 		$siteId = $request->query( 'site_id' );
-		if ( is_numeric( $siteId ) ) {
+		if ( is_string( $siteId ) && ctype_digit( $siteId ) && '0' !== $siteId ) {
 			$filters['site_id'] = (int) $siteId;
 		}
 
