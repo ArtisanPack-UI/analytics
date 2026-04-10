@@ -96,7 +96,9 @@ export function useAnalyticsApi<T>( options: UseAnalyticsApiOptions ) {
 
             error.value = err instanceof Error ? err.message : 'An unexpected error occurred';
         } finally {
-            inFlight = false;
+            if ( abortController === controller ) {
+                inFlight = false;
+            }
 
             if ( ! controller.signal.aborted ) {
                 loading.value = false;
