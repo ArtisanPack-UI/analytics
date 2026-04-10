@@ -16,6 +16,7 @@ import type { ConsentStatusItem, ConsentStatusResponse, ConsentUpdateResponse } 
 /** Storage keys for consent data. */
 const STORAGE_KEY = 'ap_analytics_consent';
 const VISITOR_KEY = 'ap_visitor_id';
+const VISITOR_COOKIE = '_ap_vid';
 const COOKIE_NAME = 'ap_consent';
 const COOKIE_EXPIRY_DAYS = 365;
 
@@ -80,14 +81,60 @@ function getCsrfToken(): string {
 }
 
 /**
- * Get the visitor ID from localStorage.
+ * Read a cookie value by name.
+ */
+function getCookieValue( name: string ): string | null {
+    if ( typeof document === 'undefined' ) {
+        return null;
+    }
+
+    const match = document.cookie.match( new RegExp( `(?:^|; )${name}=([^;]*)` ) );
+
+    return match ? decodeURIComponent( match[ 1 ] ) : null;
+}
+
+/**
+ * Generate a v4-style UUID.
+ */
+function generateUuid(): string {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace( /[xy]/g, ( c ) => {
+        const r = ( Math.random() * 16 ) | 0;
+
+        return ( c === 'x' ? r : ( r & 0x3 ) | 0x8 ).toString( 16 );
+    } );
+}
+
+/**
+ * Get or create a visitor ID.
+ *
+ * Checks localStorage first, then falls back to the tracker cookie (_ap_vid).
+ * If neither exists, generates a new UUID and persists it to both localStorage
+ * and the visitor cookie so subsequent calls return the same ID.
  */
 function getVisitorId(): string | null {
     if ( typeof localStorage === 'undefined' ) {
         return null;
     }
 
-    return localStorage.getItem( VISITOR_KEY );
+    let id = localStorage.getItem( VISITOR_KEY );
+
+    if ( id ) {
+        return id;
+    }
+
+    id = getCookieValue( VISITOR_COOKIE );
+
+    if ( id ) {
+        localStorage.setItem( VISITOR_KEY, id );
+
+        return id;
+    }
+
+    id = generateUuid();
+    localStorage.setItem( VISITOR_KEY, id );
+    setCookie( VISITOR_COOKIE, id, COOKIE_EXPIRY_DAYS );
+
+    return id;
 }
 
 /**
@@ -234,6 +281,8 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
             // Rollback optimistic update on server error
             categories.value = prev;
             persistLocally( prevMergedState );
+
+            throw err;
         } finally {
             loading.value = false;
         }

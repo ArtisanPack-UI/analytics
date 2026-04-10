@@ -117,7 +117,7 @@ async function handleRejectAll(): Promise<void> {
 }
 
 function formatDate( dateStr: string ): string {
-    return new Date( dateStr ).toLocaleDateString();
+    return new Date( dateStr ).toISOString().slice( 0, 10 );
 }
 </script>
 
@@ -138,13 +138,14 @@ function formatDate( dateStr: string ): string {
                     <Toggle
                         :model-value="localCategories[ key as string ] ?? false"
                         :disabled="item.required"
+                        :aria-labelledby="`consent-label-${key}`"
                         color="primary"
                         @update:model-value="handleToggle( key as string, $event as boolean )"
                     />
                 </div>
                 <div class="flex-1">
                     <div class="flex items-center gap-2">
-                        <span class="font-medium">{{ item.name }}</span>
+                        <span :id="`consent-label-${key}`" class="font-medium">{{ item.name }}</span>
                         <Badge v-if="item.required" color="neutral" size="sm">
                             Required
                         </Badge>

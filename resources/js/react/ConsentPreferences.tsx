@@ -127,12 +127,13 @@ export default function ConsentPreferences( {
                                 checked={localCategories[ key ] ?? false}
                                 onChange={( e ) => handleToggle( key, e.target.checked )}
                                 disabled={item.required}
+                                aria-labelledby={`consent-label-${key}`}
                                 color="primary"
                             />
                         </div>
                         <div className="flex-1">
                             <div className="flex items-center gap-2">
-                                <span className="font-medium">{item.name}</span>
+                                <span id={`consent-label-${key}`} className="font-medium">{item.name}</span>
                                 {item.required && (
                                     <Badge color="neutral" size="sm">Required</Badge>
                                 )}
@@ -143,7 +144,7 @@ export default function ConsentPreferences( {
                             <p className="text-sm opacity-70 mt-1">{item.description}</p>
                             {item.granted_at && (
                                 <p className="text-xs opacity-50 mt-1">
-                                    Granted on {new Date( item.granted_at ).toLocaleDateString()}
+                                    Granted on {new Date( item.granted_at ).toISOString().slice( 0, 10 )}
                                 </p>
                             )}
                         </div>
