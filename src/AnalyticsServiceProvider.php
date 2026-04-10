@@ -187,6 +187,7 @@ class AnalyticsServiceProvider extends ServiceProvider
         $this->publishMigrations();
         $this->publishViews();
         $this->publishTracker();
+        $this->publishReactComponents();
         $this->registerMiddleware();
         $this->registerRoutes();
         $this->registerCommands();
@@ -329,6 +330,23 @@ class AnalyticsServiceProvider extends ServiceProvider
             $this->publishes( [
                 __DIR__ . '/../resources/js' => public_path( 'vendor/analytics/js' ),
             ], 'analytics-tracker' );
+        }
+    }
+
+    /**
+     * Publish the React dashboard components.
+     *
+     * Publishes React TypeScript components to the consuming application's
+     * resources directory for use with Inertia.js.
+     *
+     * @since 1.1.0
+     */
+    protected function publishReactComponents(): void
+    {
+        if ( $this->app->runningInConsole() ) {
+            $this->publishes( [
+                __DIR__ . '/../resources/js/react' => resource_path( 'js/vendor/artisanpack-analytics/react' ),
+            ], 'analytics-react' );
         }
     }
 
