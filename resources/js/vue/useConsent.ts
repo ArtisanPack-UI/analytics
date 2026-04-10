@@ -66,7 +66,8 @@ function setCookie( name: string, value: string, days: number ): void {
 
     const date = new Date();
     date.setTime( date.getTime() + days * 24 * 60 * 60 * 1000 );
-    document.cookie = `${name}=${encodeURIComponent( value )}; expires=${date.toUTCString()}; path=/; SameSite=Lax`;
+    const secure = typeof window !== 'undefined' && window.location.protocol === 'https:' ? '; Secure' : '';
+    document.cookie = `${name}=${encodeURIComponent( value )}; expires=${date.toUTCString()}; path=/; SameSite=Lax${secure}`;
 }
 
 /**
@@ -189,6 +190,7 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
     const categories = ref<Record<string, ConsentStatusItem>>( initialCategories );
 
     let abortController: AbortController | null = null;
+    let updateRequestId = 0;
 
     async function fetchStatus(): Promise<void> {
         const visitorId = getVisitorId();
@@ -272,6 +274,8 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
             return;
         }
 
+        const requestId = ++updateRequestId;
+
         loading.value = true;
         error.value = null;
 
@@ -296,17 +300,23 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
             }
 
             const json: ConsentUpdateResponse = await response.json();
-            categories.value = json.categories ?? {};
+
+            if ( requestId === updateRequestId ) {
+                categories.value = json.categories ?? {};
+            }
         } catch ( err ) {
             error.value = err instanceof Error ? err.message : 'An unexpected error occurred';
 
-            // Rollback optimistic update on server error
-            categories.value = prev;
-            persistLocally( prevMergedState );
+            if ( requestId === updateRequestId ) {
+                categories.value = prev;
+                persistLocally( prevMergedState );
+            }
 
             throw err;
         } finally {
-            loading.value = false;
+            if ( requestId === updateRequestId ) {
+                loading.value = false;
+            }
         }
     }
 

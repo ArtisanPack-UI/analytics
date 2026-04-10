@@ -66,7 +66,8 @@ function setCookie( name: string, value: string, days: number ): void {
 
     const date = new Date();
     date.setTime( date.getTime() + days * 24 * 60 * 60 * 1000 );
-    document.cookie = `${name}=${encodeURIComponent( value )}; expires=${date.toUTCString()}; path=/; SameSite=Lax`;
+    const secure = typeof window !== 'undefined' && window.location.protocol === 'https:' ? '; Secure' : '';
+    document.cookie = `${name}=${encodeURIComponent( value )}; expires=${date.toUTCString()}; path=/; SameSite=Lax${secure}`;
 }
 
 /**
@@ -238,6 +239,7 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
 
     const categoriesRef = useRef( categories );
     categoriesRef.current = categories;
+    const updateRequestIdRef = useRef( 0 );
 
     const updateConsent = useCallback( async ( updates: Record<string, boolean> ): Promise<void> => {
         // Snapshot current state for optimistic update and rollback
@@ -273,6 +275,8 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
             return;
         }
 
+        const requestId = ++updateRequestIdRef.current;
+
         setLoading( true );
         setError( null );
 
@@ -297,17 +301,25 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
             }
 
             const json: ConsentUpdateResponse = await response.json();
-            setCategories( json.categories ?? {} );
+
+            // Only apply server response if this is still the latest request
+            if ( requestId === updateRequestIdRef.current ) {
+                setCategories( json.categories ?? {} );
+            }
         } catch ( err ) {
             setError( err instanceof Error ? err.message : 'An unexpected error occurred' );
 
-            // Rollback optimistic update on server error
-            setCategories( prevCategories );
-            persistLocally( prevMergedState );
+            // Only rollback if this is still the latest request
+            if ( requestId === updateRequestIdRef.current ) {
+                setCategories( prevCategories );
+                persistLocally( prevMergedState );
+            }
 
             throw err;
         } finally {
-            setLoading( false );
+            if ( requestId === updateRequestIdRef.current ) {
+                setLoading( false );
+            }
         }
     }, [ apiPrefix ] );
 
