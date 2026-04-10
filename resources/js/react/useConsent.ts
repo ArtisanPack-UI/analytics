@@ -236,38 +236,34 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
         }
     }, [ apiPrefix ] );
 
+    const categoriesRef = useRef( categories );
+    categoriesRef.current = categories;
+
     const updateConsent = useCallback( async ( updates: Record<string, boolean> ): Promise<void> => {
-        // Save previous state for rollback on server error
-        let prevCategories: Record<string, ConsentStatusItem> = {};
-        let prevMergedState: Record<string, boolean> = {};
-        let mergedState: Record<string, boolean> = {};
+        // Snapshot current state for optimistic update and rollback
+        const prevCategories = categoriesRef.current;
+        const prevMergedState = Object.fromEntries(
+            Object.entries( prevCategories ).map( ( [ k, v ] ) => [ k, v.granted ] ),
+        );
+
+        const nextCategories = { ...prevCategories };
+
+        for ( const [ key, granted ] of Object.entries( updates ) ) {
+            if ( nextCategories[ key ] ) {
+                nextCategories[ key ] = {
+                    ...nextCategories[ key ],
+                    granted,
+                    granted_at: granted ? new Date().toISOString() : nextCategories[ key ].granted_at,
+                };
+            }
+        }
+
+        const mergedState = Object.fromEntries(
+            Object.entries( nextCategories ).map( ( [ k, v ] ) => [ k, v.granted ] ),
+        );
 
         // Apply changes optimistically so the UI updates immediately
-        setCategories( ( prev ) => {
-            prevCategories = prev;
-            prevMergedState = Object.fromEntries(
-                Object.entries( prev ).map( ( [ k, v ] ) => [ k, v.granted ] ),
-            );
-
-            const next = { ...prev };
-
-            for ( const [ key, granted ] of Object.entries( updates ) ) {
-                if ( next[ key ] ) {
-                    next[ key ] = {
-                        ...next[ key ],
-                        granted,
-                        granted_at: granted ? new Date().toISOString() : next[ key ].granted_at,
-                    };
-                }
-            }
-
-            mergedState = Object.fromEntries(
-                Object.entries( next ).map( ( [ k, v ] ) => [ k, v.granted ] ),
-            );
-
-            return next;
-        } );
-
+        setCategories( nextCategories );
         persistLocally( mergedState );
 
         // Sync with server if a visitor ID is available

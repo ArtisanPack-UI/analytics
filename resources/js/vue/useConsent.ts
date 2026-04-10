@@ -9,7 +9,7 @@
  * @since 1.1.0
  */
 
-import { computed, onUnmounted, ref, type Ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, type Ref } from 'vue';
 
 import type { ConsentStatusItem, ConsentStatusResponse, ConsentUpdateResponse } from '../types';
 
@@ -362,9 +362,11 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
         await updateConsent( updates );
     }
 
-    if ( fetchOnMount ) {
-        fetchStatus();
-    }
+    onMounted( () => {
+        if ( fetchOnMount ) {
+            fetchStatus();
+        }
+    } );
 
     onUnmounted( () => {
         abortController?.abort();
