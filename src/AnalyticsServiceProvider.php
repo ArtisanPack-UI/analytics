@@ -188,6 +188,7 @@ class AnalyticsServiceProvider extends ServiceProvider
         $this->publishViews();
         $this->publishTracker();
         $this->publishReactComponents();
+        $this->publishVueComponents();
         $this->registerMiddleware();
         $this->registerRoutes();
         $this->registerCommands();
@@ -347,6 +348,23 @@ class AnalyticsServiceProvider extends ServiceProvider
             $this->publishes( [
                 __DIR__ . '/../resources/js/react' => resource_path( 'js/vendor/artisanpack-analytics/react' ),
             ], 'analytics-react' );
+        }
+    }
+
+    /**
+     * Publish the Vue dashboard components.
+     *
+     * Publishes Vue SFC components to the consuming application's
+     * resources directory for use with Inertia.js.
+     *
+     * @since 1.1.0
+     */
+    protected function publishVueComponents(): void
+    {
+        if ( $this->app->runningInConsole() ) {
+            $this->publishes( [
+                __DIR__ . '/../resources/js/vue' => resource_path( 'js/vendor/artisanpack-analytics/vue' ),
+            ], 'analytics-vue' );
         }
     }
 
