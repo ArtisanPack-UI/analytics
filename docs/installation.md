@@ -15,9 +15,9 @@ php artisan analytics:install
 
 ## Detailed Guides
 
-- [Requirements](./installation/requirements.md) - System requirements and prerequisites
-- [Installation Guide](./installation/installation.md) - Step-by-step installation instructions
-- [Configuration](./installation/configuration.md) - Complete configuration reference
+- [Requirements](Installation-Requirements) - System requirements and prerequisites
+- [Installation Guide](Installation-Installation) - Step-by-step installation instructions
+- [Configuration](Installation-Configuration) - Complete configuration reference
 
 ## What Gets Installed
 
@@ -47,6 +47,6 @@ The following tables are created during installation:
 
 After installation, you should:
 
-1. [Configure](./installation/configuration.md) the package for your needs
-2. [Add the tracking script](../usage/tracking-page-views.md) to your layouts
-3. [Set up the dashboard](../components/analytics-dashboard.md) to view your data
+1. [Configure](Installation-Configuration) the package for your needs
+2. [Add the tracking script](Usage-Tracking-Page-Views) to your layouts
+3. [Set up the dashboard](Components-Analytics-Dashboard) to view your data

@@ -10,12 +10,12 @@ ArtisanPack UI Analytics provides pre-built Livewire components for displaying a
 
 | Component | Description |
 |-----------|-------------|
-| [Analytics Dashboard](./components/analytics-dashboard.md) | Full-featured dashboard with all widgets |
-| [Stats Cards](./components/stats-cards.md) | Key metrics in card format |
-| [Visitors Chart](./components/visitors-chart.md) | Line chart of visitors over time |
-| [Top Pages](./components/top-pages.md) | Table of most viewed pages |
-| [Traffic Sources](./components/traffic-sources.md) | Breakdown of traffic sources |
-| [Realtime Visitors](./components/realtime-visitors.md) | Live visitor count widget |
+| [Analytics Dashboard](Components-Analytics-Dashboard) | Full-featured dashboard with all widgets |
+| [Stats Cards](Components-Stats-Cards) | Key metrics in card format |
+| [Visitors Chart](Components-Visitors-Chart) | Line chart of visitors over time |
+| [Top Pages](Components-Top-Pages) | Table of most viewed pages |
+| [Traffic Sources](Components-Traffic-Sources) | Breakdown of traffic sources |
+| [Realtime Visitors](Components-Realtime-Visitors) | Live visitor count widget |
 
 ## Quick Usage
 
@@ -29,19 +29,19 @@ ArtisanPack UI Analytics provides pre-built Livewire components for displaying a
 
 ```blade
 {{-- Stats cards --}}
-<livewire:artisanpack-analytics::stats-cards />
+<livewire:artisanpack-analytics::widgets.stats-cards />
 
 {{-- Visitors chart --}}
-<livewire:artisanpack-analytics::visitors-chart />
+<livewire:artisanpack-analytics::widgets.visitors-chart />
 
 {{-- Top pages table --}}
-<livewire:artisanpack-analytics::top-pages />
+<livewire:artisanpack-analytics::widgets.top-pages />
 
 {{-- Traffic sources --}}
-<livewire:artisanpack-analytics::traffic-sources />
+<livewire:artisanpack-analytics::widgets.traffic-sources />
 
 {{-- Real-time visitors --}}
-<livewire:artisanpack-analytics::realtime-visitors />
+<livewire:artisanpack-analytics::widgets.realtime-visitors />
 ```
 
 ## Common Properties
@@ -72,7 +72,7 @@ Available presets:
 ### Using Props
 
 ```blade
-<livewire:artisanpack-analytics::stats-cards
+<livewire:artisanpack-analytics::widgets.stats-cards
     date-range-preset="last30days"
     :site-id="$siteId"
     :show-comparison="true"
@@ -85,7 +85,7 @@ Components dispatch events you can listen for:
 
 ```blade
 <div x-data @analytics-data-loaded.window="handleDataLoaded($event.detail)">
-    <livewire:artisanpack-analytics::stats-cards />
+    <livewire:artisanpack-analytics::widgets.stats-cards />
 </div>
 ```
 
@@ -190,6 +190,6 @@ class CustomWidget extends Component
 
 ## Next Steps
 
-- [Analytics Dashboard](./components/analytics-dashboard.md) - Explore the full dashboard
-- [Configuration](./installation/configuration.md) - Configure dashboard settings
-- [Multi-Tenancy](./advanced/multi-tenancy.md) - Set up multi-tenant analytics
+- [Analytics Dashboard](Components-Analytics-Dashboard) - Explore the full dashboard
+- [Configuration](Installation-Configuration) - Configure dashboard settings
+- [Multi-Tenancy](Advanced-Multi-Tenancy) - Set up multi-tenant analytics

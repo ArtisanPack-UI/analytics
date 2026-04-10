@@ -8,11 +8,11 @@ This section covers advanced features and configuration options for ArtisanPack 
 
 ## Guides
 
-- [Multi-Tenancy](./advanced/multi-tenancy.md) - Configure analytics for multi-tenant applications
-- [Privacy & Consent](./advanced/privacy-consent.md) - GDPR compliance and consent management
-- [Multiple Providers](./advanced/multiple-providers.md) - Use multiple analytics providers
-- [Caching](./advanced/caching.md) - Optimize performance with caching
-- [Artisan Commands](./advanced/artisan-commands.md) - CLI commands for management
+- [Multi-Tenancy](Advanced-Multi-Tenancy) - Configure analytics for multi-tenant applications
+- [Privacy & Consent](Advanced-Privacy-Consent) - GDPR compliance and consent management
+- [Multiple Providers](Advanced-Multiple-Providers) - Use multiple analytics providers
+- [Caching](Advanced-Caching) - Optimize performance with caching
+- [Artisan Commands](Advanced-Artisan-Commands) - CLI commands for management
 
 ## Overview
 
@@ -162,6 +162,6 @@ Configure retention to manage database size:
 
 Choose the topic most relevant to your needs:
 
-- Building a SaaS? Start with [Multi-Tenancy](./advanced/multi-tenancy.md)
-- Launching in EU? Read [Privacy & Consent](./advanced/privacy-consent.md)
-- Need integrations? See [Multiple Providers](./advanced/multiple-providers.md)
+- Building a SaaS? Start with [Multi-Tenancy](Advanced-Multi-Tenancy)
+- Launching in EU? Read [Privacy & Consent](Advanced-Privacy-Consent)
+- Need integrations? See [Multiple Providers](Advanced-Multiple-Providers)

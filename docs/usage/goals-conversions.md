@@ -239,7 +239,7 @@ The analytics dashboard displays:
 - Top converting pages
 - Conversion value totals
 
-See [Analytics Dashboard](../components/analytics-dashboard.md) for details.
+See [Analytics Dashboard](Components-Analytics-Dashboard) for details.
 
 ## Best Practices
 

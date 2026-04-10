@@ -8,11 +8,11 @@ This section provides detailed documentation of the ArtisanPack UI Analytics API
 
 ## Reference Guides
 
-- [Models](./api/models.md) - Eloquent models for analytics data
-- [Services](./api/services.md) - Service classes for analytics operations
-- [Data Objects](./api/data-objects.md) - Data Transfer Objects (DTOs)
-- [Events](./api/events.md) - Laravel events dispatched by the package
-- [Contracts](./api/contracts.md) - Interfaces for custom implementations
+- [Models](Api-Models) - Eloquent models for analytics data
+- [Services](Api-Services) - Service classes for analytics operations
+- [Data Objects](Api-Data-Objects) - Data Transfer Objects (DTOs)
+- [Events](Api-Events) - Laravel events dispatched by the package
+- [Contracts](Api-Contracts) - Interfaces for custom implementations
 
 ## Quick Reference
 

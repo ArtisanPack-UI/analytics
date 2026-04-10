@@ -96,17 +96,17 @@ $stats = analyticsStats(DateRange::last30Days());
 
 ## Documentation
 
-Comprehensive documentation is available at our [Documentation Site](https://jacob-martella-web-design.gitlab.io/artisanpack-ui/analytics/):
+Comprehensive documentation is available at our [Documentation Site](https://github.com/ArtisanPack-UI/analytics/wiki):
 
-- **[Getting Started](https://jacob-martella-web-design.gitlab.io/artisanpack-ui/analytics/getting-started/)** - Quick start guide
-- **[Installation Guide](https://jacob-martella-web-design.gitlab.io/artisanpack-ui/analytics/installation/)** - Detailed setup instructions
-- **[Configuration](https://jacob-martella-web-design.gitlab.io/artisanpack-ui/analytics/installation/configuration/)** - All configuration options
-- **[Tracking Page Views](https://jacob-martella-web-design.gitlab.io/artisanpack-ui/analytics/usage/tracking-page-views/)** - Page view tracking
-- **[Tracking Events](https://jacob-martella-web-design.gitlab.io/artisanpack-ui/analytics/usage/tracking-events/)** - Custom event tracking
-- **[Components](https://jacob-martella-web-design.gitlab.io/artisanpack-ui/analytics/components/)** - Dashboard and widget components
-- **[Multi-Tenancy](https://jacob-martella-web-design.gitlab.io/artisanpack-ui/analytics/advanced/multi-tenancy/)** - Multi-tenant setup
-- **[Privacy & Consent](https://jacob-martella-web-design.gitlab.io/artisanpack-ui/analytics/advanced/privacy-consent/)** - GDPR compliance
-- **[API Reference](https://jacob-martella-web-design.gitlab.io/artisanpack-ui/analytics/api/)** - Models, services, and events
+- **[Getting Started](https://github.com/ArtisanPack-UI/analytics/wiki/Getting-Started)** - Quick start guide
+- **[Installation Guide](https://github.com/ArtisanPack-UI/analytics/wiki/Installation)** - Detailed setup instructions
+- **[Configuration](https://github.com/ArtisanPack-UI/analytics/wiki/Installation-Configuration)** - All configuration options
+- **[Tracking Page Views](https://github.com/ArtisanPack-UI/analytics/wiki/Usage-Tracking-Page-Views)** - Page view tracking
+- **[Tracking Events](https://github.com/ArtisanPack-UI/analytics/wiki/Usage-Tracking-Events)** - Custom event tracking
+- **[Components](https://github.com/ArtisanPack-UI/analytics/wiki/Components)** - Dashboard and widget components
+- **[Multi-Tenancy](https://github.com/ArtisanPack-UI/analytics/wiki/Advanced-Multi-Tenancy)** - Multi-tenant setup
+- **[Privacy & Consent](https://github.com/ArtisanPack-UI/analytics/wiki/Advanced-Privacy-Consent)** - GDPR compliance
+- **[API Reference](https://github.com/ArtisanPack-UI/analytics/wiki/Api)** - Models, services, and events
 
 ## Configuration
 
@@ -264,8 +264,8 @@ The package has minimal external dependencies:
 
 Optional integrations with the ArtisanPack UI ecosystem:
 
-- [artisanpack-ui/livewire-ui-components](https://gitlab.com/jacob-martella-web-design/artisanpack-ui/livewire-ui-components) - UI components for dashboard
-- [artisanpack-ui/hooks](https://gitlab.com/jacob-martella-web-design/artisanpack-ui/hooks) - WordPress-style hooks for extensibility
+- [artisanpack-ui/livewire-ui-components](https://github.com/ArtisanPack-UI/livewire-ui-components) - UI components for dashboard
+- [artisanpack-ui/hooks](https://github.com/ArtisanPack-UI/hooks) - WordPress-style hooks for extensibility
 
 ## Events
 

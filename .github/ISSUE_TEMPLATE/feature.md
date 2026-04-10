@@ -1,3 +1,11 @@
+---
+name: Feature
+about: Propose a new feature
+title: ''
+labels: enhancement
+assignees: ''
+---
+
 Feature Name:
 Requested By:  
 Owned By:

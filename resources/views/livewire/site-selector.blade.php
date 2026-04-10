@@ -1,5 +1,5 @@
 <div
-	x-data="{ open: @entangle('isOpen') }"
+	x-data="{ open: $wire.entangle('isOpen') }"
 	x-on:keydown.escape.window="open = false"
 	x-on:click.away="open = false"
 	class="relative inline-block text-left"

@@ -22,11 +22,11 @@ ArtisanPack UI Analytics provides two main types of functionality:
 
 ## Guides
 
-- [Tracking Page Views](./usage/tracking-page-views.md) - Automatic and manual page view tracking
-- [Tracking Events](./usage/tracking-events.md) - Custom event tracking
-- [Goals & Conversions](./usage/goals-conversions.md) - Setting up and tracking conversion goals
-- [Date Ranges](./usage/date-ranges.md) - Working with date ranges for queries
-- [Helper Functions](./usage/helper-functions.md) - Complete reference of available helpers
+- [Tracking Page Views](Usage-Tracking-Page-Views) - Automatic and manual page view tracking
+- [Tracking Events](Usage-Tracking-Events) - Custom event tracking
+- [Goals & Conversions](Usage-Goals-Conversions) - Setting up and tracking conversion goals
+- [Date Ranges](Usage-Date-Ranges) - Working with date ranges for queries
+- [Helper Functions](Usage-Helper-Functions) - Complete reference of available helpers
 
 ## Quick Reference
 
@@ -104,6 +104,6 @@ analytics.grantConsent(['analytics']);
 
 ## Next Steps
 
-- [Configure Privacy Settings](./installation/configuration.md#privacy-configuration)
-- [View the Dashboard](./components/analytics-dashboard.md)
-- [Set Up Multi-Tenancy](./advanced/multi-tenancy.md)
+- [Configure Privacy Settings](Installation-Configuration#privacy-configuration)
+- [View the Dashboard](Components-Analytics-Dashboard)
+- [Set Up Multi-Tenancy](Advanced-Multi-Tenancy)
