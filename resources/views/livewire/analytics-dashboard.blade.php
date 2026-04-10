@@ -70,7 +70,7 @@
 		{{-- Overview Tab --}}
 		@if ( $activeTab === 'overview' )
 			{{-- Stats Cards --}}
-			<livewire:artisanpack-analytics::stats-cards
+			<livewire:artisanpack-analytics::widgets.stats-cards
 				:date-range-preset="$dateRangePreset"
 				:site-id="$siteId"
 				:stats="$stats"
@@ -176,7 +176,7 @@
 
 		{{-- Pages Tab --}}
 		@if ( $activeTab === 'pages' )
-			<livewire:artisanpack-analytics::top-pages
+			<livewire:artisanpack-analytics::widgets.top-pages
 				:date-range-preset="$dateRangePreset"
 				:site-id="$siteId"
 				:limit="20"
@@ -185,7 +185,7 @@
 
 		{{-- Traffic Tab --}}
 		@if ( $activeTab === 'traffic' )
-			<livewire:artisanpack-analytics::traffic-sources
+			<livewire:artisanpack-analytics::widgets.traffic-sources
 				:date-range-preset="$dateRangePreset"
 				:site-id="$siteId"
 				:limit="15"

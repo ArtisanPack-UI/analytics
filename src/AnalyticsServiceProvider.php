@@ -15,16 +15,6 @@ use ArtisanPackUI\Analytics\Console\Commands\SiteCreateCommand;
 use ArtisanPackUI\Analytics\Console\Commands\SitesListCommand;
 use ArtisanPackUI\Analytics\Console\Commands\StatsCommand;
 use ArtisanPackUI\Analytics\Contracts\AnalyticsServiceInterface;
-use ArtisanPackUI\Analytics\Http\Livewire\AnalyticsDashboard;
-use ArtisanPackUI\Analytics\Http\Livewire\MultiTenantDashboard;
-use ArtisanPackUI\Analytics\Http\Livewire\PageAnalytics;
-use ArtisanPackUI\Analytics\Http\Livewire\PlatformDashboard;
-use ArtisanPackUI\Analytics\Http\Livewire\SiteSelector;
-use ArtisanPackUI\Analytics\Http\Livewire\Widgets\RealtimeVisitors;
-use ArtisanPackUI\Analytics\Http\Livewire\Widgets\StatsCards;
-use ArtisanPackUI\Analytics\Http\Livewire\Widgets\TopPages;
-use ArtisanPackUI\Analytics\Http\Livewire\Widgets\TrafficSources;
-use ArtisanPackUI\Analytics\Http\Livewire\Widgets\VisitorsChart;
 use ArtisanPackUI\Analytics\Http\Middleware\AnalyticsThrottle;
 use ArtisanPackUI\Analytics\Http\Middleware\AuthenticateWithApiKey;
 use ArtisanPackUI\Analytics\Http\Middleware\PrivacyFilter;
@@ -450,7 +440,11 @@ class AnalyticsServiceProvider extends ServiceProvider
     /**
      * Register Livewire components.
      *
+     * Uses the addNamespace API for Livewire 4 compatibility,
+     * with explicit addComponent fallbacks for the 'dashboard' alias.
+     *
      * @since 1.0.0
+     * @since 1.1.0 Updated to use addNamespace for Livewire 4 support.
      */
     protected function registerLivewireComponents(): void
     {
@@ -459,22 +453,15 @@ class AnalyticsServiceProvider extends ServiceProvider
             return;
         }
 
-        // Register widgets
-        \Livewire\Livewire::component( 'artisanpack-analytics::stats-cards', StatsCards::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::visitors-chart', VisitorsChart::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::top-pages', TopPages::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::traffic-sources', TrafficSources::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::realtime-visitors', RealtimeVisitors::class );
-
-        // Register main components
-        \Livewire\Livewire::component( 'artisanpack-analytics::dashboard', AnalyticsDashboard::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::analytics-dashboard', AnalyticsDashboard::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::page-analytics', PageAnalytics::class );
-
-        // Register multi-tenant components
-        \Livewire\Livewire::component( 'artisanpack-analytics::site-selector', SiteSelector::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::multi-tenant-dashboard', MultiTenantDashboard::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::platform-dashboard', PlatformDashboard::class );
+        // Register namespace for automatic class-based component resolution.
+        // This maps 'artisanpack-analytics::component-name' to
+        // ArtisanPackUI\Analytics\Http\Livewire\ComponentName.
+        \Livewire\Livewire::addNamespace(
+            namespace: 'artisanpack-analytics',
+            classNamespace: 'ArtisanPackUI\\Analytics\\Http\\Livewire',
+            classPath: __DIR__ . '/Http/Livewire',
+            classViewPath: __DIR__ . '/../resources/views/livewire',
+        );
     }
 
     /**
@@ -549,7 +536,7 @@ class AnalyticsServiceProvider extends ServiceProvider
             Blade::directive( 'analyticsWidget', function ( $expression ): string {
                 $type = $expression ?: "'stats-cards'";
 
-                return "<?php echo \\Livewire\\Livewire::mount('artisanpack-analytics::' . {$type})->html(); ?>";
+                return "<?php echo \\Livewire\\Livewire::mount('artisanpack-analytics::widgets.' . {$type})->html(); ?>";
             } );
 
             // @analyticsPageStats - Show page statistics for current or specified path
