@@ -113,6 +113,8 @@ export interface BrowserBreakdownItem {
     percentage: number;
 }
 
+export type BrowserBreakdownResponse = ApiSuccessResponse<BrowserBreakdownItem[]>;
+
 // --- /countries ---
 
 export interface CountryBreakdownItem {

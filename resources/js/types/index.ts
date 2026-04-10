@@ -58,6 +58,7 @@ export type {
 export type {
     AnalyticsQueryParams,
     BrowserBreakdownItem,
+    BrowserBreakdownResponse,
     ApiDataResponse,
     ApiErrorResponse,
     ApiSuccessResponse,
