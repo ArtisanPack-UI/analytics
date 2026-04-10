@@ -22,5 +22,11 @@ export { default as PageAnalytics } from './PageAnalytics';
 export { default as SiteSelector } from './SiteSelector';
 export { default as MultiTenantDashboard } from './MultiTenantDashboard';
 
+// Consent components
+export { default as ConsentBanner } from './ConsentBanner';
+export { default as ConsentPreferences } from './ConsentPreferences';
+export { default as ConsentStatus } from './ConsentStatus';
+
 // Hooks
 export { useAnalyticsApi } from './useAnalyticsApi';
+export { useConsent } from './useConsent';

@@ -48,17 +48,30 @@ test( 'all react dashboard components exist', function ( string $component ): vo
 	'MultiTenantDashboard',
 ] );
 
+test( 'all react consent components exist', function ( string $component ): void {
+	$filePath = __DIR__ . "/../../resources/js/react/{$component}.tsx";
+
+	expect( file_exists( $filePath ) )->toBeTrue();
+} )->with( [
+	'ConsentBanner',
+	'ConsentPreferences',
+	'ConsentStatus',
+] );
+
 test( 'react barrel export file exists', function (): void {
 	$filePath = __DIR__ . '/../../resources/js/react/index.ts';
 
 	expect( file_exists( $filePath ) )->toBeTrue();
 } );
 
-test( 'react hook file exists', function (): void {
-	$filePath = __DIR__ . '/../../resources/js/react/useAnalyticsApi.ts';
+test( 'react hook files exist', function ( string $hook ): void {
+	$filePath = __DIR__ . "/../../resources/js/react/{$hook}.ts";
 
 	expect( file_exists( $filePath ) )->toBeTrue();
-} );
+} )->with( [
+	'useAnalyticsApi',
+	'useConsent',
+] );
 
 test( 'react components publish to correct destination', function (): void {
 	$publishes = AnalyticsServiceProvider::pathsToPublish( AnalyticsServiceProvider::class, 'analytics-react' );
@@ -81,5 +94,9 @@ test( 'react barrel export references all components', function (): void {
 		->toContain( 'PageAnalytics' )
 		->toContain( 'SiteSelector' )
 		->toContain( 'MultiTenantDashboard' )
-		->toContain( 'useAnalyticsApi' );
+		->toContain( 'ConsentBanner' )
+		->toContain( 'ConsentPreferences' )
+		->toContain( 'ConsentStatus' )
+		->toContain( 'useAnalyticsApi' )
+		->toContain( 'useConsent' );
 } );
