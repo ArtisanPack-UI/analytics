@@ -54,11 +54,20 @@ export function useAnalyticsApi<T>( options: UseAnalyticsApiOptions ) {
 
     let abortController: AbortController | null = null;
     let intervalId: ReturnType<typeof setInterval> | null = null;
+    let inFlight = false;
 
-    async function fetchData(): Promise<void> {
-        abortController?.abort();
+    async function fetchData( force = false ): Promise<void> {
+        if ( inFlight && ! force ) {
+            return;
+        }
+
+        if ( force ) {
+            abortController?.abort();
+        }
+
         const controller = new AbortController();
         abortController = controller;
+        inFlight = true;
 
         loading.value = true;
         error.value = null;
@@ -87,10 +96,16 @@ export function useAnalyticsApi<T>( options: UseAnalyticsApiOptions ) {
 
             error.value = err instanceof Error ? err.message : 'An unexpected error occurred';
         } finally {
+            inFlight = false;
+
             if ( ! controller.signal.aborted ) {
                 loading.value = false;
             }
         }
+    }
+
+    function refresh(): Promise<void> {
+        return fetchData( true );
     }
 
     if ( fetchOnMount ) {
@@ -109,5 +124,5 @@ export function useAnalyticsApi<T>( options: UseAnalyticsApiOptions ) {
         }
     } );
 
-    return { data, loading, error, refresh: fetchData };
+    return { data, loading, error, refresh };
 }
