@@ -440,8 +440,8 @@ class AnalyticsServiceProvider extends ServiceProvider
     /**
      * Register Livewire components.
      *
-     * Uses the addNamespace API for Livewire 4 compatibility,
-     * with explicit addComponent fallbacks for the 'dashboard' alias.
+     * Uses the addNamespace API for Livewire 4, falling back to
+     * individual component() calls for Livewire 3.
      *
      * @since 1.0.0
      * @since 1.1.0 Updated to use addNamespace for Livewire 4 support.
@@ -453,15 +453,30 @@ class AnalyticsServiceProvider extends ServiceProvider
             return;
         }
 
-        // Register namespace for automatic class-based component resolution.
-        // This maps 'artisanpack-analytics::component-name' to
-        // ArtisanPackUI\Analytics\Http\Livewire\ComponentName.
-        \Livewire\Livewire::addNamespace(
-            namespace: 'artisanpack-analytics',
-            classNamespace: 'ArtisanPackUI\\Analytics\\Http\\Livewire',
-            classPath: __DIR__ . '/Http/Livewire',
-            classViewPath: __DIR__ . '/../resources/views/livewire',
-        );
+        // Livewire 4 supports addNamespace for automatic class resolution.
+        // Check against LivewireManager (not the Facade) for method_exists.
+        if ( method_exists( \Livewire\LivewireManager::class, 'addNamespace' ) ) {
+            \Livewire\Livewire::addNamespace(
+                namespace: 'artisanpack-analytics',
+                classNamespace: 'ArtisanPackUI\\Analytics\\Http\\Livewire',
+                classPath: __DIR__ . '/Http/Livewire',
+                classViewPath: __DIR__ . '/../resources/views/livewire',
+            );
+
+            return;
+        }
+
+        // Livewire 3 fallback: register each component individually.
+        \Livewire\Livewire::component( 'artisanpack-analytics::analytics-dashboard', Http\Livewire\AnalyticsDashboard::class );
+        \Livewire\Livewire::component( 'artisanpack-analytics::page-analytics', Http\Livewire\PageAnalytics::class );
+        \Livewire\Livewire::component( 'artisanpack-analytics::site-selector', Http\Livewire\SiteSelector::class );
+        \Livewire\Livewire::component( 'artisanpack-analytics::multi-tenant-dashboard', Http\Livewire\MultiTenantDashboard::class );
+        \Livewire\Livewire::component( 'artisanpack-analytics::platform-dashboard', Http\Livewire\PlatformDashboard::class );
+        \Livewire\Livewire::component( 'artisanpack-analytics::widgets.stats-cards', Http\Livewire\Widgets\StatsCards::class );
+        \Livewire\Livewire::component( 'artisanpack-analytics::widgets.visitors-chart', Http\Livewire\Widgets\VisitorsChart::class );
+        \Livewire\Livewire::component( 'artisanpack-analytics::widgets.top-pages', Http\Livewire\Widgets\TopPages::class );
+        \Livewire\Livewire::component( 'artisanpack-analytics::widgets.traffic-sources', Http\Livewire\Widgets\TrafficSources::class );
+        \Livewire\Livewire::component( 'artisanpack-analytics::widgets.realtime-visitors', Http\Livewire\Widgets\RealtimeVisitors::class );
     }
 
     /**

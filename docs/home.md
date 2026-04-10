@@ -88,7 +88,7 @@ $stats = analyticsStats(DateRange::last30Days());
 
 ## Support
 
-For issues and feature requests, please visit the [GitLab repository](https://gitlab.com/jacob-martella-web-design/artisanpack-ui/analytics).
+For issues and feature requests, please visit the [GitHub repository](https://github.com/ArtisanPack-UI/analytics).
 
 ## License
 
