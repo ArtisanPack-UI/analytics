@@ -30,7 +30,8 @@ const columns: TableColumn[] = [
 ];
 
 const displayData = computed( () => {
-    const clampedLimit = Math.max( 0, Math.floor( props.limit ) );
+    const raw = Number( props.limit );
+    const clampedLimit = Number.isFinite( raw ) ? Math.max( 0, Math.floor( raw ) ) : 0;
 
     return props.topPages.slice( 0, clampedLimit );
 } );

@@ -51,8 +51,13 @@ const data = ref<RealtimeData | null>( props.initialData ?? null );
 const previousCount = ref<number | null>( props.initialData?.active_visitors ?? null );
 const loading = ref( ! props.initialData );
 const error = ref<string | null>( null );
+let abortController: AbortController | null = null;
 
 async function fetchRealtime(): Promise<void> {
+    abortController?.abort();
+    const controller = new AbortController();
+    abortController = controller;
+
     try {
         const response = await fetch(
             `/api/analytics/realtime?minutes=${props.minutes}`,
@@ -62,6 +67,7 @@ async function fetchRealtime(): Promise<void> {
                     'X-Requested-With': 'XMLHttpRequest',
                 },
                 credentials: 'same-origin',
+                signal: controller.signal,
             },
         );
 
@@ -79,9 +85,15 @@ async function fetchRealtime(): Promise<void> {
         data.value = realtimeData;
         error.value = null;
     } catch ( err ) {
+        if ( err instanceof DOMException && err.name === 'AbortError' ) {
+            return;
+        }
+
         error.value = err instanceof Error ? err.message : 'Failed to fetch realtime data';
     } finally {
-        loading.value = false;
+        if ( ! controller.signal.aborted ) {
+            loading.value = false;
+        }
     }
 }
 
@@ -96,6 +108,8 @@ if ( props.pollInterval > 0 ) {
 }
 
 onUnmounted( () => {
+    abortController?.abort();
+
     if ( intervalId ) {
         clearInterval( intervalId );
     }

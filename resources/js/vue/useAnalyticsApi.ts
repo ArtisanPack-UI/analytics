@@ -56,6 +56,7 @@ export function useAnalyticsApi<T>( options: UseAnalyticsApiOptions ) {
     let intervalId: ReturnType<typeof setInterval> | null = null;
 
     async function fetchData(): Promise<void> {
+        abortController?.abort();
         const controller = new AbortController();
         abortController = controller;
 

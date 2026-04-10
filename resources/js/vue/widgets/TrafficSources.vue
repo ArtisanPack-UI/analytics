@@ -36,7 +36,9 @@ const totalSessions = computed(
 );
 
 const displayData = computed( () => {
-    return props.trafficSources.slice( 0, props.limit ).map( ( source ) => ( {
+    const clampedLimit = Math.max( 0, Math.floor( props.limit ) );
+
+    return props.trafficSources.slice( 0, clampedLimit ).map( ( source ) => ( {
         ...source,
         source: source.source || '(direct)',
         medium: source.medium || '(none)',

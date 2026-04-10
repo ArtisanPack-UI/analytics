@@ -21,7 +21,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-    siteChange: [siteId: number];
+    siteChange: [siteId: number | null];
 }>();
 
 const options = computed( () => {
@@ -42,6 +42,8 @@ function handleChange( event: Event ): void {
 
     if ( value ) {
         emit( 'siteChange', parseInt( value, 10 ) );
+    } else {
+        emit( 'siteChange', null );
     }
 }
 </script>
