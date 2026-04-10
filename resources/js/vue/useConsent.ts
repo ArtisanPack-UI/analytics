@@ -184,7 +184,8 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
         initialConsentRequired = false,
     } = options;
 
-    const apiPrefix = rawApiPrefix.replace( /^\/+|\/+$/g, '' );
+    const trimmed = rawApiPrefix.replace( /^\/+|\/+$/g, '' );
+    const apiPrefix = trimmed ? `/${trimmed}` : '';
 
     const loading = ref( false );
     const error = ref<string | null>( null );
@@ -210,7 +211,7 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
 
         try {
             const response = await fetch(
-                `/${apiPrefix}/consent?visitor_id=${encodeURIComponent( visitorId )}`,
+                `${apiPrefix}/consent?visitor_id=${encodeURIComponent( visitorId )}`,
                 {
                     headers: {
                         Accept: 'application/json',
@@ -242,6 +243,9 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
     }
 
     async function updateConsent( updates: Record<string, boolean> ): Promise<void> {
+        // Cancel any in-flight status fetch so it cannot overwrite the optimistic update
+        abortController?.abort();
+
         // Save previous state for rollback on server error
         const prev = { ...categories.value };
         const prevMergedState = Object.fromEntries(
@@ -282,7 +286,7 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
         error.value = null;
 
         try {
-            const response = await fetch( `/${apiPrefix}/consent`, {
+            const response = await fetch( `${apiPrefix}/consent`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -313,9 +317,8 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
                 persistLocally( serverMergedState );
             }
         } catch ( err ) {
-            error.value = err instanceof Error ? err.message : 'An unexpected error occurred';
-
             if ( requestId === updateRequestId ) {
+                error.value = err instanceof Error ? err.message : 'An unexpected error occurred';
                 categories.value = prev;
                 persistLocally( prevMergedState );
             }

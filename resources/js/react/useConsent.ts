@@ -184,7 +184,8 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
         initialConsentRequired = false,
     } = options;
 
-    const apiPrefix = rawApiPrefix.replace( /^\/+|\/+$/g, '' );
+    const trimmed = rawApiPrefix.replace( /^\/+|\/+$/g, '' );
+    const apiPrefix = trimmed ? `/${trimmed}` : '';
 
     const [ loading, setLoading ] = useState( false );
     const [ error, setError ] = useState<string | null>( null );
@@ -208,7 +209,7 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
 
         try {
             const response = await fetch(
-                `/${apiPrefix}/consent?visitor_id=${encodeURIComponent( visitorId )}`,
+                `${apiPrefix}/consent?visitor_id=${encodeURIComponent( visitorId )}`,
                 {
                     headers: {
                         Accept: 'application/json',
@@ -244,6 +245,9 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
     const updateRequestIdRef = useRef( 0 );
 
     const updateConsent = useCallback( async ( updates: Record<string, boolean> ): Promise<void> => {
+        // Cancel any in-flight status fetch so it cannot overwrite the optimistic update
+        abortRef.current?.abort();
+
         // Snapshot current state for optimistic update and rollback
         const prevCategories = categoriesRef.current;
         const prevMergedState = Object.fromEntries(
@@ -283,7 +287,7 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
         setError( null );
 
         try {
-            const response = await fetch( `/${apiPrefix}/consent`, {
+            const response = await fetch( `${apiPrefix}/consent`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -316,10 +320,9 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
                 persistLocally( serverMergedState );
             }
         } catch ( err ) {
-            setError( err instanceof Error ? err.message : 'An unexpected error occurred' );
-
-            // Only rollback if this is still the latest request
+            // Only rollback and surface error if this is still the latest request
             if ( requestId === updateRequestIdRef.current ) {
+                setError( err instanceof Error ? err.message : 'An unexpected error occurred' );
                 setCategories( prevCategories );
                 persistLocally( prevMergedState );
             }
