@@ -178,11 +178,13 @@ function persistLocally( categories: Record<string, boolean> ): void {
  */
 export function useConsent( options: UseConsentOptions = {} ): UseConsentResult {
     const {
-        apiPrefix = 'api/analytics',
+        apiPrefix: rawApiPrefix = 'api/analytics',
         fetchOnMount = true,
         initialCategories = {},
         initialConsentRequired = false,
     } = options;
+
+    const apiPrefix = rawApiPrefix.replace( /^\/+|\/+$/g, '' );
 
     const [ loading, setLoading ] = useState( false );
     const [ error, setError ] = useState<string | null>( null );
@@ -304,7 +306,14 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
 
             // Only apply server response if this is still the latest request
             if ( requestId === updateRequestIdRef.current ) {
-                setCategories( json.categories ?? {} );
+                const serverCategories = json.categories ?? {};
+                setCategories( serverCategories );
+
+                // Persist server-validated state to keep local storage in sync
+                const serverMergedState = Object.fromEntries(
+                    Object.entries( serverCategories ).map( ( [ k, v ] ) => [ k, v.granted ] ),
+                );
+                persistLocally( serverMergedState );
             }
         } catch ( err ) {
             setError( err instanceof Error ? err.message : 'An unexpected error occurred' );
