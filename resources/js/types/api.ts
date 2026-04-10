@@ -104,6 +104,15 @@ export interface DeviceBreakdownItem {
 
 export type DevicesResponse = ApiSuccessResponse<DeviceBreakdownItem[]>;
 
+// --- /browsers (getBrowserBreakdown) ---
+
+export interface BrowserBreakdownItem {
+    browser: string;
+    version: string;
+    sessions: number;
+    percentage: number;
+}
+
 // --- /countries ---
 
 export interface CountryBreakdownItem {

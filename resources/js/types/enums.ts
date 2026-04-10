@@ -113,12 +113,11 @@ export enum AggregateDimension {
 
 export type ReferrerType =
     | 'direct'
-    | 'search'
+    | 'organic'
     | 'social'
     | 'referral'
     | 'email'
-    | 'paid'
-    | string;
+    | 'paid';
 
 // --- Device type (used across models and DTOs) ---
 

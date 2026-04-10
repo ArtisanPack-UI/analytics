@@ -9,6 +9,7 @@
 import type { DateRangePreset } from './enums';
 import type { Site } from './models';
 import type {
+    BrowserBreakdownItem,
     CountryBreakdownItem,
     DeviceBreakdownItem,
     StatsComparison,
@@ -56,7 +57,7 @@ export interface AnalyticsDashboardProps {
     topPages: TopPageItem[];
     trafficSources: TrafficSourceItem[];
     deviceBreakdown: DeviceBreakdownItem[];
-    browserBreakdown: DeviceBreakdownItem[];
+    browserBreakdown: BrowserBreakdownItem[];
     countryBreakdown: CountryBreakdownItem[];
 }
 
