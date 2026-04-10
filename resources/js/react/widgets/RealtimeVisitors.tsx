@@ -13,6 +13,27 @@ import { Card, Stat, Badge, Loading } from '@artisanpack-ui/react';
 
 import type { RealtimeData } from '../../types';
 
+/**
+ * Normalize a raw API payload into a safe RealtimeData shape.
+ */
+function normalizeRealtimeData( payload: unknown ): RealtimeData {
+    if ( payload && typeof payload === 'object' ) {
+        const obj = payload as Record<string, unknown>;
+
+        return {
+            active_visitors: typeof obj.active_visitors === 'number' ? obj.active_visitors : 0,
+            recent_pageviews: Array.isArray( obj.recent_pageviews )
+                ? obj.recent_pageviews.map( ( pv: Record<string, unknown> ) => ( {
+                    path: typeof pv?.path === 'string' ? pv.path : '',
+                    timestamp: typeof pv?.timestamp === 'string' ? pv.timestamp : '',
+                } ) )
+                : [],
+        };
+    }
+
+    return { active_visitors: 0, recent_pageviews: [] };
+}
+
 export interface RealtimeVisitorsProps {
     /** Initial realtime data (e.g. from Inertia page props). */
     initialData?: RealtimeData;
@@ -31,7 +52,7 @@ export default function RealtimeVisitors( {
     className = '',
 }: RealtimeVisitorsProps ): React.ReactElement {
     const [ data, setData ] = useState<RealtimeData | null>( initialData ?? null );
-    const [ previousCount, setPreviousCount ] = useState<number>( initialData?.active_visitors ?? 0 );
+    const [ previousCount, setPreviousCount ] = useState<number | null>( initialData?.active_visitors ?? null );
     const [ loading, setLoading ] = useState( ! initialData );
     const [ error, setError ] = useState<string | null>( null );
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>( null );
@@ -54,7 +75,7 @@ export default function RealtimeVisitors( {
             }
 
             const json = await response.json();
-            const realtimeData: RealtimeData = json.data ?? json;
+            const realtimeData = normalizeRealtimeData( json.data ?? json );
 
             setData( ( prev ) => {
                 if ( prev ) {
@@ -90,7 +111,8 @@ export default function RealtimeVisitors( {
     }, [ fetchRealtime, pollInterval ] );
 
     const activeVisitors = data?.active_visitors ?? 0;
-    const trend = activeVisitors - previousCount;
+    const trend = previousCount !== null ? activeVisitors - previousCount : 0;
+    const hasTrend = previousCount !== null && trend !== 0;
     const isActive = activeVisitors > 0;
 
     return (
@@ -117,7 +139,7 @@ export default function RealtimeVisitors( {
                         title="Active Now"
                         value={new Intl.NumberFormat().format( activeVisitors )}
                         color={isActive ? 'success' : 'neutral'}
-                        change={trend !== 0 ? ( trend / Math.max( previousCount, 1 ) ) * 100 : undefined}
+                        change={hasTrend ? ( trend / Math.max( previousCount!, 1 ) ) * 100 : undefined}
                         changeLabel="from last poll"
                     />
 

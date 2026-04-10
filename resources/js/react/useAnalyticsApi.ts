@@ -67,7 +67,6 @@ export function useAnalyticsApi<T>(
     const abortRef = useRef<AbortController | null>( null );
 
     const fetchData = useCallback( async (): Promise<void> => {
-        abortRef.current?.abort();
         const controller = new AbortController();
         abortRef.current = controller;
 

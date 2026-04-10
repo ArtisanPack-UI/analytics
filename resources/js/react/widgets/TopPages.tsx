@@ -34,7 +34,8 @@ export default function TopPages( {
     limit = 10,
     className = '',
 }: TopPagesProps ): React.ReactElement {
-    const displayData = topPages.slice( 0, limit );
+    const clampedLimit = Math.max( 0, Math.floor( limit ) );
+    const displayData = topPages.slice( 0, clampedLimit );
 
     return (
         <Card title="Top Pages" className={className}>

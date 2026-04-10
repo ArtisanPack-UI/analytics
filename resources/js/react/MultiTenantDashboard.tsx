@@ -8,7 +8,7 @@
  * @since 1.1.0
  */
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Card } from '@artisanpack-ui/react';
 
 import type { StatsCardsProps } from './widgets/StatsCards';
@@ -60,6 +60,10 @@ export default function MultiTenantDashboard( {
     className = '',
 }: MultiTenantDashboardProps ): React.ReactElement {
     const [ selectedSiteId, setSelectedSiteId ] = useState<number | null>( initialSiteId );
+
+    useEffect( () => {
+        setSelectedSiteId( initialSiteId );
+    }, [ initialSiteId ] );
 
     const handleSiteChange = useCallback( ( siteId: number ): void => {
         setSelectedSiteId( siteId );
