@@ -157,6 +157,35 @@ function getVisitorId(): string | null {
 }
 
 /**
+ * Read stored consent choices from localStorage or cookie.
+ */
+function readStoredConsent(): Record<string, boolean> | null {
+    let raw: string | null = null;
+
+    try {
+        if ( typeof localStorage !== 'undefined' ) {
+            raw = localStorage.getItem( STORAGE_KEY );
+        }
+    } catch {
+        // Ignore localStorage read failure
+    }
+
+    if ( ! raw ) {
+        raw = getCookie( COOKIE_NAME );
+    }
+
+    if ( ! raw ) {
+        return null;
+    }
+
+    try {
+        return JSON.parse( raw );
+    } catch {
+        return null;
+    }
+}
+
+/**
  * Persist consent categories to localStorage and cookie.
  */
 function persistLocally( categories: Record<string, boolean> ): void {
@@ -190,7 +219,22 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
     const [ loading, setLoading ] = useState( false );
     const [ error, setError ] = useState<string | null>( null );
     const [ consentRequired, setConsentRequired ] = useState( initialConsentRequired );
-    const [ categories, setCategories ] = useState<Record<string, ConsentStatusItem>>( initialCategories );
+    const [ categories, setCategories ] = useState<Record<string, ConsentStatusItem>>( () => {
+        // Hydrate from stored consent so hasConsent() works before the first
+        // API fetch completes (or when fetchOnMount is false)
+        const hydrated = { ...initialCategories };
+        const stored = readStoredConsent();
+
+        if ( stored ) {
+            for ( const [ key, granted ] of Object.entries( stored ) ) {
+                if ( hydrated[ key ] ) {
+                    hydrated[ key ] = { ...hydrated[ key ], granted };
+                }
+            }
+        }
+
+        return hydrated;
+    } );
     const abortRef = useRef<AbortController | null>( null );
 
     const fetchStatus = useCallback( async (): Promise<void> => {
@@ -225,6 +269,11 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
             }
 
             const json: ConsentStatusResponse = await response.json();
+
+            if ( ! json.success ) {
+                throw new Error( 'Consent status request was not successful' );
+            }
+
             setConsentRequired( json.consent_required );
             setCategories( json.categories ?? {} );
         } catch ( err ) {
@@ -261,7 +310,7 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
                 nextCategories[ key ] = {
                     ...nextCategories[ key ],
                     granted,
-                    granted_at: granted ? new Date().toISOString() : nextCategories[ key ].granted_at,
+                    granted_at: granted ? new Date().toISOString() : null,
                 };
             }
         }
@@ -307,6 +356,10 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
             }
 
             const json: ConsentUpdateResponse = await response.json();
+
+            if ( ! json.success ) {
+                throw new Error( 'Consent update request was not successful' );
+            }
 
             // Only apply server response if this is still the latest request
             if ( requestId === updateRequestIdRef.current ) {
