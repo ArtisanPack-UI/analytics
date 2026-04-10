@@ -75,6 +75,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Dashboard Driver
+    |--------------------------------------------------------------------------
+    |
+    | The driver used to render the analytics dashboard. Set to 'livewire'
+    | to use Livewire components (default), or 'inertia' to return Inertia
+    | responses with page props for React/Vue dashboards.
+    |
+    | Supported: "livewire", "inertia"
+    |
+    */
+    'dashboard_driver' => env( 'ANALYTICS_DASHBOARD_DRIVER', 'livewire' ),
+
+    /*
+    |--------------------------------------------------------------------------
     | Dashboard Route
     |--------------------------------------------------------------------------
     |
@@ -418,6 +432,46 @@ return [
         |
         */
         'cleanup_schedule' => env( 'ANALYTICS_CLEANUP_SCHEDULE', '0 3 * * *' ),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Inertia Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Settings for Inertia.js dashboard rendering. These are only used when
+    | dashboard_driver is set to 'inertia'.
+    |
+    */
+    'inertia' => [
+        /*
+        |----------------------------------------------------------------------
+        | Page Components
+        |----------------------------------------------------------------------
+        |
+        | The Inertia page component names to render for each dashboard page.
+        | These should match the component names in your React/Vue application.
+        |
+        */
+        'pages' => [
+            'dashboard' => env( 'ANALYTICS_INERTIA_DASHBOARD', 'Analytics/Dashboard' ),
+            'pages'     => env( 'ANALYTICS_INERTIA_PAGES', 'Analytics/Pages' ),
+            'traffic'   => env( 'ANALYTICS_INERTIA_TRAFFIC', 'Analytics/Traffic' ),
+            'audience'  => env( 'ANALYTICS_INERTIA_AUDIENCE', 'Analytics/Audience' ),
+            'events'    => env( 'ANALYTICS_INERTIA_EVENTS', 'Analytics/Events' ),
+            'realtime'  => env( 'ANALYTICS_INERTIA_REALTIME', 'Analytics/Realtime' ),
+        ],
+
+        /*
+        |----------------------------------------------------------------------
+        | Share Analytics Data
+        |----------------------------------------------------------------------
+        |
+        | When enabled, common analytics data (current site, consent status)
+        | will be shared as Inertia shared props on all dashboard routes.
+        |
+        */
+        'share_data' => env( 'ANALYTICS_INERTIA_SHARE_DATA', true ),
     ],
 
     /*
