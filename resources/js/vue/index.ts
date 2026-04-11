@@ -33,5 +33,5 @@ export { default as MultiTenantDashboard } from './pages/MultiTenantDashboard.vu
 export { useAnalyticsApi } from './composables/useAnalyticsApi';
 export { useConsent } from './composables/useConsent';
 
-// Types (re-exported for convenience)
-export type * from './types';
+// Types (re-exported for convenience — includes enums as values)
+export * from './types';

@@ -104,7 +104,10 @@ class InstallFrontendCommand extends Command
 		$this->info( "Installing analytics {$stack} components..." );
 		$this->newLine();
 
-		$this->publishComponents( $stack );
+		if ( ! $this->publishComponents( $stack ) ) {
+			return self::FAILURE;
+		}
+
 		$this->addNpmDependencies( $stack );
 
 		$this->newLine();
@@ -121,18 +124,26 @@ class InstallFrontendCommand extends Command
 	 *
 	 * @param string $stack The frontend stack ('react' or 'vue').
 	 *
+	 * @return bool Whether publishing succeeded.
+	 *
 	 * @since 1.1.0
 	 */
-	protected function publishComponents( string $stack ): void
+	protected function publishComponents( string $stack ): bool
 	{
-		$this->components->task( "Publishing {$stack} components", function () use ( $stack ) {
-			$this->callSilently( 'vendor:publish', [
+		$success = true;
+
+		$this->components->task( "Publishing {$stack} components", function () use ( $stack, &$success ) {
+			$exitCode = $this->callSilently( 'vendor:publish', [
 				'--tag'   => "analytics-{$stack}",
 				'--force' => $this->option( 'force' ),
 			] );
 
-			return true;
+			$success = ( self::SUCCESS === $exitCode );
+
+			return $success;
 		} );
+
+		return $success;
 	}
 
 	/**

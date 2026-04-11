@@ -4,6 +4,28 @@ declare( strict_types=1 );
 
 use Illuminate\Support\Facades\File;
 
+$originalPackageJson = null;
+
+beforeEach( function () use ( &$originalPackageJson ) {
+	$path = base_path( 'package.json' );
+
+	if ( File::exists( $path ) ) {
+		$originalPackageJson = File::get( $path );
+	} else {
+		$originalPackageJson = null;
+	}
+} );
+
+afterEach( function () use ( &$originalPackageJson ) {
+	$path = base_path( 'package.json' );
+
+	if ( null !== $originalPackageJson ) {
+		File::put( $path, $originalPackageJson );
+	} elseif ( File::exists( $path ) ) {
+		File::delete( $path );
+	}
+} );
+
 test( 'install-frontend command requires --stack option', function (): void {
 	$this->artisan( 'analytics:install-frontend' )
 		->assertFailed();
@@ -32,7 +54,6 @@ test( 'install-frontend command is case insensitive for stack', function (): voi
 test( 'install-frontend react adds dependencies to package.json', function (): void {
 	$packageJsonPath = base_path( 'package.json' );
 
-	// Create a minimal package.json
 	File::put( $packageJsonPath, json_encode( [
 		'name'         => 'test-app',
 		'dependencies' => [],
@@ -50,15 +71,11 @@ test( 'install-frontend react adds dependencies to package.json', function (): v
 		->toHaveKey( 'react-dom' )
 		->toHaveKey( 'react-apexcharts' )
 		->toHaveKey( 'apexcharts' );
-
-	// Clean up
-	File::delete( $packageJsonPath );
 } );
 
 test( 'install-frontend vue adds dependencies to package.json', function (): void {
 	$packageJsonPath = base_path( 'package.json' );
 
-	// Create a minimal package.json
 	File::put( $packageJsonPath, json_encode( [
 		'name'         => 'test-app',
 		'dependencies' => [],
@@ -75,15 +92,11 @@ test( 'install-frontend vue adds dependencies to package.json', function (): voi
 		->toHaveKey( 'vue' )
 		->toHaveKey( 'vue3-apexcharts' )
 		->toHaveKey( 'apexcharts' );
-
-	// Clean up
-	File::delete( $packageJsonPath );
 } );
 
 test( 'install-frontend does not overwrite existing dependencies', function (): void {
 	$packageJsonPath = base_path( 'package.json' );
 
-	// Create a package.json with an existing dependency at a different version
 	File::put( $packageJsonPath, json_encode( [
 		'name'         => 'test-app',
 		'dependencies' => [
@@ -96,22 +109,16 @@ test( 'install-frontend does not overwrite existing dependencies', function (): 
 
 	$packageJson = json_decode( File::get( $packageJsonPath ), true );
 
-	// Existing version should be preserved
 	expect( $packageJson['dependencies']['react'] )->toBe( '^17.0' );
 
-	// New dependencies should still be added
 	expect( $packageJson['dependencies'] )
 		->toHaveKey( '@artisanpack-ui/react' )
 		->toHaveKey( 'apexcharts' );
-
-	// Clean up
-	File::delete( $packageJsonPath );
 } );
 
 test( 'install-frontend handles missing package.json gracefully', function (): void {
 	$packageJsonPath = base_path( 'package.json' );
 
-	// Ensure no package.json exists
 	if ( File::exists( $packageJsonPath ) ) {
 		File::delete( $packageJsonPath );
 	}
@@ -139,7 +146,4 @@ test( 'install-frontend command sorts dependencies alphabetically', function ():
 	sort( $sorted );
 
 	expect( $keys )->toBe( $sorted );
-
-	// Clean up
-	File::delete( $packageJsonPath );
 } );

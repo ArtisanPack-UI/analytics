@@ -130,5 +130,6 @@ test( 'vue barrel export uses new directory structure', function (): void {
 	expect( $indexContent )
 		->toContain( './components/' )
 		->toContain( './pages/' )
-		->toContain( './composables/' );
+		->toContain( './composables/' )
+		->toContain( './types' );
 } );

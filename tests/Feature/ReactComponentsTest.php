@@ -132,5 +132,6 @@ test( 'react barrel export uses new directory structure', function (): void {
 	expect( $indexContent )
 		->toContain( './components/' )
 		->toContain( './pages/' )
-		->toContain( './hooks/' );
+		->toContain( './hooks/' )
+		->toContain( './types' );
 } );

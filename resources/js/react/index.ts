@@ -33,5 +33,5 @@ export { default as MultiTenantDashboard } from './pages/MultiTenantDashboard';
 export { useAnalyticsApi } from './hooks/useAnalyticsApi';
 export { useConsent } from './hooks/useConsent';
 
-// Types (re-exported for convenience)
-export type * from './types';
+// Types (re-exported for convenience — includes enums as values)
+export * from './types';
