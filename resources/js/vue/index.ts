@@ -22,5 +22,11 @@ export { default as PageAnalytics } from './PageAnalytics.vue';
 export { default as SiteSelector } from './SiteSelector.vue';
 export { default as MultiTenantDashboard } from './MultiTenantDashboard.vue';
 
+// Consent components
+export { default as ConsentBanner } from './ConsentBanner.vue';
+export { default as ConsentPreferences } from './ConsentPreferences.vue';
+export { default as ConsentStatus } from './ConsentStatus.vue';
+
 // Composables
 export { useAnalyticsApi } from './useAnalyticsApi';
+export { useConsent } from './useConsent';

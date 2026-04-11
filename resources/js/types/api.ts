@@ -250,15 +250,27 @@ export interface SessionStartResponse {
 // ---------------------------------------------------------------------------
 
 export interface ConsentStatusItem {
-    category: string;
+    name: string;
+    description: string;
+    required: boolean;
     granted: boolean;
     granted_at: string | null;
-    expires_at: string | null;
 }
 
 export interface ConsentStatusResponse {
-    success: true;
-    data: ConsentStatusItem[];
+    success: boolean;
+    consent_required: boolean;
+    categories: Record<string, ConsentStatusItem>;
+}
+
+export interface ConsentUpdateRequest {
+    visitor_id: string;
+    categories: Record<string, boolean>;
+}
+
+export interface ConsentUpdateResponse {
+    success: boolean;
+    categories: Record<string, ConsentStatusItem>;
 }
 
 // ---------------------------------------------------------------------------

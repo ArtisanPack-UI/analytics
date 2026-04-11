@@ -65,6 +65,8 @@ export type {
     ComparisonValue,
     ConsentStatusItem,
     ConsentStatusResponse,
+    ConsentUpdateRequest,
+    ConsentUpdateResponse,
     CountriesResponse,
     CountryBreakdownItem,
     DeviceBreakdownItem,
