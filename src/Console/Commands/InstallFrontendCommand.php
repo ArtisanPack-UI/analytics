@@ -108,7 +108,9 @@ class InstallFrontendCommand extends Command
 			return self::FAILURE;
 		}
 
-		$this->addNpmDependencies( $stack );
+		if ( ! $this->addNpmDependencies( $stack ) ) {
+			return self::FAILURE;
+		}
 
 		$this->newLine();
 		$this->info( "Analytics {$stack} components installed successfully!" );
@@ -154,11 +156,15 @@ class InstallFrontendCommand extends Command
 	 *
 	 * @param string $stack The frontend stack ('react' or 'vue').
 	 *
+	 * @return bool Whether adding dependencies succeeded.
+	 *
 	 * @since 1.1.0
 	 */
-	protected function addNpmDependencies( string $stack ): void
+	protected function addNpmDependencies( string $stack ): bool
 	{
-		$this->components->task( 'Adding npm dependencies', function () use ( $stack ) {
+		$success = true;
+
+		$this->components->task( 'Adding npm dependencies', function () use ( $stack, &$success ) {
 			$packageJsonPath = base_path( 'package.json' );
 
 			if ( ! File::exists( $packageJsonPath ) ) {
@@ -193,13 +199,21 @@ class InstallFrontendCommand extends Command
 			ksort( $existingDeps );
 			$packageJson['dependencies'] = $existingDeps;
 
-			File::put(
-				$packageJsonPath,
-				json_encode( $packageJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) . "\n",
-			);
+			try {
+				File::put(
+					$packageJsonPath,
+					json_encode( $packageJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) . "\n",
+				);
+			} catch ( \Throwable $e ) {
+				$success = false;
+
+				return false;
+			}
 
 			return true;
 		} );
+
+		return $success;
 	}
 
 	/**

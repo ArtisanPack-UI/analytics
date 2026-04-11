@@ -116,7 +116,7 @@ test( 'install-frontend does not overwrite existing dependencies', function (): 
 		->toHaveKey( 'apexcharts' );
 } );
 
-test( 'install-frontend handles missing package.json gracefully', function (): void {
+test( 'install-frontend succeeds when package.json is missing', function (): void {
 	$packageJsonPath = base_path( 'package.json' );
 
 	if ( File::exists( $packageJsonPath ) ) {
