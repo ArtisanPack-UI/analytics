@@ -3,7 +3,7 @@
   "description": "Privacy-first analytics package for Laravel with local database storage, external provider support (GA4, Plausible), and a beautiful Livewire dashboard.",
   "type": "library",
   "license": "MIT",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "keywords": [
     "laravel",
     "analytics",
@@ -42,7 +42,7 @@
     "illuminate/queue": "^11.0|^12.0",
     "illuminate/routing": "^11.0|^12.0",
     "illuminate/support": "^11.0|^12.0",
-    "livewire/livewire": "^3.6.4",
+    "livewire/livewire": "^3.6.4|^4.0",
     "nesbot/carbon": "^2.0|^3.0"
   },
   "require-dev": {
@@ -50,6 +50,7 @@
     "artisanpack-ui/code-style-pint": "^1.0.0",
     "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
     "friendsofphp/php-cs-fixer": "^3.75",
+    "inertiajs/inertia-laravel": "^3.0",
     "laravel/pint": "^1.26",
     "orchestra/testbench": "^9.0|^10.0",
     "pestphp/pest": "^3.8",
@@ -71,6 +72,9 @@
       "pestphp/pest-plugin": true
     },
     "sort-packages": true
+  },
+  "suggest": {
+    "inertiajs/inertia-laravel": "Required for Inertia.js dashboard driver support (^2.0|^3.0)"
   },
   "minimum-stability": "dev",
   "prefer-stable": true,

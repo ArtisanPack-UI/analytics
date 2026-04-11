@@ -9,22 +9,13 @@ use ArtisanPackUI\Analytics\Console\Commands\CacheClearCommand;
 use ArtisanPackUI\Analytics\Console\Commands\CleanupCommand;
 use ArtisanPackUI\Analytics\Console\Commands\GoalsListCommand;
 use ArtisanPackUI\Analytics\Console\Commands\InstallCommand;
+use ArtisanPackUI\Analytics\Console\Commands\InstallFrontendCommand;
 use ArtisanPackUI\Analytics\Console\Commands\RealtimeCommand;
 use ArtisanPackUI\Analytics\Console\Commands\SiteApiKeyCommand;
 use ArtisanPackUI\Analytics\Console\Commands\SiteCreateCommand;
 use ArtisanPackUI\Analytics\Console\Commands\SitesListCommand;
 use ArtisanPackUI\Analytics\Console\Commands\StatsCommand;
 use ArtisanPackUI\Analytics\Contracts\AnalyticsServiceInterface;
-use ArtisanPackUI\Analytics\Http\Livewire\AnalyticsDashboard;
-use ArtisanPackUI\Analytics\Http\Livewire\MultiTenantDashboard;
-use ArtisanPackUI\Analytics\Http\Livewire\PageAnalytics;
-use ArtisanPackUI\Analytics\Http\Livewire\PlatformDashboard;
-use ArtisanPackUI\Analytics\Http\Livewire\SiteSelector;
-use ArtisanPackUI\Analytics\Http\Livewire\Widgets\RealtimeVisitors;
-use ArtisanPackUI\Analytics\Http\Livewire\Widgets\StatsCards;
-use ArtisanPackUI\Analytics\Http\Livewire\Widgets\TopPages;
-use ArtisanPackUI\Analytics\Http\Livewire\Widgets\TrafficSources;
-use ArtisanPackUI\Analytics\Http\Livewire\Widgets\VisitorsChart;
 use ArtisanPackUI\Analytics\Http\Middleware\AnalyticsThrottle;
 use ArtisanPackUI\Analytics\Http\Middleware\AuthenticateWithApiKey;
 use ArtisanPackUI\Analytics\Http\Middleware\PrivacyFilter;
@@ -197,6 +188,8 @@ class AnalyticsServiceProvider extends ServiceProvider
         $this->publishMigrations();
         $this->publishViews();
         $this->publishTracker();
+        $this->publishReactComponents();
+        $this->publishVueComponents();
         $this->registerMiddleware();
         $this->registerRoutes();
         $this->registerCommands();
@@ -205,6 +198,7 @@ class AnalyticsServiceProvider extends ServiceProvider
         $this->registerBladeDirectives();
         $this->registerPrivacyHooks();
         $this->registerAuthGuard();
+        $this->registerInertiaSharedData();
     }
 
     /**
@@ -342,6 +336,42 @@ class AnalyticsServiceProvider extends ServiceProvider
     }
 
     /**
+     * Publish the React dashboard components.
+     *
+     * Publishes React TypeScript components to the consuming application's
+     * resources directory for use with Inertia.js.
+     *
+     * @since 1.1.0
+     */
+    protected function publishReactComponents(): void
+    {
+        if ( $this->app->runningInConsole() ) {
+            $this->publishes( [
+                __DIR__ . '/../resources/js/react' => resource_path( 'js/vendor/artisanpack-analytics/react' ),
+                __DIR__ . '/../resources/js/types' => resource_path( 'js/vendor/artisanpack-analytics/types' ),
+            ], 'analytics-react' );
+        }
+    }
+
+    /**
+     * Publish the Vue dashboard components.
+     *
+     * Publishes Vue SFC components to the consuming application's
+     * resources directory for use with Inertia.js.
+     *
+     * @since 1.1.0
+     */
+    protected function publishVueComponents(): void
+    {
+        if ( $this->app->runningInConsole() ) {
+            $this->publishes( [
+                __DIR__ . '/../resources/js/vue'   => resource_path( 'js/vendor/artisanpack-analytics/vue' ),
+                __DIR__ . '/../resources/js/types' => resource_path( 'js/vendor/artisanpack-analytics/types' ),
+            ], 'analytics-vue' );
+        }
+    }
+
+    /**
      * Register the middleware.
      *
      * @since 1.0.0
@@ -375,7 +405,12 @@ class AnalyticsServiceProvider extends ServiceProvider
     /**
      * Register the routes.
      *
+     * Registers API routes for data collection and querying, web routes
+     * for the tracker script, and dashboard routes based on the configured
+     * dashboard_driver ('livewire' or 'inertia').
+     *
      * @since 1.0.0
+     * @since 1.1.0 Added Inertia dashboard route support via dashboard_driver config.
      */
     protected function registerRoutes(): void
     {
@@ -387,13 +422,43 @@ class AnalyticsServiceProvider extends ServiceProvider
             ->middleware( $routeMiddleware )
             ->group( __DIR__ . '/../routes/api.php' );
 
-        // Register web routes for dashboard and tracker script
+        // Register web routes for tracker script (always available)
         $dashboardRoute = config( 'artisanpack.analytics.dashboard_route' );
 
         if ( $dashboardRoute ) {
             Route::middleware( config( 'artisanpack.analytics.dashboard_middleware', ['web', 'auth'] ) )
                 ->group( __DIR__ . '/../routes/web.php' );
         }
+
+        // Register dashboard routes based on the configured driver
+        $this->registerDashboardRoutes();
+    }
+
+    /**
+     * Register dashboard routes based on the configured driver.
+     *
+     * When 'livewire', Livewire components handle the dashboard rendering.
+     * When 'inertia', dedicated routes return Inertia::render() responses
+     * with analytics data as page props for React/Vue dashboards.
+     *
+     * @since 1.1.0
+     */
+    protected function registerDashboardRoutes(): void
+    {
+        $driver         = config( 'artisanpack.analytics.dashboard_driver', 'livewire' );
+        $dashboardRoute = config( 'artisanpack.analytics.dashboard_route' );
+
+        if ( ! $dashboardRoute || 'inertia' !== $driver ) {
+            return;
+        }
+
+        // Only register Inertia routes if inertia-laravel is installed
+        if ( ! class_exists( \Inertia\Inertia::class ) ) {
+            return;
+        }
+
+        Route::middleware( config( 'artisanpack.analytics.dashboard_middleware', ['web', 'auth'] ) )
+            ->group( __DIR__ . '/../routes/inertia.php' );
     }
 
     /**
@@ -406,6 +471,7 @@ class AnalyticsServiceProvider extends ServiceProvider
         if ( $this->app->runningInConsole() ) {
             $this->commands( [
                 InstallCommand::class,
+                InstallFrontendCommand::class,
                 StatsCommand::class,
                 CleanupCommand::class,
                 CacheClearCommand::class,
@@ -450,7 +516,11 @@ class AnalyticsServiceProvider extends ServiceProvider
     /**
      * Register Livewire components.
      *
+     * Uses the addNamespace API for Livewire 4, falling back to
+     * individual component() calls for Livewire 3.
+     *
      * @since 1.0.0
+     * @since 1.1.0 Updated to use addNamespace for Livewire 4 support.
      */
     protected function registerLivewireComponents(): void
     {
@@ -459,22 +529,30 @@ class AnalyticsServiceProvider extends ServiceProvider
             return;
         }
 
-        // Register widgets
-        \Livewire\Livewire::component( 'artisanpack-analytics::stats-cards', StatsCards::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::visitors-chart', VisitorsChart::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::top-pages', TopPages::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::traffic-sources', TrafficSources::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::realtime-visitors', RealtimeVisitors::class );
+        // Livewire 4 supports addNamespace for automatic class resolution.
+        // Check against LivewireManager (not the Facade) for method_exists.
+        if ( method_exists( \Livewire\LivewireManager::class, 'addNamespace' ) ) {
+            \Livewire\Livewire::addNamespace(
+                namespace: 'artisanpack-analytics',
+                classNamespace: 'ArtisanPackUI\\Analytics\\Http\\Livewire',
+                classPath: __DIR__ . '/Http/Livewire',
+                classViewPath: __DIR__ . '/../resources/views/livewire',
+            );
 
-        // Register main components
-        \Livewire\Livewire::component( 'artisanpack-analytics::dashboard', AnalyticsDashboard::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::analytics-dashboard', AnalyticsDashboard::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::page-analytics', PageAnalytics::class );
+            return;
+        }
 
-        // Register multi-tenant components
-        \Livewire\Livewire::component( 'artisanpack-analytics::site-selector', SiteSelector::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::multi-tenant-dashboard', MultiTenantDashboard::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::platform-dashboard', PlatformDashboard::class );
+        // Livewire 3 fallback: register each component individually.
+        \Livewire\Livewire::component( 'artisanpack-analytics::analytics-dashboard', Http\Livewire\AnalyticsDashboard::class );
+        \Livewire\Livewire::component( 'artisanpack-analytics::page-analytics', Http\Livewire\PageAnalytics::class );
+        \Livewire\Livewire::component( 'artisanpack-analytics::site-selector', Http\Livewire\SiteSelector::class );
+        \Livewire\Livewire::component( 'artisanpack-analytics::multi-tenant-dashboard', Http\Livewire\MultiTenantDashboard::class );
+        \Livewire\Livewire::component( 'artisanpack-analytics::platform-dashboard', Http\Livewire\PlatformDashboard::class );
+        \Livewire\Livewire::component( 'artisanpack-analytics::widgets.stats-cards', Http\Livewire\Widgets\StatsCards::class );
+        \Livewire\Livewire::component( 'artisanpack-analytics::widgets.visitors-chart', Http\Livewire\Widgets\VisitorsChart::class );
+        \Livewire\Livewire::component( 'artisanpack-analytics::widgets.top-pages', Http\Livewire\Widgets\TopPages::class );
+        \Livewire\Livewire::component( 'artisanpack-analytics::widgets.traffic-sources', Http\Livewire\Widgets\TrafficSources::class );
+        \Livewire\Livewire::component( 'artisanpack-analytics::widgets.realtime-visitors', Http\Livewire\Widgets\RealtimeVisitors::class );
     }
 
     /**
@@ -549,7 +627,7 @@ class AnalyticsServiceProvider extends ServiceProvider
             Blade::directive( 'analyticsWidget', function ( $expression ): string {
                 $type = $expression ?: "'stats-cards'";
 
-                return "<?php echo \\Livewire\\Livewire::mount('artisanpack-analytics::' . {$type})->html(); ?>";
+                return "<?php echo \\Livewire\\Livewire::mount('artisanpack-analytics::widgets.' . {$type})->html(); ?>";
             } );
 
             // @analyticsPageStats - Show page statistics for current or specified path
@@ -592,6 +670,59 @@ class AnalyticsServiceProvider extends ServiceProvider
                 $app->make( TenantManager::class ),
                 $app->make( 'request' ),
             );
+        } );
+    }
+
+    /**
+     * Register shared Inertia props for analytics data.
+     *
+     * When the dashboard driver is 'inertia' and share_data is enabled,
+     * common analytics data (current site, consent status, analytics config)
+     * is shared as Inertia shared props on all requests.
+     *
+     * @return void
+     *
+     * @since 1.1.0
+     */
+    protected function registerInertiaSharedData(): void
+    {
+        $driver = config( 'artisanpack.analytics.dashboard_driver', 'livewire' );
+
+        if ( 'inertia' !== $driver ) {
+            return;
+        }
+
+        if ( ! config( 'artisanpack.analytics.inertia.share_data', true ) ) {
+            return;
+        }
+
+        if ( ! class_exists( \Inertia\Inertia::class ) ) {
+            return;
+        }
+
+        \Inertia\Inertia::share( 'analytics', function () {
+            $shared = [
+                'enabled'          => config( 'artisanpack.analytics.enabled', true ),
+                'consent_required' => config( 'artisanpack.analytics.privacy.consent_required', false ),
+                'dashboard_route'  => config( 'artisanpack.analytics.dashboard_route', 'analytics' ),
+                'realtime_enabled' => config( 'artisanpack.analytics.dashboard.realtime_enabled', true ),
+            ];
+
+            // Include current site info if multi-tenant is enabled
+            if ( config( 'artisanpack.analytics.multi_tenant.enabled', false ) ) {
+                $tenantManager = $this->app->make( TenantManager::class );
+
+                if ( $tenantManager->hasCurrent() ) {
+                    $site            = $tenantManager->current();
+                    $shared['site']  = [
+                        'id'     => $site->id,
+                        'name'   => $site->name,
+                        'domain' => $site->domain,
+                    ];
+                }
+            }
+
+            return $shared;
         } );
     }
 }

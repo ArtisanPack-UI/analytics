@@ -55,10 +55,17 @@ abstract class TestCase extends BaseTestCase
 	 */
 	protected function getPackageProviders( $app ): array
 	{
-		return [
+		$providers = [
 			LivewireServiceProvider::class,
 			AnalyticsServiceProvider::class,
 		];
+
+		// Register Inertia service provider when available
+		if ( class_exists( \Inertia\ServiceProvider::class ) ) {
+			$providers[] = \Inertia\ServiceProvider::class;
+		}
+
+		return $providers;
 	}
 
 	/**

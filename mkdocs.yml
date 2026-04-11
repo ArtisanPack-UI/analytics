@@ -21,7 +21,7 @@ nav:
     - Date Ranges: usage/date-ranges.md
     - Goals & Conversions: usage/goals-conversions.md
     - Helper Functions: usage/helper-functions.md
-  - Components:
+  - Livewire Components:
     - Overview: components.md
     - Analytics Dashboard: components/analytics-dashboard.md
     - Stats Cards: components/stats-cards.md
@@ -29,6 +29,14 @@ nav:
     - Top Pages: components/top-pages.md
     - Traffic Sources: components/traffic-sources.md
     - Realtime Visitors: components/realtime-visitors.md
+  - Frontend Components:
+    - Overview: frontend/overview.md
+    - Installation: frontend/installation.md
+    - React Components: frontend/react-components.md
+    - Vue Components: frontend/vue-components.md
+    - Consent Components: frontend/consent-components.md
+    - Hooks & Composables: frontend/hooks-composables.md
+    - TypeScript Types: frontend/typescript-types.md
   - API Reference:
     - Overview: api.md
     - Models: api/models.md
@@ -36,6 +44,7 @@ nav:
     - Events: api/events.md
     - Data Objects: api/data-objects.md
     - Contracts: api/contracts.md
+    - API Resources: api/resources.md
   - Advanced:
     - Overview: advanced.md
     - Privacy & Consent: advanced/privacy-consent.md

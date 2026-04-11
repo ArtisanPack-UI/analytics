@@ -13,6 +13,7 @@ This section provides detailed documentation of the ArtisanPack UI Analytics API
 - [Data Objects](Api-Data-Objects) - Data Transfer Objects (DTOs)
 - [Events](Api-Events) - Laravel events dispatched by the package
 - [Contracts](Api-Contracts) - Interfaces for custom implementations
+- [API Resources](Api-Resources) - JSON API Resources for data serialization *(since 1.1.0)*
 
 ## Quick Reference
 
@@ -69,6 +70,19 @@ Analytics::canTrack();
 Analytics::provider('local');
 ```
 
+### API Resources *(since 1.1.0)*
+
+| Resource | Purpose |
+|----------|---------|
+| `StatsResource` | Overall analytics statistics |
+| `PageViewTimeSeriesResource` | Time series chart data |
+| `TopPageResource` | Most viewed pages |
+| `TrafficSourceResource` | Traffic source breakdown |
+| `BrowserBreakdownResource` | Browser usage breakdown |
+| `CountryBreakdownResource` | Geographic breakdown |
+| `DeviceBreakdownResource` | Device type breakdown |
+| `EventBreakdownResource` | Custom event breakdown |
+
 ## Namespace Structure
 
 ```
@@ -94,8 +108,15 @@ ArtisanPackUI\Analytics\
 │   └── Analytics
 ├── Http\
 │   ├── Controllers\
+│   │   ├── AnalyticsController
+│   │   ├── InertiaDashboardController  # (1.1.0)
+│   │   └── ...
 │   ├── Livewire\               # Livewire components
-│   └── Middleware\
+│   ├── Middleware\
+│   └── Resources\              # API Resources (1.1.0)
+│       ├── StatsResource
+│       ├── TopPageResource
+│       └── ...
 ├── Models\                      # Eloquent models
 │   ├── Aggregate
 │   ├── Consent

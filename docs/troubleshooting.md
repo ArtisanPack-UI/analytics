@@ -423,7 +423,7 @@ php artisan migrate
 If you can't resolve an issue:
 
 1. Check the [FAQ](Faq) for common questions
-2. Search existing issues on GitLab
+2. Search [existing issues](https://github.com/ArtisanPack-UI/analytics/issues) on GitHub
 3. Create a new issue with:
    - Laravel version
    - Package version
@@ -431,4 +431,4 @@ If you can't resolve an issue:
    - Steps to reproduce
    - Configuration (sanitized)
 
-Repository: [GitLab](https://gitlab.com/jacob-martella-web-design/artisanpack-ui/analytics)
+Repository: [GitHub](https://github.com/ArtisanPack-UI/analytics)

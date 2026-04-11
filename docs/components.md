@@ -29,19 +29,19 @@ ArtisanPack UI Analytics provides pre-built Livewire components for displaying a
 
 ```blade
 {{-- Stats cards --}}
-<livewire:artisanpack-analytics::stats-cards />
+<livewire:artisanpack-analytics::widgets.stats-cards />
 
 {{-- Visitors chart --}}
-<livewire:artisanpack-analytics::visitors-chart />
+<livewire:artisanpack-analytics::widgets.visitors-chart />
 
 {{-- Top pages table --}}
-<livewire:artisanpack-analytics::top-pages />
+<livewire:artisanpack-analytics::widgets.top-pages />
 
 {{-- Traffic sources --}}
-<livewire:artisanpack-analytics::traffic-sources />
+<livewire:artisanpack-analytics::widgets.traffic-sources />
 
 {{-- Real-time visitors --}}
-<livewire:artisanpack-analytics::realtime-visitors />
+<livewire:artisanpack-analytics::widgets.realtime-visitors />
 ```
 
 ## Common Properties
@@ -72,7 +72,7 @@ Available presets:
 ### Using Props
 
 ```blade
-<livewire:artisanpack-analytics::stats-cards
+<livewire:artisanpack-analytics::widgets.stats-cards
     date-range-preset="last30days"
     :site-id="$siteId"
     :show-comparison="true"
@@ -85,7 +85,7 @@ Components dispatch events you can listen for:
 
 ```blade
 <div x-data @analytics-data-loaded.window="handleDataLoaded($event.detail)">
-    <livewire:artisanpack-analytics::stats-cards />
+    <livewire:artisanpack-analytics::widgets.stats-cards />
 </div>
 ```
 
@@ -188,8 +188,20 @@ class CustomWidget extends Component
 }
 ```
 
+## React & Vue Components *(since 1.1.0)*
+
+In addition to Livewire components, the analytics package provides pre-built dashboard components for React and Vue, powered by Inertia.js. These provide the same analytics data as the Livewire widgets but render in your React or Vue application.
+
+See the [Frontend Components](Frontend-Overview) documentation for:
+
+- [React Components](Frontend-React-Components) - React dashboard widgets and pages
+- [Vue Components](Frontend-Vue-Components) - Vue dashboard widgets and pages
+- [Consent Components](Frontend-Consent-Components) - GDPR consent UI for React and Vue
+- [Hooks & Composables](Frontend-Hooks-Composables) - Data fetching and consent management logic
+
 ## Next Steps
 
-- [Analytics Dashboard](Components-Analytics-Dashboard) - Explore the full dashboard
+- [Analytics Dashboard](Components-Analytics-Dashboard) - Explore the full Livewire dashboard
+- [Frontend Overview](Frontend-Overview) - Set up React or Vue dashboards
 - [Configuration](Installation-Configuration) - Configure dashboard settings
 - [Multi-Tenancy](Advanced-Multi-Tenancy) - Set up multi-tenant analytics
