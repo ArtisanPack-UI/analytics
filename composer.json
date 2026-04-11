@@ -3,7 +3,7 @@
   "description": "Privacy-first analytics package for Laravel with local database storage, external provider support (GA4, Plausible), and a beautiful Livewire dashboard.",
   "type": "library",
   "license": "MIT",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "keywords": [
     "laravel",
     "analytics",

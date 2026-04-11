@@ -32,6 +32,46 @@ php artisan analytics:install --skip-migrations
 php artisan analytics:install --force
 ```
 
+### analytics:install-frontend
+
+> **Since 1.1.0**
+
+Install React or Vue analytics dashboard components for use with Inertia.js:
+
+```bash
+php artisan analytics:install-frontend --stack=react
+php artisan analytics:install-frontend --stack=vue
+```
+
+Options:
+- `--stack=` - **Required.** The frontend framework to install (`react` or `vue`)
+- `--force` - Overwrite previously published files
+
+```bash
+# Install React components
+php artisan analytics:install-frontend --stack=react
+
+# Install Vue components
+php artisan analytics:install-frontend --stack=vue
+
+# Republish after a package update
+php artisan analytics:install-frontend --stack=react --force
+```
+
+This command:
+1. Publishes framework-specific dashboard components to `resources/js/vendor/artisanpack-analytics/`
+2. Publishes shared TypeScript type definitions
+3. Adds required npm dependencies to `package.json`
+
+After running, install npm dependencies and compile:
+
+```bash
+npm install
+npm run dev
+```
+
+See the [Frontend Installation Guide](Frontend-Installation) for full setup instructions.
+
 ## Site Management
 
 ### analytics:create-site

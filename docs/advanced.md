@@ -13,6 +13,7 @@ This section covers advanced features and configuration options for ArtisanPack 
 - [Multiple Providers](Advanced-Multiple-Providers) - Use multiple analytics providers
 - [Caching](Advanced-Caching) - Optimize performance with caching
 - [Artisan Commands](Advanced-Artisan-Commands) - CLI commands for management
+- [Frontend Components](Frontend-Overview) - React and Vue dashboards via Inertia.js *(since 1.1.0)*
 
 ## Overview
 

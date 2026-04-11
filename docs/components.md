@@ -188,8 +188,20 @@ class CustomWidget extends Component
 }
 ```
 
+## React & Vue Components *(since 1.1.0)*
+
+In addition to Livewire components, the analytics package provides pre-built dashboard components for React and Vue, powered by Inertia.js. These provide the same analytics data as the Livewire widgets but render in your React or Vue application.
+
+See the [Frontend Components](Frontend-Overview) documentation for:
+
+- [React Components](Frontend-React-Components) - React dashboard widgets and pages
+- [Vue Components](Frontend-Vue-Components) - Vue dashboard widgets and pages
+- [Consent Components](Frontend-Consent-Components) - GDPR consent UI for React and Vue
+- [Hooks & Composables](Frontend-Hooks-Composables) - Data fetching and consent management logic
+
 ## Next Steps
 
-- [Analytics Dashboard](Components-Analytics-Dashboard) - Explore the full dashboard
+- [Analytics Dashboard](Components-Analytics-Dashboard) - Explore the full Livewire dashboard
+- [Frontend Overview](Frontend-Overview) - Set up React or Vue dashboards
 - [Configuration](Installation-Configuration) - Configure dashboard settings
 - [Multi-Tenancy](Advanced-Multi-Tenancy) - Set up multi-tenant analytics

@@ -5,6 +5,84 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-04-10
+
+### Added
+
+#### Inertia.js Dashboard Support
+
+- **InertiaDashboardController**: New controller that returns Inertia responses with analytics data as typed page props for React/Vue dashboards
+- **Inertia routes**: Dedicated routes for dashboard, pages, traffic, audience, events, and realtime views when `dashboard_driver` is set to `'inertia'`
+- **Dashboard driver config**: New `dashboard_driver` option (`'livewire'` or `'inertia'`) to select dashboard rendering strategy
+
+#### React Dashboard Components
+
+- **AnalyticsDashboard**: Main dashboard page component
+- **PageAnalytics**: Per-page analytics detail view
+- **MultiTenantDashboard**: Multi-site management dashboard
+- **StatsCards**: Key metrics card grid widget
+- **VisitorsChart**: Line chart of visitors/pageviews over time
+- **TopPages**: Most viewed pages table
+- **TrafficSources**: Traffic source breakdown
+- **RealtimeVisitors**: Live visitor count with polling
+- **SiteSelector**: Site picker for multi-tenant setups
+- **useAnalyticsApi hook**: Generic data fetching with polling and AbortController support
+
+#### Vue Dashboard Components
+
+- **AnalyticsDashboard, PageAnalytics, MultiTenantDashboard**: Vue 3 SFC equivalents of React page components
+- **StatsCards, VisitorsChart, TopPages, TrafficSources, RealtimeVisitors, SiteSelector**: Vue 3 SFC equivalents of React widget components
+- **useAnalyticsApi composable**: Vue 3 composable equivalent of the React hook
+
+#### Consent Management Components (React & Vue)
+
+- **ConsentBanner**: Cookie consent bar with accept/reject/customize actions
+- **ConsentPreferences**: Category-level consent toggles panel
+- **ConsentStatus**: Compact consent status indicator with manage button
+- **useConsent hook/composable**: Consent state management with localStorage persistence, cookie sync, and server API synchronization
+
+#### TypeScript Type Definitions
+
+- Shared type definitions for API responses, data models, enums, query params, and component props
+- Types cover: `StatsData`, `TopPageItem`, `TrafficSourceItem`, breakdown types, realtime types, consent types, and all Eloquent model interfaces
+
+#### API Resources
+
+- **StatsResource**: Overall analytics statistics
+- **PageViewTimeSeriesResource**: Time series chart data
+- **TopPageResource**: Most viewed pages
+- **TrafficSourceResource**: Traffic source breakdown
+- **BrowserBreakdownResource**: Browser usage breakdown
+- **CountryBreakdownResource**: Geographic breakdown
+- **DeviceBreakdownResource**: Device type breakdown
+- **EventBreakdownResource**: Custom event breakdown
+
+#### Frontend Installation Command
+
+- **analytics:install-frontend**: New Artisan command to publish React or Vue components and add npm dependencies (`--stack=react|vue`, `--force`)
+
+#### Documentation
+
+- New `docs/frontend/` section with 7 pages covering overview, installation, React/Vue components, consent components, hooks/composables, and TypeScript types
+- New `docs/api/resources.md` documenting all API resources
+- Updated index pages, artisan commands docs, and mkdocs.yml navigation
+
+### Changed
+
+- **Livewire 4 support**: Updated `registerLivewireComponents()` to use `addNamespace` API for Livewire 4, with fallback to individual `component()` calls for Livewire 3
+- **Route registration**: `registerRoutes()` now delegates dashboard routing to `registerDashboardRoutes()` based on the configured driver
+- **Service provider**: Added `publishReactComponents()`, `publishVueComponents()`, and `registerInertiaSharedData()` methods
+- **CI workflows**: Added `release/*` branches to CI workflow triggers so PRs targeting release branches run lint and tests
+- **GitHub Actions**: Separated release workflow into dedicated `release.yml` with Packagist update step; added Livewire 3.6/4.0 test matrix
+
+### Infrastructure
+
+- Migrated from GitLab to GitHub
+- Added GitHub Actions CI workflow, issue templates, and PR templates
+- Updated PHP version requirement to 8.4
+
+---
+
 ## [1.0.0] - 2026-01-23
 
 ### First Stable Release

@@ -31,6 +31,15 @@ Welcome to the ArtisanPack UI Analytics documentation. This package provides com
   - [Traffic Sources](Components-Traffic-Sources)
   - [Realtime Visitors](Components-Realtime-Visitors)
 
+- **Frontend Components** *(since 1.1.0)*
+  - [Frontend Overview](Frontend-Overview)
+  - [Frontend Installation](Frontend-Installation)
+  - [React Components](Frontend-React-Components)
+  - [Vue Components](Frontend-Vue-Components)
+  - [Consent Components](Frontend-Consent-Components)
+  - [Hooks & Composables](Frontend-Hooks-Composables)
+  - [TypeScript Types](Frontend-TypeScript-Types)
+
 - **API Reference**
   - [API Overview](Api)
   - [Models](Api-Models)
@@ -38,6 +47,7 @@ Welcome to the ArtisanPack UI Analytics documentation. This package provides com
   - [Data Objects](Api-Data-Objects)
   - [Events](Api-Events)
   - [Contracts](Api-Contracts)
+  - [API Resources](Api-Resources) *(since 1.1.0)*
 
 - **Advanced Topics**
   - [Advanced Overview](Advanced)
@@ -58,6 +68,8 @@ Welcome to the ArtisanPack UI Analytics documentation. This package provides com
 - **Real-Time Dashboard**: Live visitor tracking with auto-updating widgets
 - **Multi-Tenancy**: Support for multi-site and multi-tenant applications
 - **Livewire Components**: Pre-built dashboard widgets with Chart.js integration
+- **React & Vue Dashboards** *(1.1.0)*: Inertia.js-powered dashboard components for React and Vue
+- **Consent Components** *(1.1.0)*: GDPR consent banner, preferences, and status for React and Vue
 - **Goal Tracking**: Define and track conversions with URL, event, and engagement-based goals
 - **Session Management**: Automatic session tracking with engagement metrics
 - **Blade Directives**: Easy integration with `@analyticsScripts` and `@analyticsConsentBanner`
