@@ -11,7 +11,7 @@
 import React, { useMemo } from 'react';
 import { Select } from '@artisanpack-ui/react';
 
-import type { Site } from '../types';
+import type { Site } from '../../types';
 
 export interface SiteSelectorProps {
     /** Array of available sites. */

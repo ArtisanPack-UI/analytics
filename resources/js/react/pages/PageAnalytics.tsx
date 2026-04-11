@@ -12,7 +12,7 @@
 import React, { useMemo } from 'react';
 import { Card, Stat, StatGroup, Sparkline, Badge } from '@artisanpack-ui/react';
 
-import type { PageAnalyticsData, PageViewOverTimeItem } from '../types';
+import type { PageAnalyticsData, PageViewOverTimeItem } from '../../types';
 
 export interface PageAnalyticsProps {
     /** The page path being analyzed. */

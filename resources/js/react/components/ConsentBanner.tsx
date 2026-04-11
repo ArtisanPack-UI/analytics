@@ -11,9 +11,9 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Card, Toggle } from '@artisanpack-ui/react';
 
-import { useConsent } from './useConsent';
+import { useConsent } from '../hooks/useConsent';
 
-import type { UseConsentOptions } from './useConsent';
+import type { UseConsentOptions } from '../hooks/useConsent';
 
 export interface ConsentBannerProps extends UseConsentOptions {
     /** Banner position on screen. Defaults to 'bottom'. */

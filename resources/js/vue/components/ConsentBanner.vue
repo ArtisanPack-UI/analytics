@@ -12,9 +12,9 @@
 import { onMounted, ref, watch } from 'vue';
 import { Button, Card, Toggle } from '@artisanpack-ui/vue';
 
-import { useConsent } from './useConsent';
+import { useConsent } from '../composables/useConsent';
 
-import type { UseConsentOptions } from './useConsent';
+import type { UseConsentOptions } from '../composables/useConsent';
 
 interface Props extends UseConsentOptions {
     /** Banner position on screen. Defaults to 'bottom'. */

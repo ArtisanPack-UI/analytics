@@ -11,9 +11,9 @@
 import { computed } from 'vue';
 import { Badge, Button } from '@artisanpack-ui/vue';
 
-import { useConsent } from './useConsent';
+import { useConsent } from '../composables/useConsent';
 
-import type { UseConsentOptions } from './useConsent';
+import type { UseConsentOptions } from '../composables/useConsent';
 
 interface Props extends UseConsentOptions {
     /** Label text for the status indicator. */

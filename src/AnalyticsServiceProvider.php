@@ -9,6 +9,7 @@ use ArtisanPackUI\Analytics\Console\Commands\CacheClearCommand;
 use ArtisanPackUI\Analytics\Console\Commands\CleanupCommand;
 use ArtisanPackUI\Analytics\Console\Commands\GoalsListCommand;
 use ArtisanPackUI\Analytics\Console\Commands\InstallCommand;
+use ArtisanPackUI\Analytics\Console\Commands\InstallFrontendCommand;
 use ArtisanPackUI\Analytics\Console\Commands\RealtimeCommand;
 use ArtisanPackUI\Analytics\Console\Commands\SiteApiKeyCommand;
 use ArtisanPackUI\Analytics\Console\Commands\SiteCreateCommand;
@@ -347,6 +348,7 @@ class AnalyticsServiceProvider extends ServiceProvider
         if ( $this->app->runningInConsole() ) {
             $this->publishes( [
                 __DIR__ . '/../resources/js/react' => resource_path( 'js/vendor/artisanpack-analytics/react' ),
+                __DIR__ . '/../resources/js/types' => resource_path( 'js/vendor/artisanpack-analytics/types' ),
             ], 'analytics-react' );
         }
     }
@@ -364,6 +366,7 @@ class AnalyticsServiceProvider extends ServiceProvider
         if ( $this->app->runningInConsole() ) {
             $this->publishes( [
                 __DIR__ . '/../resources/js/vue' => resource_path( 'js/vendor/artisanpack-analytics/vue' ),
+                __DIR__ . '/../resources/js/types' => resource_path( 'js/vendor/artisanpack-analytics/types' ),
             ], 'analytics-vue' );
         }
     }
@@ -468,6 +471,7 @@ class AnalyticsServiceProvider extends ServiceProvider
         if ( $this->app->runningInConsole() ) {
             $this->commands( [
                 InstallCommand::class,
+                InstallFrontendCommand::class,
                 StatsCommand::class,
                 CleanupCommand::class,
                 CacheClearCommand::class,

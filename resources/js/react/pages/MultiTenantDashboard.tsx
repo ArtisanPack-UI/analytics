@@ -11,12 +11,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Card } from '@artisanpack-ui/react';
 
-import type { StatsCardsProps } from './widgets/StatsCards';
-import type { ChartDataPoint } from './widgets/VisitorsChart';
-import type { Site, TopPageItem, TrafficSourceItem } from '../types';
+import type { StatsCardsProps } from '../components/StatsCards';
+import type { ChartDataPoint } from '../components/VisitorsChart';
+import type { Site, TopPageItem, TrafficSourceItem } from '../../types';
 
 import AnalyticsDashboard from './AnalyticsDashboard';
-import SiteSelector from './SiteSelector';
+import SiteSelector from '../components/SiteSelector';
 
 export interface MultiTenantDashboardProps {
     /** Array of available sites for selection. */

@@ -13,14 +13,14 @@ import { computed, ref } from 'vue';
 import { Card, Tabs, Select, Grid } from '@artisanpack-ui/vue';
 
 import type { TabItem } from '@artisanpack-ui/vue';
-import type { TopPageItem, TrafficSourceItem, StatsComparison } from '../types';
+import type { TopPageItem, TrafficSourceItem, StatsComparison } from '../../types';
 
-import StatsCards from './widgets/StatsCards.vue';
-import TopPages from './widgets/TopPages.vue';
-import TrafficSources from './widgets/TrafficSources.vue';
-import VisitorsChart from './widgets/VisitorsChart.vue';
+import StatsCards from '../components/StatsCards.vue';
+import TopPages from '../components/TopPages.vue';
+import TrafficSources from '../components/TrafficSources.vue';
+import VisitorsChart from '../components/VisitorsChart.vue';
 
-import type { ChartDataPoint } from './widgets/VisitorsChart.vue';
+import type { ChartDataPoint } from '../components/VisitorsChart.vue';
 
 interface Stats {
     pageviews: number;

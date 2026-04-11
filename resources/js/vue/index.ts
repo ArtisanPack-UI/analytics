@@ -9,24 +9,29 @@
  * @since 1.1.0
  */
 
-// Widgets
-export { default as StatsCards } from './widgets/StatsCards.vue';
-export { default as VisitorsChart } from './widgets/VisitorsChart.vue';
-export { default as TopPages } from './widgets/TopPages.vue';
-export { default as TrafficSources } from './widgets/TrafficSources.vue';
-export { default as RealtimeVisitors } from './widgets/RealtimeVisitors.vue';
+// Components (widgets)
+export { default as StatsCards } from './components/StatsCards.vue';
+export { default as VisitorsChart } from './components/VisitorsChart.vue';
+export { default as TopPages } from './components/TopPages.vue';
+export { default as TrafficSources } from './components/TrafficSources.vue';
+export { default as RealtimeVisitors } from './components/RealtimeVisitors.vue';
 
-// Dashboard components
-export { default as AnalyticsDashboard } from './AnalyticsDashboard.vue';
-export { default as PageAnalytics } from './PageAnalytics.vue';
-export { default as SiteSelector } from './SiteSelector.vue';
-export { default as MultiTenantDashboard } from './MultiTenantDashboard.vue';
+// Components (consent)
+export { default as ConsentBanner } from './components/ConsentBanner.vue';
+export { default as ConsentPreferences } from './components/ConsentPreferences.vue';
+export { default as ConsentStatus } from './components/ConsentStatus.vue';
 
-// Consent components
-export { default as ConsentBanner } from './ConsentBanner.vue';
-export { default as ConsentPreferences } from './ConsentPreferences.vue';
-export { default as ConsentStatus } from './ConsentStatus.vue';
+// Components (selectors)
+export { default as SiteSelector } from './components/SiteSelector.vue';
+
+// Page components
+export { default as AnalyticsDashboard } from './pages/AnalyticsDashboard.vue';
+export { default as PageAnalytics } from './pages/PageAnalytics.vue';
+export { default as MultiTenantDashboard } from './pages/MultiTenantDashboard.vue';
 
 // Composables
-export { useAnalyticsApi } from './useAnalyticsApi';
-export { useConsent } from './useConsent';
+export { useAnalyticsApi } from './composables/useAnalyticsApi';
+export { useConsent } from './composables/useConsent';
+
+// Types (re-exported for convenience — includes enums as values)
+export * from './types';

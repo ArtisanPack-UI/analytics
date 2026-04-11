@@ -1,5 +1,5 @@
 /**
- * Vue composable for managing user consent preferences.
+ * React hook for managing user consent preferences.
  *
  * Integrates with the analytics consent API endpoints to check, grant,
  * and revoke consent for tracking categories (analytics, marketing, etc.).
@@ -9,9 +9,9 @@
  * @since 1.1.0
  */
 
-import { computed, onMounted, onUnmounted, ref, type Ref } from 'vue';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type { ConsentStatusItem, ConsentStatusResponse, ConsentUpdateResponse } from '../types';
+import type { ConsentStatusItem, ConsentStatusResponse, ConsentUpdateResponse } from '../../types';
 
 /** Storage keys for consent data. */
 const STORAGE_KEY = 'ap_analytics_consent';
@@ -33,13 +33,13 @@ export interface UseConsentOptions {
 
 export interface UseConsentResult {
     /** Whether consent data is currently loading. */
-    loading: Ref<boolean>;
+    loading: boolean;
     /** Error message if the last operation failed. */
-    error: Ref<string | null>;
+    error: string | null;
     /** Whether consent is required by the application config. */
-    consentRequired: Ref<boolean>;
+    consentRequired: boolean;
     /** Current consent status by category key. */
-    categories: Ref<Record<string, ConsentStatusItem>>;
+    categories: Record<string, ConsentStatusItem>;
     /** Check if a specific category has been granted. */
     hasConsent: ( category: string ) => boolean;
     /** Grant consent for the given categories. */
@@ -84,7 +84,7 @@ function getCsrfToken(): string {
 /**
  * Read a cookie value by name.
  */
-function getCookieValue( name: string ): string | null {
+function getCookie( name: string ): string | null {
     if ( typeof document === 'undefined' ) {
         return null;
     }
@@ -127,7 +127,7 @@ function getVisitorId(): string | null {
     }
 
     // Fall back to the tracker cookie
-    const cookieId = getCookieValue( VISITOR_COOKIE );
+    const cookieId = getCookie( VISITOR_COOKIE );
 
     if ( cookieId ) {
         try {
@@ -186,7 +186,7 @@ function readStoredConsent(): Record<string, boolean> | null {
     }
 
     if ( ! raw ) {
-        raw = getCookieValue( COOKIE_NAME );
+        raw = getCookie( COOKIE_NAME );
     }
 
     if ( ! raw ) {
@@ -218,7 +218,7 @@ function persistLocally( categories: Record<string, boolean> ): void {
 }
 
 /**
- * Composable for managing consent preferences with API integration.
+ * Hook for managing consent preferences with API integration.
  */
 export function useConsent( options: UseConsentOptions = {} ): UseConsentResult {
     const {
@@ -231,40 +231,40 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
     const trimmed = rawApiPrefix.replace( /^\/+|\/+$/g, '' );
     const apiPrefix = trimmed ? `/${trimmed}` : '';
 
-    // Hydrate initial categories from stored consent so hasConsent() works
-    // before the first API fetch completes (or when fetchOnMount is false)
-    const hydratedCategories = { ...initialCategories };
-    const stored = readStoredConsent();
+    const [ loading, setLoading ] = useState( false );
+    const [ error, setError ] = useState<string | null>( null );
+    const [ consentRequired, setConsentRequired ] = useState( initialConsentRequired );
+    const [ categories, setCategories ] = useState<Record<string, ConsentStatusItem>>( () => {
+        // Hydrate from stored consent so hasConsent() works before the first
+        // API fetch completes (or when fetchOnMount is false)
+        const hydrated = { ...initialCategories };
+        const stored = readStoredConsent();
 
-    if ( stored ) {
-        for ( const [ key, granted ] of Object.entries( stored ) ) {
-            if ( hydratedCategories[ key ] ) {
-                hydratedCategories[ key ] = { ...hydratedCategories[ key ], granted };
+        if ( stored ) {
+            for ( const [ key, granted ] of Object.entries( stored ) ) {
+                if ( hydrated[ key ] ) {
+                    hydrated[ key ] = { ...hydrated[ key ], granted };
+                }
             }
         }
-    }
 
-    const loading = ref( false );
-    const error = ref<string | null>( null );
-    const consentRequired = ref( initialConsentRequired );
-    const categories = ref<Record<string, ConsentStatusItem>>( hydratedCategories );
+        return hydrated;
+    } );
+    const abortRef = useRef<AbortController | null>( null );
 
-    let abortController: AbortController | null = null;
-    let updateRequestId = 0;
-
-    async function fetchStatus(): Promise<void> {
+    const fetchStatus = useCallback( async (): Promise<void> => {
         const visitorId = getVisitorId();
 
         if ( ! visitorId ) {
             return;
         }
 
-        abortController?.abort();
+        abortRef.current?.abort();
         const controller = new AbortController();
-        abortController = controller;
+        abortRef.current = controller;
 
-        loading.value = true;
-        error.value = null;
+        setLoading( true );
+        setError( null );
 
         try {
             const response = await fetch(
@@ -289,60 +289,64 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
                 throw new Error( 'Consent status request was not successful' );
             }
 
-            consentRequired.value = json.consent_required;
-            categories.value = json.categories ?? {};
+            setConsentRequired( json.consent_required );
+            setCategories( json.categories ?? {} );
         } catch ( err ) {
             if ( err instanceof DOMException && err.name === 'AbortError' ) {
                 return;
             }
 
-            error.value = err instanceof Error ? err.message : 'An unexpected error occurred';
+            setError( err instanceof Error ? err.message : 'An unexpected error occurred' );
         } finally {
             if ( ! controller.signal.aborted ) {
-                loading.value = false;
+                setLoading( false );
             }
         }
-    }
+    }, [ apiPrefix ] );
 
-    async function updateConsent( updates: Record<string, boolean> ): Promise<void> {
+    const categoriesRef = useRef( categories );
+    categoriesRef.current = categories;
+    const updateRequestIdRef = useRef( 0 );
+
+    const updateConsent = useCallback( async ( updates: Record<string, boolean> ): Promise<void> => {
         // Cancel any in-flight status fetch so it cannot overwrite the optimistic update
-        abortController?.abort();
+        abortRef.current?.abort();
 
-        // Save previous state for rollback on server error
-        const prev = { ...categories.value };
+        // Snapshot current state for optimistic update and rollback
+        const prevCategories = categoriesRef.current;
         const prevMergedState = Object.fromEntries(
-            Object.entries( prev ).map( ( [ k, v ] ) => [ k, v.granted ] ),
+            Object.entries( prevCategories ).map( ( [ k, v ] ) => [ k, v.granted ] ),
         );
 
-        // Apply changes optimistically so the UI updates immediately
-        const next = { ...categories.value };
+        const nextCategories = { ...prevCategories };
 
         for ( const [ key, granted ] of Object.entries( updates ) ) {
-            if ( next[ key ] ) {
-                next[ key ] = {
-                    ...next[ key ],
+            if ( nextCategories[ key ] ) {
+                nextCategories[ key ] = {
+                    ...nextCategories[ key ],
                     granted,
                     granted_at: granted ? new Date().toISOString() : null,
                 };
             }
         }
 
-        categories.value = next;
-
-        // Persist the full merged state, not just the partial updates
         const mergedState = Object.fromEntries(
-            Object.entries( next ).map( ( [ k, v ] ) => [ k, v.granted ] ),
+            Object.entries( nextCategories ).map( ( [ k, v ] ) => [ k, v.granted ] ),
         );
+
+        // Apply changes optimistically so the UI updates immediately
+        categoriesRef.current = nextCategories;
+        setCategories( nextCategories );
         persistLocally( mergedState );
 
         // Sync with server — create a visitor ID if needed since the user
         // is actively giving/revoking consent
         const visitorId = getOrCreateVisitorId();
 
-        const requestId = ++updateRequestId;
+        const requestId = ++updateRequestIdRef.current;
 
-        loading.value = true;
-        error.value = null;
+        setLoading( true );
+        setError( null );
 
         try {
             const response = await fetch( `${apiPrefix}/consent`, {
@@ -370,39 +374,44 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
                 throw new Error( 'Consent update request was not successful' );
             }
 
-            if ( requestId === updateRequestId ) {
+            // Only apply server response if this is still the latest request
+            if ( requestId === updateRequestIdRef.current ) {
                 const serverCategories = json.categories ?? {};
-                categories.value = serverCategories;
+                categoriesRef.current = serverCategories;
+                setCategories( serverCategories );
 
+                // Persist server-validated state to keep local storage in sync
                 const serverMergedState = Object.fromEntries(
                     Object.entries( serverCategories ).map( ( [ k, v ] ) => [ k, v.granted ] ),
                 );
                 persistLocally( serverMergedState );
             }
         } catch ( err ) {
-            if ( requestId === updateRequestId ) {
-                error.value = err instanceof Error ? err.message : 'An unexpected error occurred';
-                categories.value = prev;
+            // Only rollback and surface error if this is still the latest request
+            if ( requestId === updateRequestIdRef.current ) {
+                setError( err instanceof Error ? err.message : 'An unexpected error occurred' );
+                categoriesRef.current = prevCategories;
+                setCategories( prevCategories );
                 persistLocally( prevMergedState );
             }
 
             throw err;
         } finally {
-            if ( requestId === updateRequestId ) {
-                loading.value = false;
+            if ( requestId === updateRequestIdRef.current ) {
+                setLoading( false );
             }
         }
-    }
+    }, [ apiPrefix ] );
 
-    function hasConsent( category: string ): boolean {
-        return categories.value[ category ]?.granted ?? false;
-    }
+    const hasConsent = useCallback( ( category: string ): boolean => {
+        return categories[ category ]?.granted ?? false;
+    }, [ categories ] );
 
-    async function grantConsent( cats: string[] ): Promise<void> {
+    const grantConsent = useCallback( async ( cats: string[] ): Promise<void> => {
         const updates: Record<string, boolean> = {};
 
-        for ( const key of Object.keys( categories.value ) ) {
-            updates[ key ] = categories.value[ key ].granted;
+        for ( const key of Object.keys( categories ) ) {
+            updates[ key ] = categories[ key ].granted;
         }
 
         for ( const cat of cats ) {
@@ -410,13 +419,13 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
         }
 
         await updateConsent( updates );
-    }
+    }, [ categories, updateConsent ] );
 
-    async function revokeConsent( cats: string[] ): Promise<void> {
+    const revokeConsent = useCallback( async ( cats: string[] ): Promise<void> => {
         const updates: Record<string, boolean> = {};
 
-        for ( const key of Object.keys( categories.value ) ) {
-            updates[ key ] = categories.value[ key ].granted;
+        for ( const key of Object.keys( categories ) ) {
+            updates[ key ] = categories[ key ].granted;
         }
 
         for ( const cat of cats ) {
@@ -424,37 +433,37 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
         }
 
         await updateConsent( updates );
-    }
+    }, [ categories, updateConsent ] );
 
-    async function acceptAll(): Promise<void> {
+    const acceptAll = useCallback( async (): Promise<void> => {
         const updates: Record<string, boolean> = {};
 
-        for ( const key of Object.keys( categories.value ) ) {
+        for ( const key of Object.keys( categories ) ) {
             updates[ key ] = true;
         }
 
         await updateConsent( updates );
-    }
+    }, [ categories, updateConsent ] );
 
-    async function rejectAll(): Promise<void> {
+    const rejectAll = useCallback( async (): Promise<void> => {
         const updates: Record<string, boolean> = {};
 
-        for ( const key of Object.keys( categories.value ) ) {
-            updates[ key ] = categories.value[ key ].required;
+        for ( const key of Object.keys( categories ) ) {
+            updates[ key ] = categories[ key ].required;
         }
 
         await updateConsent( updates );
-    }
+    }, [ categories, updateConsent ] );
 
-    onMounted( () => {
+    useEffect( () => {
         if ( fetchOnMount ) {
             fetchStatus();
         }
-    } );
 
-    onUnmounted( () => {
-        abortController?.abort();
-    } );
+        return () => {
+            abortRef.current?.abort();
+        };
+    }, [ fetchStatus, fetchOnMount ] );
 
     return {
         loading,
