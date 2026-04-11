@@ -11,9 +11,9 @@
 import React from 'react';
 import { Badge, Button } from '@artisanpack-ui/react';
 
-import { useConsent } from './useConsent';
+import { useConsent } from '../hooks/useConsent';
 
-import type { UseConsentOptions } from './useConsent';
+import type { UseConsentOptions } from '../hooks/useConsent';
 
 export interface ConsentStatusProps extends UseConsentOptions {
     /** Label text for the status indicator. */

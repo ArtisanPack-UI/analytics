@@ -9,7 +9,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type { AnalyticsQueryParams, RealtimeQueryParams } from '../types';
+import type { AnalyticsQueryParams, RealtimeQueryParams } from '../../types';
 
 interface UseAnalyticsApiOptions<T> {
     /** The API endpoint path relative to the analytics route prefix. */

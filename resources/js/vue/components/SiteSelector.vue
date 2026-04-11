@@ -11,7 +11,7 @@
 import { computed } from 'vue';
 import { Select } from '@artisanpack-ui/vue';
 
-import type { Site } from '../types';
+import type { Site } from '../../types';
 
 const props = defineProps<{
     /** Array of available sites. */

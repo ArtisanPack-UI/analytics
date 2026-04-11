@@ -20,8 +20,19 @@ test( 'vue component source directory exists', function (): void {
 	expect( is_dir( $vueDir ) )->toBeTrue();
 } );
 
-test( 'all vue widget components exist', function ( string $component ): void {
-	$filePath = __DIR__ . "/../../resources/js/vue/widgets/{$component}.vue";
+test( 'vue directory structure has required subdirectories', function ( string $subdir ): void {
+	$path = __DIR__ . "/../../resources/js/vue/{$subdir}";
+
+	expect( is_dir( $path ) )->toBeTrue();
+} )->with( [
+	'components',
+	'pages',
+	'composables',
+	'types',
+] );
+
+test( 'all vue widget components exist in components directory', function ( string $component ): void {
+	$filePath = __DIR__ . "/../../resources/js/vue/components/{$component}.vue";
 
 	expect( file_exists( $filePath ) )->toBeTrue();
 } )->with( [
@@ -32,19 +43,8 @@ test( 'all vue widget components exist', function ( string $component ): void {
 	'RealtimeVisitors',
 ] );
 
-test( 'all vue dashboard components exist', function ( string $component ): void {
-	$filePath = __DIR__ . "/../../resources/js/vue/{$component}.vue";
-
-	expect( file_exists( $filePath ) )->toBeTrue();
-} )->with( [
-	'AnalyticsDashboard',
-	'PageAnalytics',
-	'SiteSelector',
-	'MultiTenantDashboard',
-] );
-
-test( 'all vue consent components exist', function ( string $component ): void {
-	$filePath = __DIR__ . "/../../resources/js/vue/{$component}.vue";
+test( 'all vue consent components exist in components directory', function ( string $component ): void {
+	$filePath = __DIR__ . "/../../resources/js/vue/components/{$component}.vue";
 
 	expect( file_exists( $filePath ) )->toBeTrue();
 } )->with( [
@@ -53,14 +53,24 @@ test( 'all vue consent components exist', function ( string $component ): void {
 	'ConsentStatus',
 ] );
 
-test( 'vue barrel export file exists', function (): void {
-	$filePath = __DIR__ . '/../../resources/js/vue/index.ts';
+test( 'site selector component exists in components directory', function (): void {
+	$filePath = __DIR__ . '/../../resources/js/vue/components/SiteSelector.vue';
 
 	expect( file_exists( $filePath ) )->toBeTrue();
 } );
 
-test( 'vue composable files exist', function ( string $composable ): void {
-	$filePath = __DIR__ . "/../../resources/js/vue/{$composable}.ts";
+test( 'all vue dashboard page components exist in pages directory', function ( string $component ): void {
+	$filePath = __DIR__ . "/../../resources/js/vue/pages/{$component}.vue";
+
+	expect( file_exists( $filePath ) )->toBeTrue();
+} )->with( [
+	'AnalyticsDashboard',
+	'PageAnalytics',
+	'MultiTenantDashboard',
+] );
+
+test( 'vue composable files exist in composables directory', function ( string $composable ): void {
+	$filePath = __DIR__ . "/../../resources/js/vue/composables/{$composable}.ts";
 
 	expect( file_exists( $filePath ) )->toBeTrue();
 } )->with( [
@@ -68,9 +78,28 @@ test( 'vue composable files exist', function ( string $composable ): void {
 	'useConsent',
 ] );
 
+test( 'vue types re-export file exists', function (): void {
+	$filePath = __DIR__ . '/../../resources/js/vue/types/index.ts';
+
+	expect( file_exists( $filePath ) )->toBeTrue();
+} );
+
+test( 'vue barrel export file exists', function (): void {
+	$filePath = __DIR__ . '/../../resources/js/vue/index.ts';
+
+	expect( file_exists( $filePath ) )->toBeTrue();
+} );
+
 test( 'vue components publish to correct destination', function (): void {
 	$publishes   = AnalyticsServiceProvider::pathsToPublish( AnalyticsServiceProvider::class, 'analytics-vue' );
 	$destination = resource_path( 'js/vendor/artisanpack-analytics/vue' );
+
+	expect( array_values( $publishes ) )->toContain( $destination );
+} );
+
+test( 'vue publish tag includes shared types', function (): void {
+	$publishes   = AnalyticsServiceProvider::pathsToPublish( AnalyticsServiceProvider::class, 'analytics-vue' );
+	$destination = resource_path( 'js/vendor/artisanpack-analytics/types' );
 
 	expect( array_values( $publishes ) )->toContain( $destination );
 } );
@@ -93,4 +122,13 @@ test( 'vue barrel export references all components', function (): void {
 		->toContain( 'ConsentStatus' )
 		->toContain( 'useAnalyticsApi' )
 		->toContain( 'useConsent' );
+} );
+
+test( 'vue barrel export uses new directory structure', function (): void {
+	$indexContent = file_get_contents( __DIR__ . '/../../resources/js/vue/index.ts' );
+
+	expect( $indexContent )
+		->toContain( './components/' )
+		->toContain( './pages/' )
+		->toContain( './composables/' );
 } );

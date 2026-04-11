@@ -16,14 +16,14 @@ import type { TabItem } from '@artisanpack-ui/react';
 import type {
     ChartDataPoint,
     VisitorsChartProps,
-} from './widgets/VisitorsChart';
-import type { StatsCardsProps } from './widgets/StatsCards';
-import type { TopPageItem, TrafficSourceItem } from '../types';
+} from '../components/VisitorsChart';
+import type { StatsCardsProps } from '../components/StatsCards';
+import type { TopPageItem, TrafficSourceItem } from '../../types';
 
-import StatsCards from './widgets/StatsCards';
-import TopPages from './widgets/TopPages';
-import TrafficSources from './widgets/TrafficSources';
-import VisitorsChart from './widgets/VisitorsChart';
+import StatsCards from '../components/StatsCards';
+import TopPages from '../components/TopPages';
+import TrafficSources from '../components/TrafficSources';
+import VisitorsChart from '../components/VisitorsChart';
 
 export interface DateRange {
     start: string;

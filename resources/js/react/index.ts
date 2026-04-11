@@ -9,24 +9,29 @@
  * @since 1.1.0
  */
 
-// Widgets
-export { default as StatsCards } from './widgets/StatsCards';
-export { default as VisitorsChart } from './widgets/VisitorsChart';
-export { default as TopPages } from './widgets/TopPages';
-export { default as TrafficSources } from './widgets/TrafficSources';
-export { default as RealtimeVisitors } from './widgets/RealtimeVisitors';
+// Components (widgets)
+export { default as StatsCards } from './components/StatsCards';
+export { default as VisitorsChart } from './components/VisitorsChart';
+export { default as TopPages } from './components/TopPages';
+export { default as TrafficSources } from './components/TrafficSources';
+export { default as RealtimeVisitors } from './components/RealtimeVisitors';
 
-// Dashboard components
-export { default as AnalyticsDashboard } from './AnalyticsDashboard';
-export { default as PageAnalytics } from './PageAnalytics';
-export { default as SiteSelector } from './SiteSelector';
-export { default as MultiTenantDashboard } from './MultiTenantDashboard';
+// Components (consent)
+export { default as ConsentBanner } from './components/ConsentBanner';
+export { default as ConsentPreferences } from './components/ConsentPreferences';
+export { default as ConsentStatus } from './components/ConsentStatus';
 
-// Consent components
-export { default as ConsentBanner } from './ConsentBanner';
-export { default as ConsentPreferences } from './ConsentPreferences';
-export { default as ConsentStatus } from './ConsentStatus';
+// Components (selectors)
+export { default as SiteSelector } from './components/SiteSelector';
+
+// Page components
+export { default as AnalyticsDashboard } from './pages/AnalyticsDashboard';
+export { default as PageAnalytics } from './pages/PageAnalytics';
+export { default as MultiTenantDashboard } from './pages/MultiTenantDashboard';
 
 // Hooks
-export { useAnalyticsApi } from './useAnalyticsApi';
-export { useConsent } from './useConsent';
+export { useAnalyticsApi } from './hooks/useAnalyticsApi';
+export { useConsent } from './hooks/useConsent';
+
+// Types (re-exported for convenience)
+export type * from './types';

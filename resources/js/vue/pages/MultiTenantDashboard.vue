@@ -11,11 +11,11 @@
 import { ref, watch } from 'vue';
 import { Card } from '@artisanpack-ui/vue';
 
-import type { Site, TopPageItem, TrafficSourceItem, StatsComparison } from '../types';
-import type { ChartDataPoint } from './widgets/VisitorsChart.vue';
+import type { Site, TopPageItem, TrafficSourceItem, StatsComparison } from '../../types';
+import type { ChartDataPoint } from '../components/VisitorsChart.vue';
 
 import AnalyticsDashboard from './AnalyticsDashboard.vue';
-import SiteSelector from './SiteSelector.vue';
+import SiteSelector from '../components/SiteSelector.vue';
 
 interface Stats {
     pageviews: number;

@@ -9,7 +9,7 @@
 
 import { onUnmounted, ref, watch, type Ref } from 'vue';
 
-import type { AnalyticsQueryParams, RealtimeQueryParams } from '../types';
+import type { AnalyticsQueryParams, RealtimeQueryParams } from '../../types';
 
 interface UseAnalyticsApiOptions {
     /** The API endpoint path relative to the analytics route prefix. */

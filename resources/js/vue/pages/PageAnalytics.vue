@@ -12,7 +12,7 @@
 import { computed } from 'vue';
 import { Card, Stat, Badge, Sparkline } from '@artisanpack-ui/vue';
 
-import type { PageAnalyticsData, PageViewOverTimeItem } from '../types';
+import type { PageAnalyticsData, PageViewOverTimeItem } from '../../types';
 
 const props = withDefaults( defineProps<{
     /** The page path being analyzed. */
