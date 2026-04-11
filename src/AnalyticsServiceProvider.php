@@ -365,7 +365,7 @@ class AnalyticsServiceProvider extends ServiceProvider
     {
         if ( $this->app->runningInConsole() ) {
             $this->publishes( [
-                __DIR__ . '/../resources/js/vue' => resource_path( 'js/vendor/artisanpack-analytics/vue' ),
+                __DIR__ . '/../resources/js/vue'   => resource_path( 'js/vendor/artisanpack-analytics/vue' ),
                 __DIR__ . '/../resources/js/types' => resource_path( 'js/vendor/artisanpack-analytics/types' ),
             ], 'analytics-vue' );
         }

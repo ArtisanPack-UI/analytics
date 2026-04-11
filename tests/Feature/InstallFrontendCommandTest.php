@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\File;
 
 $originalPackageJson = null;
 
-beforeEach( function () use ( &$originalPackageJson ) {
+beforeEach( function () use ( &$originalPackageJson ): void {
 	$path = base_path( 'package.json' );
 
 	if ( File::exists( $path ) ) {
@@ -16,7 +16,7 @@ beforeEach( function () use ( &$originalPackageJson ) {
 	}
 } );
 
-afterEach( function () use ( &$originalPackageJson ) {
+afterEach( function () use ( &$originalPackageJson ): void {
 	$path = base_path( 'package.json' );
 
 	if ( null !== $originalPackageJson ) {

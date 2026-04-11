@@ -19,6 +19,7 @@ namespace ArtisanPackUI\Analytics\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
+use Throwable;
 
 /**
  * Artisan command for installing analytics frontend assets.
@@ -204,7 +205,7 @@ class InstallFrontendCommand extends Command
 					$packageJsonPath,
 					json_encode( $packageJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) . "\n",
 				);
-			} catch ( \Throwable $e ) {
+			} catch ( Throwable $e ) {
 				$success = false;
 
 				return false;
