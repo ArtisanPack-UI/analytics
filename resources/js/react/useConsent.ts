@@ -141,7 +141,22 @@ function getVisitorId(): string | null {
         return cookieId;
     }
 
-    // Generate a new visitor ID
+    // No existing visitor ID found — return null so callers can decide
+    // whether to create one (e.g. only after consent is granted)
+    return null;
+}
+
+/**
+ * Get or create a visitor ID. Only call this when the user has given
+ * consent so we don't mint tracker identifiers before consent.
+ */
+function getOrCreateVisitorId(): string {
+    const existing = getVisitorId();
+
+    if ( existing ) {
+        return existing;
+    }
+
     const id = generateUuid();
     setCookie( VISITOR_COOKIE, id, COOKIE_EXPIRY_DAYS );
 
@@ -320,15 +335,13 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
         );
 
         // Apply changes optimistically so the UI updates immediately
+        categoriesRef.current = nextCategories;
         setCategories( nextCategories );
         persistLocally( mergedState );
 
-        // Sync with server if a visitor ID is available
-        const visitorId = getVisitorId();
-
-        if ( ! visitorId ) {
-            return;
-        }
+        // Sync with server — create a visitor ID if needed since the user
+        // is actively giving/revoking consent
+        const visitorId = getOrCreateVisitorId();
 
         const requestId = ++updateRequestIdRef.current;
 
@@ -364,6 +377,7 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
             // Only apply server response if this is still the latest request
             if ( requestId === updateRequestIdRef.current ) {
                 const serverCategories = json.categories ?? {};
+                categoriesRef.current = serverCategories;
                 setCategories( serverCategories );
 
                 // Persist server-validated state to keep local storage in sync
@@ -376,6 +390,7 @@ export function useConsent( options: UseConsentOptions = {} ): UseConsentResult 
             // Only rollback and surface error if this is still the latest request
             if ( requestId === updateRequestIdRef.current ) {
                 setError( err instanceof Error ? err.message : 'An unexpected error occurred' );
+                categoriesRef.current = prevCategories;
                 setCategories( prevCategories );
                 persistLocally( prevMergedState );
             }
