@@ -50,11 +50,12 @@ function scopePageView( string $visitorId, string $path = '/' ): void
 /**
  * Create a session tied to a visitor id.
  */
-function scopeSession( string $visitorId ): void
+function scopeSession( string $visitorId, ?int $siteId = null ): void
 {
     Session::create( [
         'session_id'       => 'session-' . $visitorId,
         'visitor_id'       => $visitorId,
+        'site_id'          => $siteId,
         'started_at'       => now(),
         'last_activity_at' => now(),
         'entry_page'       => '/',
@@ -151,6 +152,15 @@ test( 'realtime visitors include bots when requested', function (): void {
     scopeSession( scopeVisitor( true ) );
 
     expect( $provider->getRealTimeVisitors( 5, [ 'bots' => 'include' ] ) )->toBe( 2 );
+} );
+
+test( 'realtime visitors respect site scoping', function (): void {
+    $provider = new LocalAnalyticsProvider;
+
+    scopeSession( scopeVisitor( false ), 1 );
+    scopeSession( scopeVisitor( false ), 2 );
+
+    expect( $provider->getRealTimeVisitors( 5, [ 'site_id' => 1 ] ) )->toBe( 1 );
 } );
 
 test( 'analytics query realtime respects bot modifier', function (): void {

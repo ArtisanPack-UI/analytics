@@ -517,8 +517,15 @@ class LocalAnalyticsProvider extends AbstractAnalyticsProvider
      */
     public function getRealTimeVisitors( int $minutes = 5, array $filters = [] ): int
     {
+        // Limit to scope filters that exist on the sessions table; path and
+        // event-only filters do not apply to realtime session counts.
+        $scopeFilters = array_intersect_key(
+            $filters,
+            array_flip( [ 'site_id', 'tenant_id', 'visitor_id', 'bots' ] ),
+        );
+
         return $this->safeQuery(
-            fn () => $this->applyBotFilter( Session::query()->active( $minutes ), $filters )
+            fn () => $this->applyFilters( Session::query()->active( $minutes ), $scopeFilters )
                 ->distinct( 'visitor_id' )
                 ->count( 'visitor_id' ),
             0,
