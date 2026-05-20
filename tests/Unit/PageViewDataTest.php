@@ -91,3 +91,60 @@ test( 'page view data supports load time', function (): void {
 
 	expect( $data->loadTime )->toBe( 1250.5 );
 } );
+
+test( 'page view data supports fingerprint signals', function (): void {
+	$fingerprint = [
+		'webdriver'    => true,
+		'has_plugins'  => false,
+		'headless'     => true,
+		'missing_apis' => false,
+	];
+
+	$data = new PageViewData(
+		path: '/bot-page',
+		fingerprint: $fingerprint,
+	);
+
+	expect( $data->fingerprint )->toBe( $fingerprint );
+	expect( $data->fingerprint['webdriver'] )->toBeTrue();
+} );
+
+test( 'page view data fingerprint defaults to null', function (): void {
+	$data = new PageViewData( path: '/no-fingerprint' );
+
+	expect( $data->fingerprint )->toBeNull();
+} );
+
+test( 'page view data reads fingerprint from request data', function (): void {
+	$request = Illuminate\Http\Request::create( '/track', 'POST' );
+
+	$data = PageViewData::fromRequest( $request, [
+		'path'        => '/landing',
+		'fingerprint' => [ 'webdriver' => true ],
+	] );
+
+	expect( $data->fingerprint )->toBe( [ 'webdriver' => true ] );
+} );
+
+test( 'page view data ignores non-array fingerprint from request', function (): void {
+	$request = Illuminate\Http\Request::create( '/track', 'POST' );
+
+	$data = PageViewData::fromRequest( $request, [
+		'path'        => '/landing',
+		'fingerprint' => 'legacy-hash-string',
+	] );
+
+	expect( $data->fingerprint )->toBeNull();
+} );
+
+test( 'page view data includes fingerprint in array', function (): void {
+	$data = new PageViewData(
+		path: '/test',
+		fingerprint: [ 'headless' => true ],
+	);
+
+	$array = $data->toArray();
+
+	expect( $array )->toHaveKey( 'fingerprint' );
+	expect( $array['fingerprint'] )->toBe( [ 'headless' => true ] );
+} );

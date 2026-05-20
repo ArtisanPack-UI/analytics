@@ -263,6 +263,82 @@
     };
 
     // =========================================================================
+    // Fingerprint Module
+    // =========================================================================
+    //
+    // Collects lightweight, privacy-preserving browser signals used server-side
+    // for bot scoring. Signals are gathered synchronously on load and never
+    // include personally identifying data. Every collector is individually
+    // guarded so a single unsupported API can never break tracking.
+
+    var Fingerprint = {
+        _signals: null,
+
+        init: function() {
+            this._signals = this._collect();
+            log('Fingerprint signals:', this._signals);
+        },
+
+        get: function() {
+            if (this._signals === null) {
+                this._signals = this._collect();
+            }
+            return this._signals;
+        },
+
+        _collect: function() {
+            var webdriver = false;
+            var hasPlugins = false;
+            var hasLanguages = false;
+            var hasWebgl = false;
+            var hasCanvas = false;
+            var colorDepth = 0;
+            var concurrency = 0;
+            var deviceMemory = null;
+
+            try { webdriver = navigator.webdriver === true; } catch (e) {}
+            try { hasPlugins = !!(navigator.plugins && navigator.plugins.length > 0); } catch (e) {}
+            try { hasLanguages = !!(navigator.languages && navigator.languages.length > 0); } catch (e) {}
+            try { hasWebgl = this._hasWebgl(); } catch (e) {}
+            try { hasCanvas = this._hasCanvas(); } catch (e) {}
+            try { colorDepth = (window.screen && typeof screen.colorDepth === 'number') ? screen.colorDepth : 0; } catch (e) {}
+            try { concurrency = (typeof navigator.hardwareConcurrency === 'number') ? navigator.hardwareConcurrency : 0; } catch (e) {}
+            try { deviceMemory = (typeof navigator.deviceMemory === 'number') ? navigator.deviceMemory : null; } catch (e) {}
+
+            return {
+                webdriver: webdriver,
+                has_plugins: hasPlugins,
+                has_languages: hasLanguages,
+                has_webgl: hasWebgl,
+                has_canvas: hasCanvas,
+                screen_color_depth: colorDepth,
+                hardware_concurrency: concurrency,
+                device_memory: deviceMemory,
+                // Derived flags consumed by the server-side BotDetector. Both are
+                // intentionally conservative to avoid false positives on
+                // privacy-focused browsers (which may block a single API);
+                // BotDetector scores them below its threshold individually.
+                headless: webdriver || (!hasPlugins && !hasLanguages) || colorDepth === 0,
+                missing_apis: !hasWebgl && !hasCanvas
+            };
+        },
+
+        _hasWebgl: function() {
+            if (!window.WebGLRenderingContext) {
+                return false;
+            }
+            var canvas = document.createElement('canvas');
+            var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            return !!gl;
+        },
+
+        _hasCanvas: function() {
+            var canvas = document.createElement('canvas');
+            return !!(canvas.getContext && canvas.getContext('2d'));
+        }
+    };
+
+    // =========================================================================
     // Session Module
     // =========================================================================
 
@@ -780,6 +856,7 @@
             }
 
             Visitor.init();
+            Fingerprint.init();
             Session.init();
             Engagement.init();
             OutboundLinks.init();
@@ -834,7 +911,8 @@
                 viewport_width: window.innerWidth,
                 viewport_height: window.innerHeight,
                 language: navigator.language,
-                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                fingerprint: Fingerprint.get()
             }, Performance.getMetrics(), customData || {});
 
             log('Page view:', data);
@@ -852,7 +930,8 @@
             var data = extend({
                 name: name,
                 properties: properties || {},
-                path: window.location.pathname
+                path: window.location.pathname,
+                fingerprint: Fingerprint.get()
             }, options || {});
 
             log('Event:', name, data);
