@@ -186,6 +186,10 @@ class AnalyticsDashboard extends Component
 				'label' => __( 'Audience' ),
 				'icon'  => 'users',
 			],
+			'bots' => [
+				'label' => __( 'Bots' ),
+				'icon'  => 'bug-ant',
+			],
 		];
 	}
 

@@ -295,5 +295,14 @@
 				</x-artisanpack-card>
 			</div>
 		@endif
+
+		{{-- Bots Tab --}}
+		@if ( $activeTab === 'bots' )
+			<livewire:artisanpack-analytics::widgets.bot-traffic
+				:date-range-preset="$dateRangePreset"
+				:site-id="$siteId"
+				:limit="10"
+			/>
+		@endif
 	</div>
 </div>
