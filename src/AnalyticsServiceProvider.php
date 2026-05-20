@@ -22,10 +22,12 @@ use ArtisanPackUI\Analytics\Http\Middleware\PrivacyFilter;
 use ArtisanPackUI\Analytics\Http\Middleware\ResolveSite;
 use ArtisanPackUI\Analytics\Http\Middleware\TenantResolver;
 use ArtisanPackUI\Analytics\Services\AnalyticsQuery;
+use ArtisanPackUI\Analytics\Services\BotDetector;
 use ArtisanPackUI\Analytics\Services\ConsentService;
 use ArtisanPackUI\Analytics\Services\CrossTenantReporting;
 use ArtisanPackUI\Analytics\Services\DataDeletionService;
 use ArtisanPackUI\Analytics\Services\DataExportService;
+use ArtisanPackUI\Analytics\Services\DeviceDetector;
 use ArtisanPackUI\Analytics\Services\EventProcessor;
 use ArtisanPackUI\Analytics\Services\FunnelAnalyzer;
 use ArtisanPackUI\Analytics\Services\GoalMatcher;
@@ -170,6 +172,13 @@ class AnalyticsServiceProvider extends ServiceProvider
         // Register CrossTenantReporting
         $this->app->singleton( CrossTenantReporting::class, function () {
             return new CrossTenantReporting;
+        } );
+
+        // Register the BotDetector service
+        $this->app->singleton( BotDetector::class, function ( $app ) {
+            return new BotDetector(
+                $app->make( DeviceDetector::class ),
+            );
         } );
     }
 

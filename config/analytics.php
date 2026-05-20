@@ -441,6 +441,73 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Bot Detection
+    |--------------------------------------------------------------------------
+    |
+    | Settings for the multi-signal bot detection system. The BotDetector
+    | service combines user agent, JavaScript fingerprint, engagement, and
+    | request pattern signals into a confidence score (0-100). Visitors that
+    | meet or exceed the threshold are considered bots.
+    |
+    */
+    'bot_detection' => [
+        /*
+        |----------------------------------------------------------------------
+        | Enabled
+        |----------------------------------------------------------------------
+        |
+        | Master switch for behavioral bot detection. When disabled, the
+        | BotDetector never flags visitors as bots.
+        |
+        */
+        'enabled' => env( 'ANALYTICS_BOT_DETECTION_ENABLED', true ),
+
+        /*
+        |----------------------------------------------------------------------
+        | Threshold
+        |----------------------------------------------------------------------
+        |
+        | The minimum confidence score (0-100) required to flag a visitor as
+        | a bot. Lower values are more aggressive; higher values reduce false
+        | positives.
+        |
+        */
+        'threshold' => env( 'ANALYTICS_BOT_DETECTION_THRESHOLD', 70 ),
+
+        /*
+        |----------------------------------------------------------------------
+        | Whitelist
+        |----------------------------------------------------------------------
+        |
+        | User agents and IP addresses that bypass bot scoring entirely.
+        | User agents are matched as case-insensitive substrings; IPs must
+        | match exactly.
+        |
+        */
+        'whitelist' => [
+            'user_agents' => [],
+            'ips'         => [],
+        ],
+
+        /*
+        |----------------------------------------------------------------------
+        | Signals
+        |----------------------------------------------------------------------
+        |
+        | Toggle individual signal categories on or off. Disabled categories
+        | contribute zero points to the confidence score.
+        |
+        */
+        'signals' => [
+            'user_agent'       => true,
+            'engagement'       => true,
+            'request_patterns' => true,
+            'js_fingerprint'   => true,
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Data Retention
     |--------------------------------------------------------------------------
     |
