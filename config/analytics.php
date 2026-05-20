@@ -364,6 +364,19 @@ return [
             '/spider/i',
             '/slurp/i',
             '/mediapartners/i',
+            '/applebot-extended/i',
+
+            // SEO and marketing crawlers.
+            '/semrushbot/i',
+            '/ahrefsbot/i',
+            '/mj12bot/i',
+            '/dotbot/i',
+            '/blexbot/i',
+            '/screaming frog/i',
+            '/rogerbot/i',
+            '/sistrix/i',
+            '/serpstatbot/i',
+            '/dataforseobot/i',
 
             // AI training and answer-engine crawlers.
             '/gptbot/i',
