@@ -49,7 +49,9 @@ export default function BotTraffic( {
     onIncludeBotsChange,
     className = '',
 }: BotTrafficProps ): React.ReactElement {
-    const normalizedLimit = Number.isFinite( limit ) ? Math.max( 0, Math.floor( limit ) ) : 0;
+    const normalizedLimit = Number.isFinite( limit )
+        ? Math.min( 100, Math.max( 1, Math.floor( limit ) ) )
+        : 10;
 
     const { data, loading, error } = useAnalyticsApi<BotStatsData>( {
         endpoint: 'bots',

@@ -39,7 +39,7 @@ const emit = defineEmits<{
 const normalizedLimit = computed( () => {
     const raw = Number( props.limit );
 
-    return Number.isFinite( raw ) ? Math.max( 0, Math.floor( raw ) ) : 0;
+    return Number.isFinite( raw ) ? Math.min( 100, Math.max( 1, Math.floor( raw ) ) ) : 10;
 } );
 
 const params = reactive( {
