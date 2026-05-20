@@ -216,6 +216,34 @@ class AnalyticsQueryController extends Controller
 	}
 
 	/**
+	 * Get bot-traffic statistics.
+	 *
+	 * GET /api/analytics/bots
+	 *
+	 * @param Request $request The HTTP request.
+	 *
+	 * @return JsonResponse
+	 *
+	 * @since 1.2.0
+	 */
+	public function bots( Request $request ): JsonResponse
+	{
+		$range       = $this->getDateRange( $request );
+		$limit       = $this->getLimit( $request );
+		$granularity = $request->query( 'granularity', 'day' );
+		$granularity = in_array( $granularity, [ 'hour', 'day', 'week', 'month' ], true ) ? $granularity : 'day';
+		$filters     = $this->getFilters( $request );
+
+		$stats = $this->analyticsQuery->getBotStats( $range, $limit, $granularity, $filters );
+
+		return response()->json( [
+			'success' => true,
+			'data'    => $stats,
+			'range'   => $range->toArray(),
+		] );
+	}
+
+	/**
 	 * Get visitor data (API-key authenticated).
 	 *
 	 * GET /api/analytics/v1/visitors

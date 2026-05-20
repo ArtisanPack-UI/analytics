@@ -266,6 +266,78 @@ class AnalyticsQuery
     }
 
     /**
+     * Get the top bot user agents by visit count.
+     *
+     * Always scoped to bot traffic; any incoming bot mode is ignored.
+     *
+     * @param  DateRange  $range  The date range to query.
+     * @param  int  $limit  Maximum number of user agents to return.
+     * @param  array<string, mixed>  $filters  Optional filters to apply (site/tenant scoping).
+     *
+     * @return Collection<int, array{user_agent: string, visits: int}>
+     *
+     * @since 1.2.0
+     */
+    public function getTopBotAgents( DateRange $range, int $limit = 10, array $filters = [] ): Collection
+    {
+        unset( $filters['bots'] );
+        $cacheKey = $this->buildCacheKey( 'top_bot_agents', $range, $filters, $limit );
+
+        return $this->cached( $cacheKey, fn () => $this->provider->getTopBotAgents( $range, $limit, $filters ) );
+    }
+
+    /**
+     * Get an aggregated summary of bot traffic for a date range.
+     *
+     * Combines bot-only visitor counts, the bot share of total traffic, the
+     * busiest bot user agents, and a bot-only visit trend so dashboards can
+     * surface filtered traffic in a single call.
+     *
+     * @param  DateRange  $range  The date range to query.
+     * @param  int  $agentLimit  Maximum number of bot user agents to return.
+     * @param  string  $granularity  Trend grouping granularity ('hour', 'day', 'week', 'month').
+     * @param  array<string, mixed>  $filters  Optional filters to apply (site/tenant scoping).
+     *
+     * @return array{
+     *     bot_visits: int,
+     *     total_visits: int,
+     *     bot_percentage: float,
+     *     top_agents: array<int, array{user_agent: string, visits: int}>,
+     *     trend: array<int, array{date: string, visits: int}>
+     * }
+     *
+     * @since 1.2.0
+     */
+    public function getBotStats( DateRange $range, int $agentLimit = 10, string $granularity = 'day', array $filters = [] ): array
+    {
+        // This method controls bot scoping itself, so discard any caller mode.
+        unset( $filters['bots'] );
+
+        $botVisits   = $this->getVisitors( $range, array_merge( $filters, ['bots' => 'only'] ) );
+        $totalVisits = $this->getVisitors( $range, array_merge( $filters, ['bots' => 'include'] ) );
+
+        $percentage = $totalVisits > 0
+            ? round( ( $botVisits / $totalVisits ) * 100, 1 )
+            : 0.0;
+
+        $trend = $this->getPageViews( $range, $granularity, array_merge( $filters, ['bots' => 'only'] ) )
+            ->map( fn ( array $row ) => [
+                'date'   => $row['date'],
+                'visits' => $row['visitors'],
+            ] )
+            ->values()
+            ->all();
+
+        return [
+            'bot_visits'     => $botVisits,
+            'total_visits'   => $totalVisits,
+            'bot_percentage' => $percentage,
+            'top_agents'     => $this->getTopBotAgents( $range, $agentLimit, $filters )->values()->all(),
+            'trend'          => $trend,
+        ];
+    }
+
+    /**
      * Get traffic sources.
      *
      * @param  DateRange  $range  The date range to query.

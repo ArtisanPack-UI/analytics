@@ -15,6 +15,7 @@ export { default as VisitorsChart } from './components/VisitorsChart.vue';
 export { default as TopPages } from './components/TopPages.vue';
 export { default as TrafficSources } from './components/TrafficSources.vue';
 export { default as RealtimeVisitors } from './components/RealtimeVisitors.vue';
+export { default as BotTraffic } from './components/BotTraffic.vue';
 
 // Components (consent)
 export { default as ConsentBanner } from './components/ConsentBanner.vue';

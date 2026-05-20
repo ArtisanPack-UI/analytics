@@ -533,6 +533,47 @@ class LocalAnalyticsProvider extends AbstractAnalyticsProvider
     }
 
     /**
+     * Get the top bot user agents by visit count.
+     *
+     * Counts bot page views within the date range grouped by the visitor's
+     * user agent and returns the busiest agents first. The `only` bot mode is
+     * forced so the result always reflects bot traffic regardless of caller
+     * filters.
+     *
+     * @param  DateRange  $range  The date range to query.
+     * @param  int  $limit  Maximum number of user agents to return.
+     * @param  array<string, mixed>  $filters  Optional filters to apply (site/tenant scoping).
+     *
+     * @return Collection<int, array{user_agent: string, visits: int}>
+     *
+     * @since 1.2.0
+     */
+    public function getTopBotAgents( DateRange $range, int $limit = 10, array $filters = [] ): Collection
+    {
+        return $this->safeQuery(
+            function () use ( $range, $limit, $filters ) {
+                return $this->applyFilters( PageView::query(), array_merge( $filters, ['bots' => 'only'] ) )
+                    ->join( 'analytics_visitors', 'analytics_page_views.visitor_id', '=', 'analytics_visitors.id' )
+                    ->whereBetween( 'analytics_page_views.created_at', [$range->startDate, $range->endDate] )
+                    ->whereNotNull( 'analytics_visitors.user_agent' )
+                    ->select( [
+                        'analytics_visitors.user_agent as user_agent',
+                        DB::raw( 'COUNT(*) as visits' ),
+                    ] )
+                    ->groupBy( 'analytics_visitors.user_agent' )
+                    ->orderByDesc( 'visits' )
+                    ->limit( $limit )
+                    ->get()
+                    ->map( fn ( $row ) => [
+                        'user_agent' => (string) $row->user_agent,
+                        'visits'     => (int) $row->visits,
+                    ] );
+            },
+            collect(),
+        );
+    }
+
+    /**
      * Get statistics summary for a date range.
      *
      * @param  DateRange  $range  The date range to query.

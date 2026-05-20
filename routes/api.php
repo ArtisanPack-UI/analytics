@@ -91,6 +91,9 @@ Route::middleware( config( 'artisanpack.analytics.dashboard_middleware', [ 'auth
 
 	Route::get( '/realtime', [ AnalyticsQueryController::class, 'realtime' ] )
 		->name( 'analytics.realtime' );
+
+	Route::get( '/bots', [ AnalyticsQueryController::class, 'bots' ] )
+		->name( 'analytics.bots' );
 } );
 
 /*
@@ -151,6 +154,9 @@ Route::middleware( [ 'analytics.api-key' ] )->prefix( 'v1' )->group( function ()
 
 	Route::get( '/realtime', [ AnalyticsQueryController::class, 'realtime' ] )
 		->name( 'analytics.api.realtime' );
+
+	Route::get( '/bots', [ AnalyticsQueryController::class, 'bots' ] )
+		->name( 'analytics.api.bots' );
 
 	/*
 	|--------------------------------------------------------------------------

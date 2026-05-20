@@ -143,6 +143,28 @@ export interface RealtimeResponse {
     data: RealtimeData;
 }
 
+// --- /bots ---
+
+export interface BotAgentItem {
+    user_agent: string;
+    visits: number;
+}
+
+export interface BotTrendPoint {
+    date: string;
+    visits: number;
+}
+
+export interface BotStatsData {
+    bot_visits: number;
+    total_visits: number;
+    bot_percentage: number;
+    top_agents: BotAgentItem[];
+    trend: BotTrendPoint[];
+}
+
+export type BotStatsResponse = ApiSuccessResponse<BotStatsData>;
+
 // --- /visitors ---
 
 export interface VisitorStatsData {
