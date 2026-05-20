@@ -323,12 +323,13 @@ class GoogleAnalyticsProvider extends AbstractAnalyticsProvider
      * Not supported without GA4 Data API credentials.
      *
      * @param  int  $minutes  The number of minutes to consider as "real-time".
+     * @param  array<string, mixed>  $filters  Optional filters to apply (including bot scoping).
      *
      * @return int Always returns 0 as querying is not supported.
      *
      * @since 1.0.0
      */
-    public function getRealTimeVisitors( int $minutes = 5 ): int
+    public function getRealTimeVisitors( int $minutes = 5, array $filters = [] ): int
     {
         $this->logUnsupportedQuery( 'getRealTimeVisitors' );
 

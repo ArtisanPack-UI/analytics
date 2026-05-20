@@ -168,7 +168,7 @@ class AnalyticsQuery
         } );
 
         // Real-time visitors should never be cached
-        $stats['realtime_visitors'] = $this->provider->getRealTimeVisitors();
+        $stats['realtime_visitors'] = $this->provider->getRealTimeVisitors( 5, $filters );
 
         return $stats;
     }
@@ -349,15 +349,18 @@ class AnalyticsQuery
      * Real-time data is never cached.
      *
      * @param  int  $minutes  The number of minutes to consider as "real-time".
+     * @param  array<string, mixed>  $filters  Optional filters to apply (including bot scoping).
      *
      * @return array<string, mixed>
      *
      * @since 1.0.0
      */
-    public function getRealtime( int $minutes = 5 ): array
+    public function getRealtime( int $minutes = 5, array $filters = [] ): array
     {
+        $filters = $this->resolveBotMode( $filters );
+
         return [
-            'active_visitors' => $this->provider->getRealTimeVisitors( $minutes ),
+            'active_visitors' => $this->provider->getRealTimeVisitors( $minutes, $filters ),
             'timestamp'       => now()->toIso8601String(),
         ];
     }

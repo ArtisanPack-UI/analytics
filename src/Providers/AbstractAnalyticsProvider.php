@@ -375,12 +375,13 @@ abstract class AbstractAnalyticsProvider implements AnalyticsProviderInterface, 
      * Default implementation returns 0. Override in subclasses.
      *
      * @param  int  $minutes  The number of minutes to consider as "real-time".
+     * @param  array<string, mixed>  $filters  Optional filters to apply (including bot scoping).
      *
      * @return int The number of active visitors.
      *
      * @since 1.0.0
      */
-    public function getRealTimeVisitors( int $minutes = 5 ): int
+    public function getRealTimeVisitors( int $minutes = 5, array $filters = [] ): int
     {
         return 0;
     }

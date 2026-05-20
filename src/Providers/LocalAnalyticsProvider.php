@@ -509,17 +509,16 @@ class LocalAnalyticsProvider extends AbstractAnalyticsProvider
      * Get real-time visitor count.
      *
      * @param  int  $minutes  The number of minutes to consider as "real-time".
+     * @param  array<string, mixed>  $filters  Optional filters to apply (including bot scoping).
      *
      * @return int The number of active visitors.
      *
      * @since 1.0.0
      */
-    public function getRealTimeVisitors( int $minutes = 5 ): int
+    public function getRealTimeVisitors( int $minutes = 5, array $filters = [] ): int
     {
         return $this->safeQuery(
-            fn () => Session::query()
-                ->active( $minutes )
-                ->whereDoesntHave( 'visitor', fn ( Builder $visitorQuery ) => $visitorQuery->where( 'is_bot', true ) )
+            fn () => $this->applyBotFilter( Session::query()->active( $minutes ), $filters )
                 ->distinct( 'visitor_id' )
                 ->count( 'visitor_id' ),
             0,

@@ -135,13 +135,32 @@ test( 'page views with an unresolved visitor are still counted when excluding bo
     expect( $provider->getPageViews( DateRange::today() ) )->toBe( 1 );
 } );
 
-test( 'realtime visitors exclude bots', function (): void {
+test( 'realtime visitors exclude bots by default', function (): void {
     $provider = new LocalAnalyticsProvider;
 
     scopeSession( scopeVisitor( false ) );
     scopeSession( scopeVisitor( true ) );
 
     expect( $provider->getRealTimeVisitors() )->toBe( 1 );
+} );
+
+test( 'realtime visitors include bots when requested', function (): void {
+    $provider = new LocalAnalyticsProvider;
+
+    scopeSession( scopeVisitor( false ) );
+    scopeSession( scopeVisitor( true ) );
+
+    expect( $provider->getRealTimeVisitors( 5, [ 'bots' => 'include' ] ) )->toBe( 2 );
+} );
+
+test( 'analytics query realtime respects bot modifier', function (): void {
+    $query = ( new AnalyticsQuery( new LocalAnalyticsProvider ) )->setCacheEnabled( false );
+
+    scopeSession( scopeVisitor( false ) );
+    scopeSession( scopeVisitor( true ) );
+
+    expect( $query->getRealtime()['active_visitors'] )->toBe( 1 );
+    expect( $query->includeBots()->getRealtime()['active_visitors'] )->toBe( 2 );
 } );
 
 test( 'analytics query defaults to excluding bots', function (): void {

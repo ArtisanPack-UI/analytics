@@ -207,7 +207,7 @@ class AnalyticsQueryController extends Controller
 		// Clamp minutes to a reasonable range
 		$minutes = max( 1, min( 30, $minutes ) );
 
-		$realtime = $this->analyticsQuery->getRealtime( $minutes );
+		$realtime = $this->analyticsQuery->getRealtime( $minutes, $this->getFilters( $request ) );
 
 		return response()->json( [
 			'success' => true,

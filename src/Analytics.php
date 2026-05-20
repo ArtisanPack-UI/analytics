@@ -577,14 +577,15 @@ class Analytics implements AnalyticsQueryInterface, AnalyticsServiceInterface
      * Uses the first provider that supports queries.
      *
      * @param  int  $minutes  The number of minutes to consider as "real-time".
+     * @param  array<string, mixed>  $filters  Optional filters to apply (including bot scoping).
      *
      * @return int The number of active visitors.
      *
      * @since 1.0.0
      */
-    public function getRealTimeVisitors( int $minutes = 5 ): int
+    public function getRealTimeVisitors( int $minutes = 5, array $filters = [] ): int
     {
-        return $this->queryWithProvider( fn ( AnalyticsQueryInterface $p ) => $p->getRealTimeVisitors( $minutes ), 0 );
+        return $this->queryWithProvider( fn ( AnalyticsQueryInterface $p ) => $p->getRealTimeVisitors( $minutes, $filters ), 0 );
     }
 
     /**
