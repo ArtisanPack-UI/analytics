@@ -22,7 +22,7 @@ return new class extends Migration
 	{
 		Schema::create( 'analytics_page_views', function ( Blueprint $table ) {
 			$table->id();
-			$table->foreignId( 'site_id' )->nullable()->constrained( 'analytics_sites' )->nullOnDelete()->index();
+			$table->foreignId( 'site_id' )->nullable()->index();
 			$table->uuid( 'session_id' );
 			$table->uuid( 'visitor_id' );
 
@@ -56,12 +56,17 @@ return new class extends Migration
 			$table->timestamp( 'created_at' )->useCurrent();
 
 			// Foreign keys
-			$table->foreign( 'session_id' )
+			$table->foreign( 'site_id', 'analytics_page_views_site_id_fk' )
+				->references( 'id' )
+				->on( 'analytics_sites' )
+				->nullOnDelete();
+
+			$table->foreign( 'session_id', 'analytics_page_views_session_id_fk' )
 				->references( 'id' )
 				->on( 'analytics_sessions' )
 				->cascadeOnDelete();
 
-			$table->foreign( 'visitor_id' )
+			$table->foreign( 'visitor_id', 'analytics_page_views_visitor_id_fk' )
 				->references( 'id' )
 				->on( 'analytics_visitors' )
 				->cascadeOnDelete();

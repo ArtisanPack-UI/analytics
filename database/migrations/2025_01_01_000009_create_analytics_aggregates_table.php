@@ -49,7 +49,7 @@ return new class extends Migration
 			$table->timestamps();
 
 			// Foreign key
-			$table->foreign( 'site_id' )
+			$table->foreign( 'site_id', 'analytics_aggregates_site_id_fk' )
 				->references( 'id' )
 				->on( 'analytics_sites' )
 				->nullOnDelete();

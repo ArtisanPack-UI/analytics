@@ -41,32 +41,32 @@ return new class extends Migration
 			$table->timestamp( 'created_at' )->useCurrent();
 
 			// Foreign keys
-			$table->foreign( 'site_id' )
+			$table->foreign( 'site_id', 'analytics_conversions_site_id_fk' )
 				->references( 'id' )
 				->on( 'analytics_sites' )
 				->nullOnDelete();
 
-			$table->foreign( 'goal_id' )
+			$table->foreign( 'goal_id', 'analytics_conversions_goal_id_fk' )
 				->references( 'id' )
 				->on( 'analytics_goals' )
 				->cascadeOnDelete();
 
-			$table->foreign( 'session_id' )
+			$table->foreign( 'session_id', 'analytics_conversions_session_id_fk' )
 				->references( 'id' )
 				->on( 'analytics_sessions' )
 				->nullOnDelete();
 
-			$table->foreign( 'visitor_id' )
+			$table->foreign( 'visitor_id', 'analytics_conversions_visitor_id_fk' )
 				->references( 'id' )
 				->on( 'analytics_visitors' )
 				->nullOnDelete();
 
-			$table->foreign( 'event_id' )
+			$table->foreign( 'event_id', 'analytics_conversions_event_id_fk' )
 				->references( 'id' )
 				->on( 'analytics_events' )
 				->nullOnDelete();
 
-			$table->foreign( 'page_view_id' )
+			$table->foreign( 'page_view_id', 'analytics_conversions_page_view_id_fk' )
 				->references( 'id' )
 				->on( 'analytics_page_views' )
 				->nullOnDelete();
