@@ -51,12 +51,12 @@ return new class extends Migration
 			$table->timestamps();
 
 			// Foreign keys
-			$table->foreign( 'site_id' )
+			$table->foreign( 'site_id', 'analytics_consents_site_id_fk' )
 				->references( 'id' )
 				->on( 'analytics_sites' )
 				->nullOnDelete();
 
-			$table->foreign( 'visitor_id' )
+			$table->foreign( 'visitor_id', 'analytics_consents_visitor_id_fk' )
 				->references( 'id' )
 				->on( 'analytics_visitors' )
 				->cascadeOnDelete();

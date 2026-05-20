@@ -49,17 +49,17 @@ return new class extends Migration
 			$table->timestamp( 'created_at' )->useCurrent();
 
 			// Foreign keys
-			$table->foreign( 'session_id' )
+			$table->foreign( 'session_id', 'analytics_events_session_id_fk' )
 				->references( 'id' )
 				->on( 'analytics_sessions' )
 				->nullOnDelete();
 
-			$table->foreign( 'visitor_id' )
+			$table->foreign( 'visitor_id', 'analytics_events_visitor_id_fk' )
 				->references( 'id' )
 				->on( 'analytics_visitors' )
 				->nullOnDelete();
 
-			$table->foreign( 'page_view_id' )
+			$table->foreign( 'page_view_id', 'analytics_events_page_view_id_fk' )
 				->references( 'id' )
 				->on( 'analytics_page_views' )
 				->nullOnDelete();
