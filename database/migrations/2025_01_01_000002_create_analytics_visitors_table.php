@@ -22,7 +22,7 @@ return new class extends Migration
 	{
 		Schema::create( 'analytics_visitors', function ( Blueprint $table ) {
 			$table->uuid( 'id' )->primary();
-			$table->foreignId( 'site_id' )->nullable()->constrained( 'analytics_sites' )->nullOnDelete()->index();
+			$table->foreignId( 'site_id' )->nullable()->index();
 			$table->string( 'fingerprint', 64 );
 			$table->foreignId( 'user_id' )->nullable()->index();
 
@@ -65,6 +65,12 @@ return new class extends Migration
 			$table->string( 'tenant_id' )->nullable()->index();
 
 			$table->timestamps();
+
+			// Foreign keys
+			$table->foreign( 'site_id', 'analytics_visitors_site_id_fk' )
+				->references( 'id' )
+				->on( 'analytics_sites' )
+				->nullOnDelete();
 
 			// Indexes
 			$table->unique( [ 'site_id', 'fingerprint' ] );
