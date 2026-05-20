@@ -535,9 +535,10 @@ class LocalAnalyticsProvider extends AbstractAnalyticsProvider
     /**
      * Get the top bot user agents by visit count.
      *
-     * Groups confirmed bot visitors seen within the date range by user agent
-     * and returns the busiest agents first. The `only` bot mode is forced so
-     * the result always reflects bot traffic regardless of caller filters.
+     * Counts bot page views within the date range grouped by the visitor's
+     * user agent and returns the busiest agents first. The `only` bot mode is
+     * forced so the result always reflects bot traffic regardless of caller
+     * filters.
      *
      * @param  DateRange  $range  The date range to query.
      * @param  int  $limit  Maximum number of user agents to return.
@@ -551,14 +552,15 @@ class LocalAnalyticsProvider extends AbstractAnalyticsProvider
     {
         return $this->safeQuery(
             function () use ( $range, $limit, $filters ) {
-                return $this->applyFilters( Visitor::query(), array_merge( $filters, ['bots' => 'only'] ) )
-                    ->whereBetween( 'last_seen_at', [$range->startDate, $range->endDate] )
-                    ->whereNotNull( 'user_agent' )
+                return $this->applyFilters( PageView::query(), array_merge( $filters, ['bots' => 'only'] ) )
+                    ->join( 'analytics_visitors', 'analytics_page_views.visitor_id', '=', 'analytics_visitors.id' )
+                    ->whereBetween( 'analytics_page_views.created_at', [$range->startDate, $range->endDate] )
+                    ->whereNotNull( 'analytics_visitors.user_agent' )
                     ->select( [
-                        'user_agent',
+                        'analytics_visitors.user_agent as user_agent',
                         DB::raw( 'COUNT(*) as visits' ),
                     ] )
-                    ->groupBy( 'user_agent' )
+                    ->groupBy( 'analytics_visitors.user_agent' )
                     ->orderByDesc( 'visits' )
                     ->limit( $limit )
                     ->get()

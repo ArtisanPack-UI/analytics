@@ -40,23 +40,27 @@ function botStatsVisitor( bool $isBot, ?string $userAgent = null, ?int $siteId =
 /**
  * Create a page view tied to a visitor id.
  */
-function botStatsPageView( string $visitorId, string $path = '/' ): void
+function botStatsPageView( string $visitorId, string $path = '/', ?int $siteId = null ): string
 {
     PageView::create( [
         'path'       => $path,
         'session_id' => 'session-' . $visitorId,
         'visitor_id' => $visitorId,
+        'site_id'    => $siteId,
         'created_at' => now(),
     ] );
+
+    return $visitorId;
 }
 
-test( 'getTopBotAgents returns only bot agents ordered by visits', function (): void {
+test( 'getTopBotAgents counts bot page views ordered by visit count', function (): void {
     $provider = new LocalAnalyticsProvider;
 
-    botStatsVisitor( true, 'GPTBot/1.0' );
-    botStatsVisitor( true, 'GPTBot/1.0' );
-    botStatsVisitor( true, 'ClaudeBot/1.0' );
-    botStatsVisitor( false, 'Mozilla/5.0 (real human)' );
+    // Two GPTBot page views, one ClaudeBot, plus a human that must be excluded.
+    botStatsPageView( botStatsVisitor( true, 'GPTBot/1.0' ) );
+    botStatsPageView( botStatsVisitor( true, 'GPTBot/1.0' ) );
+    botStatsPageView( botStatsVisitor( true, 'ClaudeBot/1.0' ) );
+    botStatsPageView( botStatsVisitor( false, 'Mozilla/5.0 (real human)' ) );
 
     $agents = $provider->getTopBotAgents( DateRange::today() );
 
@@ -68,8 +72,8 @@ test( 'getTopBotAgents returns only bot agents ordered by visits', function (): 
 test( 'getTopBotAgents ignores bot visitors without a user agent', function (): void {
     $provider = new LocalAnalyticsProvider;
 
-    botStatsVisitor( true, null );
-    botStatsVisitor( true, 'ByteSpider' );
+    botStatsPageView( botStatsVisitor( true, null ) );
+    botStatsPageView( botStatsVisitor( true, 'ByteSpider' ) );
 
     $agents = $provider->getTopBotAgents( DateRange::today() );
 
@@ -80,8 +84,8 @@ test( 'getTopBotAgents ignores bot visitors without a user agent', function (): 
 test( 'getTopBotAgents respects site scoping', function (): void {
     $provider = new LocalAnalyticsProvider;
 
-    botStatsVisitor( true, 'GPTBot', 1 );
-    botStatsVisitor( true, 'ClaudeBot', 2 );
+    botStatsPageView( botStatsVisitor( true, 'GPTBot', 1 ), '/a', 1 );
+    botStatsPageView( botStatsVisitor( true, 'ClaudeBot', 2 ), '/b', 2 );
 
     $agents = $provider->getTopBotAgents( DateRange::today(), 10, [ 'site_id' => 1 ] );
 

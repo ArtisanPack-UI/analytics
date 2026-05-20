@@ -74,7 +74,7 @@ class BotTraffic extends Component
 	): void {
 		$this->topAgents = collect();
 		$this->initializeWidget( $dateRangePreset, $siteId );
-		$this->limit = $limit;
+		$this->limit = max( 1, min( $limit, 100 ) );
 		$this->loadBotStats();
 	}
 

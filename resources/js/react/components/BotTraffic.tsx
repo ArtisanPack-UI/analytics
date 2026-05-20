@@ -49,9 +49,11 @@ export default function BotTraffic( {
     onIncludeBotsChange,
     className = '',
 }: BotTrafficProps ): React.ReactElement {
+    const normalizedLimit = Number.isFinite( limit ) ? Math.max( 0, Math.floor( limit ) ) : 0;
+
     const { data, loading, error } = useAnalyticsApi<BotStatsData>( {
         endpoint: 'bots',
-        params: { period, site_id: siteId, limit },
+        params: { period, site_id: siteId, limit: normalizedLimit },
         initialData,
         fetchOnMount: ! initialData,
     } );
@@ -59,8 +61,7 @@ export default function BotTraffic( {
     const stats = data ?? initialData;
     const trend = stats?.trend ?? [];
     const trendMax = Math.max( 1, ...trend.map( ( point ) => point.visits ) );
-    const safeLimit = Number.isFinite( limit ) ? Math.max( 0, Math.floor( limit ) ) : 0;
-    const topAgents = ( stats?.top_agents ?? [] ).slice( 0, safeLimit );
+    const topAgents = ( stats?.top_agents ?? [] ).slice( 0, normalizedLimit );
 
     return (
         <Card title="Bot Traffic" className={className}>

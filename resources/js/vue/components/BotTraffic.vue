@@ -36,10 +36,16 @@ const emit = defineEmits<{
     includeBotsChange: [includeBots: boolean];
 }>();
 
+const normalizedLimit = computed( () => {
+    const raw = Number( props.limit );
+
+    return Number.isFinite( raw ) ? Math.max( 0, Math.floor( raw ) ) : 0;
+} );
+
 const params = reactive( {
     period: props.period,
     site_id: props.siteId,
-    limit: props.limit,
+    limit: normalizedLimit.value,
 } );
 
 const { data, loading, error, refresh } = useAnalyticsApi<BotStatsData>( {
@@ -52,7 +58,7 @@ watch(
     () => {
         params.period = props.period;
         params.site_id = props.siteId;
-        params.limit = props.limit;
+        params.limit = normalizedLimit.value;
         refresh();
     },
 );
@@ -68,12 +74,7 @@ const botVisits = computed( () => data.value?.bot_visits ?? 0 );
 const botPercentage = computed( () => data.value?.bot_percentage ?? 0 );
 const trend = computed( () => data.value?.trend ?? [] );
 const trendMax = computed( () => Math.max( 1, ...trend.value.map( ( point ) => point.visits ) ) );
-const topAgents = computed( () => {
-    const raw = Number( props.limit );
-    const clampedLimit = Number.isFinite( raw ) ? Math.max( 0, Math.floor( raw ) ) : 0;
-
-    return ( data.value?.top_agents ?? [] ).slice( 0, clampedLimit );
-} );
+const topAgents = computed( () => ( data.value?.top_agents ?? [] ).slice( 0, normalizedLimit.value ) );
 
 function handleIncludeBotsChange( event: Event ): void {
     emit( 'includeBotsChange', ( event.target as HTMLInputElement ).checked );

@@ -90,7 +90,7 @@
 						</thead>
 						<tbody>
 							@foreach ( $topAgents as $agent )
-								<tr class="hover:bg-base-200/50" wire:key="bot-agent-{{ $loop->index }}">
+								<tr class="hover:bg-base-200/50" wire:key="bot-agent-{{ md5( $agent['user_agent'] ) }}">
 									<td class="max-w-md truncate" title="{{ $agent['user_agent'] }}">
 										<span class="font-mono text-xs">{{ $agent['user_agent'] }}</span>
 									</td>

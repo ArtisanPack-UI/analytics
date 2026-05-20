@@ -36,7 +36,7 @@ function botWidgetVisitor( bool $isBot, ?string $userAgent = null ): string
 /**
  * Create a page view tied to a visitor id.
  */
-function botWidgetPageView( string $visitorId, string $path = '/' ): void
+function botWidgetPageView( string $visitorId, string $path = '/' ): string
 {
     PageView::create( [
         'path'       => $path,
@@ -44,6 +44,8 @@ function botWidgetPageView( string $visitorId, string $path = '/' ): void
         'visitor_id' => $visitorId,
         'created_at' => now(),
     ] );
+
+    return $visitorId;
 }
 
 test( 'bot traffic widget can be rendered', function (): void {
@@ -63,9 +65,9 @@ test( 'bot traffic widget loads bot statistics on mount', function (): void {
 } );
 
 test( 'bot traffic widget lists the top bot user agents', function (): void {
-    botWidgetVisitor( true, 'GPTBot' );
-    botWidgetVisitor( true, 'GPTBot' );
-    botWidgetVisitor( true, 'ClaudeBot' );
+    botWidgetPageView( botWidgetVisitor( true, 'GPTBot' ) );
+    botWidgetPageView( botWidgetVisitor( true, 'GPTBot' ) );
+    botWidgetPageView( botWidgetVisitor( true, 'ClaudeBot' ) );
 
     Livewire::test( BotTraffic::class )
         ->assertSee( 'GPTBot' )
