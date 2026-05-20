@@ -504,6 +504,31 @@ return [
             'request_patterns' => true,
             'js_fingerprint'   => true,
         ],
+
+        /*
+        |----------------------------------------------------------------------
+        | Analysis Interval
+        |----------------------------------------------------------------------
+        |
+        | How often, in minutes, the AnalyzeBotTraffic job runs to score recent
+        | visitors. Used to build the scheduled job's cron expression. The value
+        | is normalized down to the nearest divisor of 60 (1, 2, 3, 4, 5, 6, 10,
+        | 12, 15, 20, or 30) so the job fires at an even cadence within the hour.
+        |
+        */
+        'analysis_interval' => env( 'ANALYTICS_BOT_DETECTION_INTERVAL', 15 ),
+
+        /*
+        |----------------------------------------------------------------------
+        | Analysis Window
+        |----------------------------------------------------------------------
+        |
+        | How far back, in minutes, the AnalyzeBotTraffic job looks for unscored
+        | visitors. Visitors last seen within this window that have not yet been
+        | scored are evaluated on each run.
+        |
+        */
+        'analysis_window' => env( 'ANALYTICS_BOT_DETECTION_WINDOW', 60 ),
     ],
 
     /*
