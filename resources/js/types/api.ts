@@ -277,6 +277,15 @@ export interface ConsentUpdateResponse {
 // Query parameter helpers (for building requests)
 // ---------------------------------------------------------------------------
 
+/**
+ * Bot-traffic filter mode.
+ *
+ * - `exclude` (default): hide bot traffic.
+ * - `include`: show human and bot traffic together.
+ * - `only`: show bot traffic only.
+ */
+export type BotFilterMode = 'exclude' | 'include' | 'only';
+
 export interface AnalyticsQueryParams {
     period?: DateRangePreset;
     start_date?: string;
@@ -288,6 +297,7 @@ export interface AnalyticsQueryParams {
     goal_id?: number;
     limit?: number;
     compare?: boolean;
+    bots?: BotFilterMode;
 }
 
 export interface RealtimeQueryParams {

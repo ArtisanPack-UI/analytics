@@ -135,6 +135,19 @@ class AnalyticsDashboard extends Component
 	}
 
 	/**
+	 * Toggle whether bot traffic is included in the dashboard.
+	 *
+	 * Dispatches the toggle so the dashboard and any standalone widgets that
+	 * use the analytics widget trait refresh with the new bot-filter state.
+	 *
+	 * @since 1.2.0
+	 */
+	public function toggleBots(): void
+	{
+		$this->dispatch( 'analytics-bots-toggled', includeBots: ! $this->includeBots );
+	}
+
+	/**
 	 * Refresh the dashboard data.
 	 *
 	 * @since 1.0.0

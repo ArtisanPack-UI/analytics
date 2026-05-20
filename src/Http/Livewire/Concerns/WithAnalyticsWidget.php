@@ -6,6 +6,7 @@ namespace ArtisanPackUI\Analytics\Http\Livewire\Concerns;
 
 use ArtisanPackUI\Analytics\Data\DateRange;
 use ArtisanPackUI\Analytics\Services\AnalyticsQuery;
+use Livewire\Attributes\On;
 
 /**
  * Trait for analytics widgets with shared functionality.
@@ -43,6 +44,13 @@ trait WithAnalyticsWidget
 	 * Site ID filter for multi-site support.
 	 */
 	public ?int $siteId = null;
+
+	/**
+	 * Whether bot traffic is included in the widget's data.
+	 *
+	 * Bots are excluded by default; the dashboard toggle opts back in.
+	 */
+	public bool $includeBots = false;
 
 	/**
 	 * Initialize the widget with default date range.
@@ -88,6 +96,23 @@ trait WithAnalyticsWidget
 		$this->dateRangePreset = 'custom';
 		$this->customStartDate = $startDate;
 		$this->customEndDate   = $endDate;
+		$this->refreshData();
+	}
+
+	/**
+	 * Sync the bot-inclusion state and refresh data.
+	 *
+	 * Listens for the dashboard toggle so every widget that uses this trait
+	 * stays in sync with the chosen bot-filter state.
+	 *
+	 * @param bool $includeBots Whether bot traffic should be included.
+	 *
+	 * @since 1.2.0
+	 */
+	#[On( 'analytics-bots-toggled' )]
+	public function syncBotInclusion( bool $includeBots ): void
+	{
+		$this->includeBots = $includeBots;
 		$this->refreshData();
 	}
 
@@ -222,6 +247,8 @@ trait WithAnalyticsWidget
 		if ( null !== $this->siteId ) {
 			$filters['site_id'] = $this->siteId;
 		}
+
+		$filters['bots'] = $this->includeBots ? 'include' : 'exclude';
 
 		return array_merge( $filters, $additionalFilters );
 	}

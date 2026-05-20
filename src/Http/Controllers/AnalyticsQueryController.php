@@ -207,7 +207,7 @@ class AnalyticsQueryController extends Controller
 		// Clamp minutes to a reasonable range
 		$minutes = max( 1, min( 30, $minutes ) );
 
-		$realtime = $this->analyticsQuery->getRealtime( $minutes );
+		$realtime = $this->analyticsQuery->getRealtime( $minutes, $this->getFilters( $request ) );
 
 		return response()->json( [
 			'success' => true,
@@ -332,6 +332,13 @@ class AnalyticsQueryController extends Controller
 		$goalId = $request->query( 'goal_id' );
 		if ( is_numeric( $goalId ) ) {
 			$filters['goal_id'] = (int) $goalId;
+		}
+
+		// Bot-traffic filter. Bots are excluded by default; the toggle on the
+		// dashboard opts back in via ?bots=include (or ?bots=only).
+		$bots = $request->query( 'bots' );
+		if ( is_string( $bots ) && in_array( $bots, [ 'exclude', 'include', 'only' ], true ) ) {
+			$filters['bots'] = $bots;
 		}
 
 		return $filters;
