@@ -9,6 +9,7 @@ use ArtisanPackUI\Analytics\Models\PageView;
 use ArtisanPackUI\Analytics\Models\Visitor;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
+use Throwable;
 
 /**
  * Bot detection service.
@@ -295,11 +296,15 @@ class BotDetector
 	 */
 	protected function databaseWhitelist( string $type ): array
 	{
-		if ( ! Schema::hasTable( ( new BotWhitelistEntry() )->getTable() ) ) {
+		try {
+			if ( ! Schema::hasTable( ( new BotWhitelistEntry() )->getTable() ) ) {
+				return [];
+			}
+
+			return BotWhitelistEntry::query()->where( 'type', $type )->pluck( 'value' )->all();
+		} catch ( Throwable ) {
 			return [];
 		}
-
-		return BotWhitelistEntry::query()->where( 'type', $type )->pluck( 'value' )->all();
 	}
 
 	/**

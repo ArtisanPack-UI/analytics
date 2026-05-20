@@ -6,6 +6,7 @@ namespace ArtisanPackUI\Analytics\Console\Commands;
 
 use ArtisanPackUI\Analytics\Models\BotWhitelistEntry;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Command to manage the bot detection whitelist.
@@ -62,6 +63,10 @@ class WhitelistCommand extends Command
 	 */
 	protected function list(): int
 	{
+		if ( ! $this->ensureTableExists() ) {
+			return self::FAILURE;
+		}
+
 		$rows = [];
 
 		/** @var array<int, string> $configAgents */
@@ -104,6 +109,10 @@ class WhitelistCommand extends Command
 	 */
 	protected function add(): int
 	{
+		if ( ! $this->ensureTableExists() ) {
+			return self::FAILURE;
+		}
+
 		[ $type, $value ] = $this->resolveTarget();
 
 		if ( null === $type ) {
@@ -133,6 +142,10 @@ class WhitelistCommand extends Command
 	 */
 	protected function remove(): int
 	{
+		if ( ! $this->ensureTableExists() ) {
+			return self::FAILURE;
+		}
+
 		[ $type, $value ] = $this->resolveTarget();
 
 		if ( null === $type ) {
@@ -183,7 +196,31 @@ class WhitelistCommand extends Command
 			return [ BotWhitelistEntry::TYPE_USER_AGENT, $userAgent ];
 		}
 
+		if ( false === filter_var( $ip, FILTER_VALIDATE_IP ) ) {
+			$this->error( __( 'Invalid --ip value. Provide a valid IP address.' ) );
+
+			return [ null, null ];
+		}
+
 		return [ BotWhitelistEntry::TYPE_IP, $ip ];
+	}
+
+	/**
+	 * Ensure the whitelist table has been migrated before querying it.
+	 *
+	 * @return bool
+	 *
+	 * @since 1.2.0
+	 */
+	protected function ensureTableExists(): bool
+	{
+		if ( Schema::hasTable( ( new BotWhitelistEntry() )->getTable() ) ) {
+			return true;
+		}
+
+		$this->error( __( 'The bot whitelist table was not found. Run migrations first.' ) );
+
+		return false;
 	}
 
 	/**

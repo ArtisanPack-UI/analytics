@@ -37,14 +37,17 @@ test( 'bots command lists flagged bot visitors', function (): void {
 
     $this->artisan( 'analytics:bots' )
         ->expectsOutputToContain( 'GPTBot/1.0' )
+        ->doesntExpectOutputToContain( 'Mozilla/5.0 Human' )
         ->assertSuccessful();
 } );
 
 test( 'bots command filters by minimum score', function (): void {
     botsCommandVisitor( [ 'user_agent' => 'LowScoreBot', 'bot_score' => 50 ] );
+    botsCommandVisitor( [ 'user_agent' => 'HighScoreBot', 'bot_score' => 95 ] );
 
     $this->artisan( 'analytics:bots', [ '--score' => 80 ] )
-        ->expectsOutputToContain( 'No bot visitors found' )
+        ->expectsOutputToContain( 'HighScoreBot' )
+        ->doesntExpectOutputToContain( 'LowScoreBot' )
         ->assertSuccessful();
 } );
 
@@ -56,6 +59,14 @@ test( 'bots command filters by site', function (): void {
         ->expectsOutputToContain( 'SiteOneBot' )
         ->doesntExpectOutputToContain( 'SiteTwoBot' )
         ->assertSuccessful();
+} );
+
+test( 'bots command rejects an invalid site value', function (): void {
+    botsCommandVisitor();
+
+    $this->artisan( 'analytics:bots', [ '--site' => 'abc' ] )
+        ->expectsOutputToContain( 'Invalid --site value' )
+        ->assertFailed();
 } );
 
 test( 'bots command rejects an invalid since date', function (): void {
@@ -71,17 +82,23 @@ test( 'bots command exports results to csv', function (): void {
     $directory = storage_path( 'app' );
     $before    = File::exists( $directory ) ? File::glob( $directory . '/analytics-bots-*.csv' ) : [];
 
-    $this->artisan( 'analytics:bots', [ '--export' => 'csv' ] )
-        ->expectsOutputToContain( 'Exported' )
-        ->assertSuccessful();
+    $new = [];
 
-    $after = File::glob( $directory . '/analytics-bots-*.csv' );
-    $new   = array_values( array_diff( $after, $before ) );
+    try {
+        $this->artisan( 'analytics:bots', [ '--export' => 'csv' ] )
+            ->expectsOutputToContain( 'Exported' )
+            ->assertSuccessful();
 
-    expect( $new )->toHaveCount( 1 );
-    expect( File::get( $new[0] ) )->toContain( 'visitor_id,user_agent,bot_score' )->toContain( 'GPTBot/1.0' );
+        $after = File::glob( $directory . '/analytics-bots-*.csv' );
+        $new   = array_values( array_diff( $after, $before ) );
 
-    File::delete( $new[0] );
+        expect( $new )->toHaveCount( 1 );
+        expect( File::get( $new[0] ) )->toContain( 'visitor_id,user_agent,bot_score' )->toContain( 'GPTBot/1.0' );
+    } finally {
+        if ( [] !== $new ) {
+            File::delete( $new );
+        }
+    }
 } );
 
 test( 'bots command rejects an unsupported export format', function (): void {

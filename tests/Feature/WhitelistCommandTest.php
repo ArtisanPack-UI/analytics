@@ -78,6 +78,14 @@ test( 'whitelist add rejects providing both options', function (): void {
         ->assertFailed();
 } );
 
+test( 'whitelist add rejects an invalid ip', function (): void {
+    $this->artisan( 'analytics:whitelist', [ 'action' => 'add', '--ip' => 'not-an-ip' ] )
+        ->expectsOutputToContain( 'Invalid --ip value' )
+        ->assertFailed();
+
+    expect( BotWhitelistEntry::query()->where( 'value', 'not-an-ip' )->exists() )->toBeFalse();
+} );
+
 test( 'whitelist rejects an unknown action', function (): void {
     $this->artisan( 'analytics:whitelist', [ 'action' => 'frobnicate' ] )
         ->assertFailed();
@@ -95,6 +103,25 @@ test( 'database whitelist entries exempt visitors from bot scoring', function ()
         'last_seen_at'  => now(),
         'device_type'   => 'desktop',
         'user_agent'    => 'Mozilla/5.0 (compatible; Googlebot/2.1)',
+        'is_bot'        => false,
+    ] );
+
+    expect( app( BotDetector::class )->isWhitelisted( $visitor ) )->toBeTrue();
+} );
+
+test( 'database ip whitelist entries exempt visitors from bot scoring', function (): void {
+    config()->set( 'artisanpack.analytics.bot_detection.whitelist.user_agents', [] );
+    config()->set( 'artisanpack.analytics.bot_detection.whitelist.ips', [] );
+
+    BotWhitelistEntry::create( [ 'type' => BotWhitelistEntry::TYPE_IP, 'value' => '203.0.113.5' ] );
+
+    $visitor = Visitor::create( [
+        'fingerprint'   => bin2hex( random_bytes( 16 ) ),
+        'first_seen_at' => now(),
+        'last_seen_at'  => now(),
+        'device_type'   => 'desktop',
+        'user_agent'    => 'Mozilla/5.0 (compatible; Googlebot/2.1)',
+        'ip_address'    => '203.0.113.5',
         'is_bot'        => false,
     ] );
 

@@ -58,6 +58,12 @@ class BotsListCommand extends Command
 
 		$siteId = $this->option( 'site' );
 		if ( null !== $siteId && '' !== $siteId ) {
+			if ( false === filter_var( $siteId, FILTER_VALIDATE_INT, [ 'options' => [ 'min_range' => 1 ] ] ) ) {
+				$this->error( __( 'Invalid --site value. Provide a positive integer site ID.' ) );
+
+				return self::FAILURE;
+			}
+
 			$query->where( 'site_id', (int) $siteId );
 		}
 
