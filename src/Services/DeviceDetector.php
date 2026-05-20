@@ -24,6 +24,7 @@ class DeviceDetector
 	 * @var array<string, string>
 	 */
 	protected const BOT_PATTERNS = [
+		// Search engine crawlers.
 		'googlebot'           => 'Googlebot',
 		'bingbot'             => 'Bingbot',
 		'slurp'               => 'Yahoo! Slurp',
@@ -33,12 +34,66 @@ class DeviceDetector
 		'facebookexternalhit' => 'Facebook',
 		'twitterbot'          => 'Twitter',
 		'linkedinbot'         => 'LinkedIn',
+		'applebot-extended'   => 'Applebot-Extended',
 		'applebot'            => 'Applebot',
+
+		// AI training and answer-engine crawlers.
+		'gptbot'              => 'GPTBot',
+		'chatgpt-user'        => 'ChatGPT-User',
+		'oai-searchbot'       => 'OAI-SearchBot',
+		'claudebot'           => 'ClaudeBot',
+		'claude-web'          => 'Claude-Web',
+		'anthropic-ai'        => 'Anthropic',
+		'google-extended'     => 'Google-Extended',
+		'gemini'              => 'Gemini',
+		'amazonbot'           => 'Amazonbot',
+		'bytespider'          => 'Bytespider',
+		'cohere-ai'           => 'Cohere',
+		'ccbot'               => 'CCBot',
+		'diffbot'             => 'Diffbot',
+		'facebookbot'         => 'FacebookBot',
+		'perplexitybot'       => 'PerplexityBot',
+		'youbot'              => 'YouBot',
+
+		// SEO and marketing crawlers.
 		'semrushbot'          => 'SEMRush',
 		'ahrefsbot'           => 'Ahrefs',
 		'mj12bot'             => 'Majestic',
 		'dotbot'              => 'DotBot',
+		'blexbot'             => 'BLEXBot',
+		'screaming frog'      => 'Screaming Frog',
+		'rogerbot'            => 'Rogerbot',
+		'sistrix'             => 'Sistrix',
+		'serpstatbot'         => 'Serpstat',
+		'dataforseobot'       => 'DataForSeoBot',
 		'petalbot'            => 'PetalBot',
+
+		// Scraper, headless, and HTTP client patterns.
+		'headlesschrome'      => 'Headless Chrome',
+		'phantomjs'           => 'PhantomJS',
+		'puppeteer'           => 'Puppeteer',
+		'playwright'          => 'Playwright',
+		'python-requests'     => 'python-requests',
+		'go-http-client'      => 'Go-http-client',
+		'java/'               => 'Java',
+		'libwww-perl'         => 'libwww-perl',
+		'curl/'               => 'curl',
+		'wget/'               => 'Wget',
+		'httpx'               => 'httpx',
+		'aiohttp'             => 'aiohttp',
+		'scrapy'              => 'Scrapy',
+
+		// Regional crawlers.
+		'sogou'               => 'Sogou',
+		'yisouspider'         => 'Yisou',
+		'360spider'           => '360Spider',
+		'seznambot'           => 'SeznamBot',
+		'qwantify'            => 'Qwant',
+		'naverbot'            => 'NaverBot',
+		'yeti'                => 'NaverBot',
+		'daumoa'              => 'Daum',
+
+		// Generic fallbacks (kept last so named bots match first).
 		'bot'                 => 'Bot',
 		'crawler'             => 'Crawler',
 		'spider'              => 'Spider',

@@ -358,11 +358,68 @@ return [
         |
         */
         'excluded_user_agents' => [
+            // Generic crawler tokens.
             '/bot/i',
             '/crawler/i',
             '/spider/i',
             '/slurp/i',
             '/mediapartners/i',
+            '/applebot-extended/i',
+
+            // SEO and marketing crawlers.
+            '/semrushbot/i',
+            '/ahrefsbot/i',
+            '/mj12bot/i',
+            '/dotbot/i',
+            '/blexbot/i',
+            '/screaming frog/i',
+            '/rogerbot/i',
+            '/sistrix/i',
+            '/serpstatbot/i',
+            '/dataforseobot/i',
+
+            // AI training and answer-engine crawlers.
+            '/gptbot/i',
+            '/chatgpt-user/i',
+            '/oai-searchbot/i',
+            '/claudebot/i',
+            '/claude-web/i',
+            '/anthropic-ai/i',
+            '/google-extended/i',
+            '/gemini/i',
+            '/amazonbot/i',
+            '/bytespider/i',
+            '/ccbot/i',
+            '/cohere-ai/i',
+            '/diffbot/i',
+            '/facebookbot/i',
+            '/perplexity/i',
+            '/youbot/i',
+
+            // Scraper, headless, and HTTP client patterns.
+            '/headlesschrome/i',
+            '/phantomjs/i',
+            '/puppeteer/i',
+            '/playwright/i',
+            '/python-requests/i',
+            '/go-http-client/i',
+            '/java\//i',
+            '/libwww-perl/i',
+            '/curl\//i',
+            '/wget\//i',
+            '/httpx/i',
+            '/aiohttp/i',
+            '/scrapy/i',
+
+            // Regional crawlers.
+            '/sogou/i',
+            '/yisou/i',
+            '/360spider/i',
+            '/seznambot/i',
+            '/qwantify/i',
+            '/naverbot/i',
+            '/yeti/i',
+            '/daumoa/i',
         ],
 
         /*
