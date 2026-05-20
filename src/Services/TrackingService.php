@@ -104,6 +104,7 @@ class TrackingService
 				utmContent: $enrichedData->utmContent,
 				loadTime: $enrichedData->loadTime,
 				customData: $enrichedData->customData,
+				fingerprint: $enrichedData->fingerprint,
 				tenantId: $enrichedData->tenantId,
 				siteId: $siteId,
 			);
@@ -455,6 +456,7 @@ class TrackingService
 			utmContent: $data->utmContent ?? $request->query( 'utm_content' ),
 			loadTime: $data->loadTime,
 			customData: $data->customData,
+			fingerprint: $data->fingerprint,
 			tenantId: $data->tenantId ?? $this->getTenantId( $request ),
 		);
 	}

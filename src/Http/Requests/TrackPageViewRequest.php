@@ -35,31 +35,41 @@ class TrackPageViewRequest extends FormRequest
 	public function rules(): array
 	{
 		return [
-			'visitor_id'             => 'required|string|max:100',
-			'session_id'             => 'required|string|max:36',
-			'fingerprint'            => 'nullable|string|max:64',
-			'path'                   => 'required|string|max:2048',
-			'title'                  => 'nullable|string|max:500',
-			'hash'                   => 'nullable|string|max:255',
-			'query_string'           => 'nullable|string|max:2048',
-			'referrer'               => 'nullable|string|max:2048',
-			'referrer_path'          => 'nullable|string|max:2048',
-			'screen_width'           => 'nullable|integer|min:0|max:10000',
-			'screen_height'          => 'nullable|integer|min:0|max:10000',
-			'viewport_width'         => 'nullable|integer|min:0|max:10000',
-			'viewport_height'        => 'nullable|integer|min:0|max:10000',
-			'language'               => 'nullable|string|max:10',
-			'timezone'               => 'nullable|string|max:50',
-			'load_time'              => 'nullable|integer|min:0',
-			'dom_ready_time'         => 'nullable|integer|min:0',
-			'first_contentful_paint' => 'nullable|integer|min:0',
-			'utm_source'             => 'nullable|string|max:255',
-			'utm_medium'             => 'nullable|string|max:255',
-			'utm_campaign'           => 'nullable|string|max:255',
-			'utm_term'               => 'nullable|string|max:255',
-			'utm_content'            => 'nullable|string|max:255',
-			'custom_data'            => 'nullable|array',
-			'custom_data.*'          => 'nullable|string|max:1000',
+			'visitor_id'                       => 'required|string|max:100',
+			'session_id'                       => 'required|string|max:36',
+			'fingerprint'                      => 'nullable|array',
+			'fingerprint.webdriver'            => 'nullable|boolean',
+			'fingerprint.has_plugins'          => 'nullable|boolean',
+			'fingerprint.has_languages'        => 'nullable|boolean',
+			'fingerprint.has_webgl'            => 'nullable|boolean',
+			'fingerprint.has_canvas'           => 'nullable|boolean',
+			'fingerprint.headless'             => 'nullable|boolean',
+			'fingerprint.missing_apis'         => 'nullable|boolean',
+			'fingerprint.screen_color_depth'   => 'nullable|integer|min:0|max:64',
+			'fingerprint.hardware_concurrency' => 'nullable|integer|min:0|max:1024',
+			'fingerprint.device_memory'        => 'nullable|numeric|min:0|max:1024',
+			'path'                             => 'required|string|max:2048',
+			'title'                            => 'nullable|string|max:500',
+			'hash'                             => 'nullable|string|max:255',
+			'query_string'                     => 'nullable|string|max:2048',
+			'referrer'                         => 'nullable|string|max:2048',
+			'referrer_path'                    => 'nullable|string|max:2048',
+			'screen_width'                     => 'nullable|integer|min:0|max:10000',
+			'screen_height'                    => 'nullable|integer|min:0|max:10000',
+			'viewport_width'                   => 'nullable|integer|min:0|max:10000',
+			'viewport_height'                  => 'nullable|integer|min:0|max:10000',
+			'language'                         => 'nullable|string|max:10',
+			'timezone'                         => 'nullable|string|max:50',
+			'load_time'                        => 'nullable|integer|min:0',
+			'dom_ready_time'                   => 'nullable|integer|min:0',
+			'first_contentful_paint'           => 'nullable|integer|min:0',
+			'utm_source'                       => 'nullable|string|max:255',
+			'utm_medium'                       => 'nullable|string|max:255',
+			'utm_campaign'                     => 'nullable|string|max:255',
+			'utm_term'                         => 'nullable|string|max:255',
+			'utm_content'                      => 'nullable|string|max:255',
+			'custom_data'                      => 'nullable|array',
+			'custom_data.*'                    => 'nullable|string|max:1000',
 		];
 	}
 
@@ -76,5 +86,21 @@ class TrackPageViewRequest extends FormRequest
 			'path.required'       => __( 'Page path is required for tracking.' ),
 			'path.max'            => __( 'Page path is too long.' ),
 		];
+	}
+
+	/**
+	 * Prepare the data for validation.
+	 *
+	 * Older tracker scripts sent the fingerprint as a string hash. The
+	 * fingerprint now carries a structured set of signals, so any non-array
+	 * value is discarded to remain backwards compatible.
+	 *
+	 * @return void
+	 */
+	protected function prepareForValidation(): void
+	{
+		if ( $this->has( 'fingerprint' ) && ! is_array( $this->input( 'fingerprint' ) ) ) {
+			$this->merge( [ 'fingerprint' => null ] );
+		}
 	}
 }

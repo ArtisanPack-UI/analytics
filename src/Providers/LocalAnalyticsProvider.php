@@ -108,6 +108,15 @@ class LocalAnalyticsProvider extends AbstractAnalyticsProvider
      */
     public function storePageView( PageViewData $data ): void
     {
+        $customData = $data->customData ?? [];
+
+        // Store fingerprint signals within custom_data so the BotDetector can
+        // read them without a dedicated column. They are not retained beyond
+        // bot scoring needs.
+        if ( null !== $data->fingerprint ) {
+            $customData['fingerprint'] = $data->fingerprint;
+        }
+
         PageView::create( [
             'site_id'     => $data->siteId,
             'session_id'  => $data->sessionId,
@@ -116,7 +125,7 @@ class LocalAnalyticsProvider extends AbstractAnalyticsProvider
             'title'       => $data->title,
             'referrer'    => $data->referrer,
             'load_time'   => $data->loadTime,
-            'custom_data' => $data->customData,
+            'custom_data' => [] !== $customData ? $customData : null,
             'tenant_id'   => $data->tenantId,
         ] );
     }
