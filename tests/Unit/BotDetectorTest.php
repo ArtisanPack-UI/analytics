@@ -196,6 +196,36 @@ test( 'each signal category can be disabled independently', function (): void {
 	expect( $this->detector->score( $visitor ) )->toBe( 0 );
 } );
 
+test( 'disabling the engagement signal suppresses engagement scoring', function (): void {
+	$base    = Carbon::parse( '2026-01-01 12:00:00' );
+	$visitor = makeVisitor( [], [
+		[ 'engaged_time' => 0, 'scroll_depth' => 0, 'referrer_path' => '/a', 'created_at' => $base ],
+		[ 'engaged_time' => 0, 'scroll_depth' => 0, 'referrer_path' => '/b', 'created_at' => $base->copy()->addMinutes( 6 ) ],
+		[ 'engaged_time' => 0, 'scroll_depth' => 0, 'referrer_path' => '/c', 'created_at' => $base->copy()->addMinutes( 13 ) ],
+	] );
+
+	expect( $this->detector->score( $visitor ) )->toBe( 35 );
+
+	config()->set( 'artisanpack.analytics.bot_detection.signals.engagement', false );
+
+	expect( $this->detector->score( $visitor ) )->toBe( 0 );
+} );
+
+test( 'disabling the request patterns signal suppresses request pattern scoring', function (): void {
+	$base    = Carbon::parse( '2026-01-01 12:00:00' );
+	$visitor = makeVisitor( [], [
+		[ 'engaged_time' => 5, 'scroll_depth' => 30, 'referrer_path' => '/a', 'created_at' => $base ],
+		[ 'engaged_time' => 5, 'scroll_depth' => 30, 'referrer_path' => '/b', 'created_at' => $base->copy()->addMinutes( 10 ) ],
+		[ 'engaged_time' => 5, 'scroll_depth' => 30, 'referrer_path' => '/c', 'created_at' => $base->copy()->addMinutes( 20 ) ],
+	] );
+
+	expect( $this->detector->score( $visitor ) )->toBe( 20 );
+
+	config()->set( 'artisanpack.analytics.bot_detection.signals.request_patterns', false );
+
+	expect( $this->detector->score( $visitor ) )->toBe( 0 );
+} );
+
 test( 'disabling user agent signal stops empty user agent scoring', function (): void {
 	config()->set( 'artisanpack.analytics.bot_detection.signals.user_agent', false );
 
