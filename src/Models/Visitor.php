@@ -43,6 +43,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int                  $total_sessions
  * @property int                  $total_pageviews
  * @property int                  $total_events
+ * @property bool                 $is_bot
+ * @property int|null             $bot_score
+ * @property Carbon|null          $bot_detected_at
  * @property int|string|null      $tenant_id
  * @property Carbon               $created_at
  * @property Carbon               $updated_at
@@ -51,6 +54,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @method static Builder forTenant(string|int $tenantId)
  * @method static Builder seenBetween(Carbon $start, Carbon $end)
  * @method static Builder newBetween(Carbon $start, Carbon $end)
+ * @method static Builder human()
+ * @method static Builder bot()
  *
  * @since   1.0.0
  *
@@ -99,6 +104,9 @@ class Visitor extends Model
 		'total_sessions',
 		'total_pageviews',
 		'total_events',
+		'is_bot',
+		'bot_score',
+		'bot_detected_at',
 		'tenant_id',
 	];
 
@@ -232,6 +240,34 @@ class Visitor extends Model
 	}
 
 	/**
+	 * Scope a query to only human (non-bot) visitors.
+	 *
+	 * @param Builder $query The query builder.
+	 *
+	 * @return Builder
+	 *
+	 * @since 1.2.0
+	 */
+	public function scopeHuman( Builder $query ): Builder
+	{
+		return $query->where( 'is_bot', false );
+	}
+
+	/**
+	 * Scope a query to only bot visitors.
+	 *
+	 * @param Builder $query The query builder.
+	 *
+	 * @return Builder
+	 *
+	 * @since 1.2.0
+	 */
+	public function scopeBot( Builder $query ): Builder
+	{
+		return $query->where( 'is_bot', true );
+	}
+
+	/**
 	 * Get the attributes that should be cast.
 	 *
 	 * @return array<string, string>
@@ -248,6 +284,9 @@ class Visitor extends Model
 			'screen_height'    => 'integer',
 			'viewport_width'   => 'integer',
 			'viewport_height'  => 'integer',
+			'is_bot'           => 'boolean',
+			'bot_score'        => 'integer',
+			'bot_detected_at'  => 'datetime',
 		];
 	}
 }
