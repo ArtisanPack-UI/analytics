@@ -32,16 +32,28 @@ function analyticsCompileMigration( string $migrationFile ): array
 		 */
 		public array $captured = [];
 
+		/**
+		 * Report a fixed MySQL version so the grammar compiles without a live server.
+		 */
 		public function getServerVersion(): string
 		{
 			return '8.0.30';
 		}
 
+		/**
+		 * Always compile as MySQL rather than MariaDB.
+		 */
 		public function isMaria(): bool
 		{
 			return false;
 		}
 
+		/**
+		 * Capture compiled DDL instead of executing it against a database.
+		 *
+		 * @param string               $query
+		 * @param array<string, mixed> $bindings
+		 */
 		public function statement( $query, $bindings = [] ): bool
 		{
 			$this->captured[] = $query;
