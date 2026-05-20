@@ -519,6 +519,7 @@ class LocalAnalyticsProvider extends AbstractAnalyticsProvider
         return $this->safeQuery(
             fn () => Session::query()
                 ->active( $minutes )
+                ->whereDoesntHave( 'visitor', fn ( Builder $visitorQuery ) => $visitorQuery->where( 'is_bot', true ) )
                 ->distinct( 'visitor_id' )
                 ->count( 'visitor_id' ),
             0,
@@ -631,6 +632,49 @@ class LocalAnalyticsProvider extends AbstractAnalyticsProvider
 
         if ( isset( $filters['visitor_id'] ) ) {
             $query->where( $table . '.visitor_id', $filters['visitor_id'] );
+        }
+
+        return $this->applyBotFilter( $query, $filters );
+    }
+
+    /**
+     * Apply bot-traffic scoping to a query.
+     *
+     * Excludes bot visitors by default. The mode is read from the `bots` filter
+     * key: `exclude` (default) hides confirmed bots, `include` shows all
+     * traffic, and `only` returns just bot traffic. For the Visitor model the
+     * `is_bot` column is filtered directly; for models with a `visitor`
+     * relation the filter is applied through that relation. In `exclude` mode
+     * only rows whose visitor is a confirmed bot are removed, so rows with an
+     * unresolved visitor are still counted.
+     *
+     * @param  Builder  $query  The query builder.
+     * @param  array<string, mixed>  $filters  The filters to apply.
+     *
+     * @since 1.2.0
+     */
+    protected function applyBotFilter( Builder $query, array $filters ): Builder
+    {
+        $mode = $filters['bots'] ?? 'exclude';
+
+        if ( 'include' === $mode ) {
+            return $query;
+        }
+
+        $model = $query->getModel();
+
+        if ( $model instanceof Visitor ) {
+            $query->where( $model->getTable() . '.is_bot', 'only' === $mode );
+
+            return $query;
+        }
+
+        if ( method_exists( $model, 'visitor' ) ) {
+            if ( 'only' === $mode ) {
+                $query->whereHas( 'visitor', fn ( Builder $visitorQuery ) => $visitorQuery->where( 'is_bot', true ) );
+            } else {
+                $query->whereDoesntHave( 'visitor', fn ( Builder $visitorQuery ) => $visitorQuery->where( 'is_bot', true ) );
+            }
         }
 
         return $query;

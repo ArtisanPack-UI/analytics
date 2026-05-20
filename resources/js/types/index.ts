@@ -57,6 +57,7 @@ export type {
 // API response interfaces
 export type {
     AnalyticsQueryParams,
+    BotFilterMode,
     BrowserBreakdownItem,
     BrowserBreakdownResponse,
     ApiDataResponse,

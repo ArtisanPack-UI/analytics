@@ -46,8 +46,11 @@ const props = withDefaults( defineProps<{
     dateRangePreset?: string;
     /** Available date range presets. */
     dateRangePresets?: Record<string, string>;
+    /** Whether bot traffic is included. Bots are excluded by default. */
+    includeBots?: boolean;
 }>(), {
     dateRangePreset: '30d',
+    includeBots: false,
     dateRangePresets: () => ( {
         today: 'Today',
         yesterday: 'Yesterday',
@@ -64,6 +67,7 @@ const props = withDefaults( defineProps<{
 
 const emit = defineEmits<{
     dateRangeChange: [preset: string];
+    includeBotsChange: [includeBots: boolean];
 }>();
 
 const activeTab = ref( 'overview' );
@@ -77,6 +81,10 @@ const presetOptions = computed( () => {
 
 function handlePresetChange( event: Event ): void {
     emit( 'dateRangeChange', ( event.target as HTMLSelectElement ).value );
+}
+
+function handleIncludeBotsChange( event: Event ): void {
+    emit( 'includeBotsChange', ( event.target as HTMLInputElement ).checked );
 }
 
 const tabs: TabItem[] = [
@@ -93,12 +101,24 @@ const tabs: TabItem[] = [
         <Card>
             <div class="flex items-center justify-between">
                 <h2 class="text-2xl font-bold">Analytics Dashboard</h2>
-                <div class="w-48">
-                    <Select
-                        :options="presetOptions"
-                        :model-value="props.dateRangePreset"
-                        @change="handlePresetChange"
-                    />
+                <div class="flex items-center gap-4">
+                    <label class="flex items-center gap-2 text-sm cursor-pointer select-none">
+                        <input
+                            type="checkbox"
+                            class="toggle toggle-sm"
+                            :checked="props.includeBots"
+                            aria-label="Include bot traffic"
+                            @change="handleIncludeBotsChange"
+                        />
+                        <span>Include bot traffic</span>
+                    </label>
+                    <div class="w-48">
+                        <Select
+                            :options="presetOptions"
+                            :model-value="props.dateRangePreset"
+                            @change="handlePresetChange"
+                        />
+                    </div>
                 </div>
             </div>
         </Card>

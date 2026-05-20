@@ -334,6 +334,13 @@ class AnalyticsQueryController extends Controller
 			$filters['goal_id'] = (int) $goalId;
 		}
 
+		// Bot-traffic filter. Bots are excluded by default; the toggle on the
+		// dashboard opts back in via ?bots=include (or ?bots=only).
+		$bots = $request->query( 'bots' );
+		if ( is_string( $bots ) && in_array( $bots, [ 'exclude', 'include', 'only' ], true ) ) {
+			$filters['bots'] = $bots;
+		}
+
 		return $filters;
 	}
 
