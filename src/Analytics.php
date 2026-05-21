@@ -519,6 +519,24 @@ class Analytics implements AnalyticsQueryInterface, AnalyticsServiceInterface
     }
 
     /**
+     * Get the top bot user agents by visit count.
+     *
+     * Uses the first provider that supports queries.
+     *
+     * @param  DateRange  $range  The date range to query.
+     * @param  int  $limit  Maximum number of user agents to return.
+     * @param  array<string, mixed>  $filters  Optional filters to apply (site/tenant scoping).
+     *
+     * @return Collection<int, array{user_agent: string, visits: int}>
+     *
+     * @since 1.2.0
+     */
+    public function getTopBotAgents( DateRange $range, int $limit = 10, array $filters = [] ): Collection
+    {
+        return $this->queryWithProvider( fn ( AnalyticsQueryInterface $p ) => $p->getTopBotAgents( $range, $limit, $filters ), collect() );
+    }
+
+    /**
      * Get device breakdown.
      *
      * Uses the first provider that supports queries.
@@ -577,14 +595,15 @@ class Analytics implements AnalyticsQueryInterface, AnalyticsServiceInterface
      * Uses the first provider that supports queries.
      *
      * @param  int  $minutes  The number of minutes to consider as "real-time".
+     * @param  array<string, mixed>  $filters  Optional filters to apply (including bot scoping).
      *
      * @return int The number of active visitors.
      *
      * @since 1.0.0
      */
-    public function getRealTimeVisitors( int $minutes = 5 ): int
+    public function getRealTimeVisitors( int $minutes = 5, array $filters = [] ): int
     {
-        return $this->queryWithProvider( fn ( AnalyticsQueryInterface $p ) => $p->getRealTimeVisitors( $minutes ), 0 );
+        return $this->queryWithProvider( fn ( AnalyticsQueryInterface $p ) => $p->getRealTimeVisitors( $minutes, $filters ), 0 );
     }
 
     /**

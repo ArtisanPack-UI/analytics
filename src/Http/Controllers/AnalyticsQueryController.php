@@ -207,11 +207,39 @@ class AnalyticsQueryController extends Controller
 		// Clamp minutes to a reasonable range
 		$minutes = max( 1, min( 30, $minutes ) );
 
-		$realtime = $this->analyticsQuery->getRealtime( $minutes );
+		$realtime = $this->analyticsQuery->getRealtime( $minutes, $this->getFilters( $request ) );
 
 		return response()->json( [
 			'success' => true,
 			'data'    => $realtime,
+		] );
+	}
+
+	/**
+	 * Get bot-traffic statistics.
+	 *
+	 * GET /api/analytics/bots
+	 *
+	 * @param Request $request The HTTP request.
+	 *
+	 * @return JsonResponse
+	 *
+	 * @since 1.2.0
+	 */
+	public function bots( Request $request ): JsonResponse
+	{
+		$range       = $this->getDateRange( $request );
+		$limit       = $this->getLimit( $request );
+		$granularity = $request->query( 'granularity', 'day' );
+		$granularity = in_array( $granularity, [ 'hour', 'day', 'week', 'month' ], true ) ? $granularity : 'day';
+		$filters     = $this->getFilters( $request );
+
+		$stats = $this->analyticsQuery->getBotStats( $range, $limit, $granularity, $filters );
+
+		return response()->json( [
+			'success' => true,
+			'data'    => $stats,
+			'range'   => $range->toArray(),
 		] );
 	}
 
@@ -332,6 +360,13 @@ class AnalyticsQueryController extends Controller
 		$goalId = $request->query( 'goal_id' );
 		if ( is_numeric( $goalId ) ) {
 			$filters['goal_id'] = (int) $goalId;
+		}
+
+		// Bot-traffic filter. Bots are excluded by default; the toggle on the
+		// dashboard opts back in via ?bots=include (or ?bots=only).
+		$bots = $request->query( 'bots' );
+		if ( is_string( $bots ) && in_array( $bots, [ 'exclude', 'include', 'only' ], true ) ) {
+			$filters['bots'] = $bots;
 		}
 
 		return $filters;

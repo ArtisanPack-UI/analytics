@@ -16,6 +16,7 @@ ArtisanPack UI Analytics provides pre-built Livewire components for displaying a
 | [Top Pages](Components-Top-Pages) | Table of most viewed pages |
 | [Traffic Sources](Components-Traffic-Sources) | Breakdown of traffic sources |
 | [Realtime Visitors](Components-Realtime-Visitors) | Live visitor count widget |
+| [Bot Traffic](Components-Bot-Traffic) | Filtered bot traffic summary *(since 1.2.0)* |
 
 ## Quick Usage
 
@@ -42,6 +43,9 @@ ArtisanPack UI Analytics provides pre-built Livewire components for displaying a
 
 {{-- Real-time visitors --}}
 <livewire:artisanpack-analytics::widgets.realtime-visitors />
+
+{{-- Bot traffic (since 1.2.0) --}}
+<livewire:artisanpack-analytics::widgets.bot-traffic />
 ```
 
 ## Common Properties

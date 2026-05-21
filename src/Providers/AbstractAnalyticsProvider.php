@@ -317,6 +317,24 @@ abstract class AbstractAnalyticsProvider implements AnalyticsProviderInterface, 
     }
 
     /**
+     * Get the top bot user agents by visit count.
+     *
+     * Default implementation returns empty collection. Override in subclasses.
+     *
+     * @param  DateRange  $range  The date range to query.
+     * @param  int  $limit  Maximum number of user agents to return.
+     * @param  array<string, mixed>  $filters  Optional filters to apply (site/tenant scoping).
+     *
+     * @return Collection<int, array{user_agent: string, visits: int}>
+     *
+     * @since 1.2.0
+     */
+    public function getTopBotAgents( DateRange $range, int $limit = 10, array $filters = [] ): Collection
+    {
+        return collect();
+    }
+
+    /**
      * Get device breakdown.
      *
      * Default implementation returns empty collection. Override in subclasses.
@@ -375,12 +393,13 @@ abstract class AbstractAnalyticsProvider implements AnalyticsProviderInterface, 
      * Default implementation returns 0. Override in subclasses.
      *
      * @param  int  $minutes  The number of minutes to consider as "real-time".
+     * @param  array<string, mixed>  $filters  Optional filters to apply (including bot scoping).
      *
      * @return int The number of active visitors.
      *
      * @since 1.0.0
      */
-    public function getRealTimeVisitors( int $minutes = 5 ): int
+    public function getRealTimeVisitors( int $minutes = 5, array $filters = [] ): int
     {
         return 0;
     }

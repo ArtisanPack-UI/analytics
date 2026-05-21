@@ -50,6 +50,15 @@ class AnalyticsQuery
     protected string $cacheTag = 'analytics';
 
     /**
+     * Pending bot-filter mode for the next query.
+     *
+     * One of 'exclude', 'include', or 'only'. Null falls back to the default
+     * ('exclude'). Reset to null after each query so the modifier applies to a
+     * single call only.
+     */
+    protected ?string $pendingBotMode = null;
+
+    /**
      * Create a new AnalyticsQuery instance.
      *
      * @param  AnalyticsQueryInterface  $provider  The query provider.
@@ -61,6 +70,62 @@ class AnalyticsQuery
         $this->provider      = $provider;
         $this->cacheEnabled  = config( 'artisanpack.analytics.dashboard.cache_enabled', true );
         $this->cacheDuration = config( 'artisanpack.analytics.dashboard.cache_duration', 300 );
+    }
+
+    /**
+     * Include bot traffic alongside human traffic in the next query.
+     *
+     * @return static The current instance for method chaining.
+     *
+     * @since 1.2.0
+     */
+    public function includeBots(): static
+    {
+        $this->pendingBotMode = 'include';
+
+        return $this;
+    }
+
+    /**
+     * Include bot traffic alongside human traffic in the next query.
+     *
+     * Alias of includeBots().
+     *
+     * @return static The current instance for method chaining.
+     *
+     * @since 1.2.0
+     */
+    public function withBots(): static
+    {
+        return $this->includeBots();
+    }
+
+    /**
+     * Restrict the next query to bot traffic only.
+     *
+     * @return static The current instance for method chaining.
+     *
+     * @since 1.2.0
+     */
+    public function onlyBots(): static
+    {
+        $this->pendingBotMode = 'only';
+
+        return $this;
+    }
+
+    /**
+     * Exclude bot traffic from the next query (the default behaviour).
+     *
+     * @return static The current instance for method chaining.
+     *
+     * @since 1.2.0
+     */
+    public function excludeBots(): static
+    {
+        $this->pendingBotMode = 'exclude';
+
+        return $this;
     }
 
     /**
@@ -78,6 +143,7 @@ class AnalyticsQuery
      */
     public function getStats( DateRange $range, bool $withCompare = true, array $filters = [] ): array
     {
+        $filters  = $this->resolveBotMode( $filters );
         $cacheKey = $this->buildCacheKey( 'stats', $range, $filters, $withCompare );
 
         $stats = $this->cached( $cacheKey, function () use ( $range, $withCompare, $filters ): array {
@@ -102,7 +168,7 @@ class AnalyticsQuery
         } );
 
         // Real-time visitors should never be cached
-        $stats['realtime_visitors'] = $this->provider->getRealTimeVisitors();
+        $stats['realtime_visitors'] = $this->provider->getRealTimeVisitors( 5, $filters );
 
         return $stats;
     }
@@ -120,6 +186,7 @@ class AnalyticsQuery
      */
     public function getPageViews( DateRange $range, string $granularity = 'day', array $filters = [] ): Collection
     {
+        $filters  = $this->resolveBotMode( $filters );
         $cacheKey = $this->buildCacheKey( 'pageviews', $range, $filters, $granularity );
 
         return $this->cached( $cacheKey, fn () => $this->provider->getPageViewsOverTime( $range, $granularity, $filters ) );
@@ -137,6 +204,7 @@ class AnalyticsQuery
      */
     public function getPageViewCount( DateRange $range, array $filters = [] ): int
     {
+        $filters  = $this->resolveBotMode( $filters );
         $cacheKey = $this->buildCacheKey( 'pageview_count', $range, $filters );
 
         return $this->cached( $cacheKey, fn () => $this->provider->getPageViews( $range, $filters ) );
@@ -154,6 +222,7 @@ class AnalyticsQuery
      */
     public function getVisitors( DateRange $range, array $filters = [] ): int
     {
+        $filters  = $this->resolveBotMode( $filters );
         $cacheKey = $this->buildCacheKey( 'visitors', $range, $filters );
 
         return $this->cached( $cacheKey, fn () => $this->provider->getVisitors( $range, $filters ) );
@@ -171,6 +240,7 @@ class AnalyticsQuery
      */
     public function getSessions( DateRange $range, array $filters = [] ): int
     {
+        $filters  = $this->resolveBotMode( $filters );
         $cacheKey = $this->buildCacheKey( 'sessions', $range, $filters );
 
         return $this->cached( $cacheKey, fn () => $this->provider->getSessions( $range, $filters ) );
@@ -189,9 +259,85 @@ class AnalyticsQuery
      */
     public function getTopPages( DateRange $range, int $limit = 10, array $filters = [] ): Collection
     {
+        $filters  = $this->resolveBotMode( $filters );
         $cacheKey = $this->buildCacheKey( 'top_pages', $range, $filters, $limit );
 
         return $this->cached( $cacheKey, fn () => $this->provider->getTopPages( $range, $limit, $filters ) );
+    }
+
+    /**
+     * Get the top bot user agents by visit count.
+     *
+     * Always scoped to bot traffic; any incoming bot mode is ignored.
+     *
+     * @param  DateRange  $range  The date range to query.
+     * @param  int  $limit  Maximum number of user agents to return.
+     * @param  array<string, mixed>  $filters  Optional filters to apply (site/tenant scoping).
+     *
+     * @return Collection<int, array{user_agent: string, visits: int}>
+     *
+     * @since 1.2.0
+     */
+    public function getTopBotAgents( DateRange $range, int $limit = 10, array $filters = [] ): Collection
+    {
+        // Consume any pending one-shot modifier so it cannot leak into a later
+        // query, even though this method always forces bot-only scoping.
+        $this->resolveBotMode( $filters );
+        unset( $filters['bots'] );
+        $cacheKey = $this->buildCacheKey( 'top_bot_agents', $range, $filters, $limit );
+
+        return $this->cached( $cacheKey, fn () => $this->provider->getTopBotAgents( $range, $limit, $filters ) );
+    }
+
+    /**
+     * Get an aggregated summary of bot traffic for a date range.
+     *
+     * Combines bot-only visitor counts, the bot share of total traffic, the
+     * busiest bot user agents, and a bot-only visit trend so dashboards can
+     * surface filtered traffic in a single call.
+     *
+     * @param  DateRange  $range  The date range to query.
+     * @param  int  $agentLimit  Maximum number of bot user agents to return.
+     * @param  string  $granularity  Trend grouping granularity ('hour', 'day', 'week', 'month').
+     * @param  array<string, mixed>  $filters  Optional filters to apply (site/tenant scoping).
+     *
+     * @return array{
+     *     bot_visits: int,
+     *     total_visits: int,
+     *     bot_percentage: float,
+     *     top_agents: array<int, array{user_agent: string, visits: int}>,
+     *     trend: array<int, array{date: string, visits: int}>
+     * }
+     *
+     * @since 1.2.0
+     */
+    public function getBotStats( DateRange $range, int $agentLimit = 10, string $granularity = 'day', array $filters = [] ): array
+    {
+        // This method controls bot scoping itself, so discard any caller mode.
+        unset( $filters['bots'] );
+
+        $botVisits   = $this->getVisitors( $range, array_merge( $filters, ['bots' => 'only'] ) );
+        $totalVisits = $this->getVisitors( $range, array_merge( $filters, ['bots' => 'include'] ) );
+
+        $percentage = $totalVisits > 0
+            ? round( ( $botVisits / $totalVisits ) * 100, 1 )
+            : 0.0;
+
+        $trend = $this->getPageViews( $range, $granularity, array_merge( $filters, ['bots' => 'only'] ) )
+            ->map( fn ( array $row ) => [
+                'date'   => $row['date'],
+                'visits' => $row['visitors'],
+            ] )
+            ->values()
+            ->all();
+
+        return [
+            'bot_visits'     => $botVisits,
+            'total_visits'   => $totalVisits,
+            'bot_percentage' => $percentage,
+            'top_agents'     => $this->getTopBotAgents( $range, $agentLimit, $filters )->values()->all(),
+            'trend'          => $trend,
+        ];
     }
 
     /**
@@ -207,6 +353,7 @@ class AnalyticsQuery
      */
     public function getTrafficSources( DateRange $range, int $limit = 10, array $filters = [] ): Collection
     {
+        $filters  = $this->resolveBotMode( $filters );
         $cacheKey = $this->buildCacheKey( 'traffic_sources', $range, $filters, $limit );
 
         return $this->cached( $cacheKey, fn () => $this->provider->getTrafficSources( $range, $limit, $filters ) );
@@ -224,6 +371,7 @@ class AnalyticsQuery
      */
     public function getBounceRate( DateRange $range, array $filters = [] ): float
     {
+        $filters  = $this->resolveBotMode( $filters );
         $cacheKey = $this->buildCacheKey( 'bounce_rate', $range, $filters );
 
         return $this->cached( $cacheKey, fn () => $this->provider->getBounceRate( $range, $filters ) );
@@ -241,6 +389,7 @@ class AnalyticsQuery
      */
     public function getAverageSessionDuration( DateRange $range, array $filters = [] ): int
     {
+        $filters  = $this->resolveBotMode( $filters );
         $cacheKey = $this->buildCacheKey( 'avg_session_duration', $range, $filters );
 
         return $this->cached( $cacheKey, fn () => $this->provider->getAverageSessionDuration( $range, $filters ) );
@@ -258,6 +407,7 @@ class AnalyticsQuery
      */
     public function getAveragePagesPerSession( DateRange $range, array $filters = [] ): float
     {
+        $filters  = $this->resolveBotMode( $filters );
         $cacheKey = $this->buildCacheKey( 'avg_pages_per_session', $range, $filters );
 
         return $this->cached( $cacheKey, function () use ( $range, $filters ): float {
@@ -274,15 +424,18 @@ class AnalyticsQuery
      * Real-time data is never cached.
      *
      * @param  int  $minutes  The number of minutes to consider as "real-time".
+     * @param  array<string, mixed>  $filters  Optional filters to apply (including bot scoping).
      *
      * @return array<string, mixed>
      *
      * @since 1.0.0
      */
-    public function getRealtime( int $minutes = 5 ): array
+    public function getRealtime( int $minutes = 5, array $filters = [] ): array
     {
+        $filters = $this->resolveBotMode( $filters );
+
         return [
-            'active_visitors' => $this->provider->getRealTimeVisitors( $minutes ),
+            'active_visitors' => $this->provider->getRealTimeVisitors( $minutes, $filters ),
             'timestamp'       => now()->toIso8601String(),
         ];
     }
@@ -299,6 +452,7 @@ class AnalyticsQuery
      */
     public function getDeviceBreakdown( DateRange $range, array $filters = [] ): Collection
     {
+        $filters  = $this->resolveBotMode( $filters );
         $cacheKey = $this->buildCacheKey( 'device_breakdown', $range, $filters );
 
         return $this->cached( $cacheKey, fn () => $this->provider->getDeviceBreakdown( $range, $filters ) );
@@ -317,6 +471,7 @@ class AnalyticsQuery
      */
     public function getBrowserBreakdown( DateRange $range, int $limit = 10, array $filters = [] ): Collection
     {
+        $filters  = $this->resolveBotMode( $filters );
         $cacheKey = $this->buildCacheKey( 'browser_breakdown', $range, $filters, $limit );
 
         return $this->cached( $cacheKey, fn () => $this->provider->getBrowserBreakdown( $range, $limit, $filters ) );
@@ -335,6 +490,7 @@ class AnalyticsQuery
      */
     public function getCountryBreakdown( DateRange $range, int $limit = 10, array $filters = [] ): Collection
     {
+        $filters  = $this->resolveBotMode( $filters );
         $cacheKey = $this->buildCacheKey( 'country_breakdown', $range, $filters, $limit );
 
         return $this->cached( $cacheKey, fn () => $this->provider->getCountryBreakdown( $range, $limit, $filters ) );
@@ -354,6 +510,7 @@ class AnalyticsQuery
     public function getPageAnalytics( string $path, DateRange $range, array $filters = [] ): array
     {
         $filters['path'] = $path;
+        $filters         = $this->resolveBotMode( $filters );
         $cacheKey        = $this->buildCacheKey( 'page_analytics', $range, $filters );
 
         return $this->cached( $cacheKey, function () use ( $range, $filters ): array {
@@ -715,6 +872,30 @@ class AnalyticsQuery
         $this->cacheDuration = $seconds;
 
         return $this;
+    }
+
+    /**
+     * Resolve the bot-filter mode into the filters array.
+     *
+     * Honours an explicit `bots` filter, then the pending modifier, then
+     * defaults to excluding bots. The pending modifier is consumed so it only
+     * affects a single query.
+     *
+     * @param  array<string, mixed>  $filters  The filters to resolve.
+     *
+     * @return array<string, mixed>
+     *
+     * @since 1.2.0
+     */
+    protected function resolveBotMode( array $filters ): array
+    {
+        if ( ! isset( $filters['bots'] ) ) {
+            $filters['bots'] = $this->pendingBotMode ?? 'exclude';
+        }
+
+        $this->pendingBotMode = null;
+
+        return $filters;
     }
 
     /**

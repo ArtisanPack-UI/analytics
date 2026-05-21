@@ -506,12 +506,13 @@ class PlausibleProvider extends AbstractAnalyticsProvider
      * Get real-time visitor count.
      *
      * @param  int  $minutes  The number of minutes to consider as "real-time".
+     * @param  array<string, mixed>  $filters  Optional filters to apply (including bot scoping).
      *
      * @return int The number of active visitors.
      *
      * @since 1.0.0
      */
-    public function getRealTimeVisitors( int $minutes = 5 ): int
+    public function getRealTimeVisitors( int $minutes = 5, array $filters = [] ): int
     {
         if ( ! $this->supportsQueries() ) {
             $this->logMissingApiKey( 'getRealTimeVisitors' );

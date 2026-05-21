@@ -44,6 +44,7 @@ readonly class PageViewData
 	 * @param string|null               $utmContent      The UTM content parameter.
 	 * @param float|null                $loadTime        The page load time in milliseconds.
 	 * @param array<string, mixed>|null $customData      Custom data to store with the page view.
+	 * @param array<string, mixed>|null $fingerprint     JavaScript fingerprint signals used for bot scoring.
 	 * @param int|string|null           $tenantId        The tenant identifier for multi-tenant apps.
 	 * @param int|null                  $siteId          The site identifier.
 	 *
@@ -74,6 +75,7 @@ readonly class PageViewData
 		public ?string $utmContent = null,
 		public ?float $loadTime = null,
 		public ?array $customData = null,
+		public ?array $fingerprint = null,
 		public string|int|null $tenantId = null,
 		public ?int $siteId = null,
 	) {
@@ -116,6 +118,7 @@ readonly class PageViewData
 			utmContent: $data['utm_content'] ?? $request->query( 'utm_content' ),
 			loadTime: isset( $data['load_time'] ) ? (float) $data['load_time'] : null,
 			customData: $data['custom_data'] ?? null,
+			fingerprint: is_array( $data['fingerprint'] ?? null ) ? $data['fingerprint'] : null,
 			tenantId: $data['tenant_id'] ?? null,
 		);
 	}
@@ -154,6 +157,7 @@ readonly class PageViewData
 			'utm_content'     => $this->utmContent,
 			'load_time'       => $this->loadTime,
 			'custom_data'     => $this->customData,
+			'fingerprint'     => $this->fingerprint,
 			'tenant_id'       => $this->tenantId,
 			'site_id'         => $this->siteId,
 		], fn ( $value ) => null !== $value );

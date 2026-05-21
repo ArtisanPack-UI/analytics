@@ -108,6 +108,15 @@ class LocalAnalyticsProvider extends AbstractAnalyticsProvider
      */
     public function storePageView( PageViewData $data ): void
     {
+        $customData = $data->customData ?? [];
+
+        // Store fingerprint signals within custom_data so the BotDetector can
+        // read them without a dedicated column. They are not retained beyond
+        // bot scoring needs.
+        if ( null !== $data->fingerprint ) {
+            $customData['fingerprint'] = $data->fingerprint;
+        }
+
         PageView::create( [
             'site_id'     => $data->siteId,
             'session_id'  => $data->sessionId,
@@ -116,7 +125,7 @@ class LocalAnalyticsProvider extends AbstractAnalyticsProvider
             'title'       => $data->title,
             'referrer'    => $data->referrer,
             'load_time'   => $data->loadTime,
-            'custom_data' => $data->customData,
+            'custom_data' => [] !== $customData ? $customData : null,
             'tenant_id'   => $data->tenantId,
         ] );
     }
@@ -500,19 +509,67 @@ class LocalAnalyticsProvider extends AbstractAnalyticsProvider
      * Get real-time visitor count.
      *
      * @param  int  $minutes  The number of minutes to consider as "real-time".
+     * @param  array<string, mixed>  $filters  Optional filters to apply (including bot scoping).
      *
      * @return int The number of active visitors.
      *
      * @since 1.0.0
      */
-    public function getRealTimeVisitors( int $minutes = 5 ): int
+    public function getRealTimeVisitors( int $minutes = 5, array $filters = [] ): int
     {
+        // Limit to scope filters that exist on the sessions table; path and
+        // event-only filters do not apply to realtime session counts.
+        $scopeFilters = array_intersect_key(
+            $filters,
+            array_flip( [ 'site_id', 'tenant_id', 'visitor_id', 'bots' ] ),
+        );
+
         return $this->safeQuery(
-            fn () => Session::query()
-                ->active( $minutes )
+            fn () => $this->applyFilters( Session::query()->active( $minutes ), $scopeFilters )
                 ->distinct( 'visitor_id' )
                 ->count( 'visitor_id' ),
             0,
+        );
+    }
+
+    /**
+     * Get the top bot user agents by visit count.
+     *
+     * Counts bot page views within the date range grouped by the visitor's
+     * user agent and returns the busiest agents first. The `only` bot mode is
+     * forced so the result always reflects bot traffic regardless of caller
+     * filters.
+     *
+     * @param  DateRange  $range  The date range to query.
+     * @param  int  $limit  Maximum number of user agents to return.
+     * @param  array<string, mixed>  $filters  Optional filters to apply (site/tenant scoping).
+     *
+     * @return Collection<int, array{user_agent: string, visits: int}>
+     *
+     * @since 1.2.0
+     */
+    public function getTopBotAgents( DateRange $range, int $limit = 10, array $filters = [] ): Collection
+    {
+        return $this->safeQuery(
+            function () use ( $range, $limit, $filters ) {
+                return $this->applyFilters( PageView::query(), array_merge( $filters, ['bots' => 'only'] ) )
+                    ->join( 'analytics_visitors', 'analytics_page_views.visitor_id', '=', 'analytics_visitors.id' )
+                    ->whereBetween( 'analytics_page_views.created_at', [$range->startDate, $range->endDate] )
+                    ->whereNotNull( 'analytics_visitors.user_agent' )
+                    ->select( [
+                        'analytics_visitors.user_agent as user_agent',
+                        DB::raw( 'COUNT(*) as visits' ),
+                    ] )
+                    ->groupBy( 'analytics_visitors.user_agent' )
+                    ->orderByDesc( 'visits' )
+                    ->limit( $limit )
+                    ->get()
+                    ->map( fn ( $row ) => [
+                        'user_agent' => (string) $row->user_agent,
+                        'visits'     => (int) $row->visits,
+                    ] );
+            },
+            collect(),
         );
     }
 
@@ -622,6 +679,49 @@ class LocalAnalyticsProvider extends AbstractAnalyticsProvider
 
         if ( isset( $filters['visitor_id'] ) ) {
             $query->where( $table . '.visitor_id', $filters['visitor_id'] );
+        }
+
+        return $this->applyBotFilter( $query, $filters );
+    }
+
+    /**
+     * Apply bot-traffic scoping to a query.
+     *
+     * Excludes bot visitors by default. The mode is read from the `bots` filter
+     * key: `exclude` (default) hides confirmed bots, `include` shows all
+     * traffic, and `only` returns just bot traffic. For the Visitor model the
+     * `is_bot` column is filtered directly; for models with a `visitor`
+     * relation the filter is applied through that relation. In `exclude` mode
+     * only rows whose visitor is a confirmed bot are removed, so rows with an
+     * unresolved visitor are still counted.
+     *
+     * @param  Builder  $query  The query builder.
+     * @param  array<string, mixed>  $filters  The filters to apply.
+     *
+     * @since 1.2.0
+     */
+    protected function applyBotFilter( Builder $query, array $filters ): Builder
+    {
+        $mode = $filters['bots'] ?? 'exclude';
+
+        if ( 'include' === $mode ) {
+            return $query;
+        }
+
+        $model = $query->getModel();
+
+        if ( $model instanceof Visitor ) {
+            $query->where( $model->getTable() . '.is_bot', 'only' === $mode );
+
+            return $query;
+        }
+
+        if ( method_exists( $model, 'visitor' ) ) {
+            if ( 'only' === $mode ) {
+                $query->whereHas( 'visitor', fn ( Builder $visitorQuery ) => $visitorQuery->where( 'is_bot', true ) );
+            } else {
+                $query->whereDoesntHave( 'visitor', fn ( Builder $visitorQuery ) => $visitorQuery->where( 'is_bot', true ) );
+            }
         }
 
         return $query;

@@ -60,6 +60,9 @@ Represents a unique visitor.
 | `country` | ?string | Country code |
 | `city` | ?string | City name |
 | `region` | ?string | Region/state |
+| `is_bot` | bool | Whether the visitor was flagged as a bot *(since 1.2.0)* |
+| `bot_score` | ?int | Bot confidence score, 0–100, or `null` if not yet scored *(since 1.2.0)* |
+| `bot_detected_at` | ?Carbon | When the visitor was last scored, or `null` if not yet scored *(since 1.2.0)* |
 
 ### Relationships
 
@@ -333,4 +336,34 @@ Represents aggregated historical data.
 Aggregate::forMetric('pageviews')->get();
 Aggregate::forPeriod('day')->get();
 Aggregate::forDimension('path', '/products')->get();
+```
+
+---
+
+## BotWhitelistEntry
+
+> **Since 1.2.0**
+
+Represents a user agent pattern or IP address that bypasses bot scoring. Runtime entries are managed via the [`analytics:whitelist`](Advanced-Artisan-Commands#analyticswhitelist) command and supplement the static config whitelist. See [Bot Filtering](Advanced-Bot-Filtering).
+
+### Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `id` | int | Primary key |
+| `type` | string | Entry type: `user_agent` or `ip` |
+| `value` | string | The user agent pattern or IP address |
+
+### Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `TYPE_USER_AGENT` | `'user_agent'` | User agent pattern entry |
+| `TYPE_IP` | `'ip'` | IP address entry |
+
+### Scopes
+
+```php
+BotWhitelistEntry::userAgents()->get();
+BotWhitelistEntry::ips()->get();
 ```

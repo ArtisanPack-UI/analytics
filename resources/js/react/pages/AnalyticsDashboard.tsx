@@ -47,8 +47,12 @@ export interface AnalyticsDashboardProps {
     dateRangePresets?: Record<string, string>;
     /** Current filters. */
     filters?: Record<string, unknown>;
+    /** Whether bot traffic is included. Bots are excluded by default. */
+    includeBots?: boolean;
     /** Callback when the date range preset changes. */
     onDateRangeChange?: ( preset: string ) => void;
+    /** Callback when the include-bots toggle changes. */
+    onIncludeBotsChange?: ( includeBots: boolean ) => void;
     /** Optional CSS class name for the container. */
     className?: string;
 }
@@ -73,13 +77,19 @@ export default function AnalyticsDashboard( {
     trafficSources,
     dateRangePreset = '30d',
     dateRangePresets = defaultPresets,
+    includeBots = false,
     onDateRangeChange,
+    onIncludeBotsChange,
     className = '',
 }: AnalyticsDashboardProps ): React.ReactElement {
     const [ activeTab, setActiveTab ] = useState( 'overview' );
 
     const handlePresetChange = ( e: React.ChangeEvent<HTMLSelectElement> ): void => {
         onDateRangeChange?.( e.target.value );
+    };
+
+    const handleIncludeBotsChange = ( e: React.ChangeEvent<HTMLInputElement> ): void => {
+        onIncludeBotsChange?.( e.target.checked );
     };
 
     const presetOptions = useMemo( () => {
@@ -140,12 +150,25 @@ export default function AnalyticsDashboard( {
             <Card>
                 <div className="flex items-center justify-between">
                     <h2 className="text-2xl font-bold">Analytics Dashboard</h2>
-                    <div className="w-48">
-                        <Select
-                            options={presetOptions}
-                            value={dateRangePreset}
-                            onChange={handlePresetChange}
-                        />
+                    <div className="flex items-center gap-4">
+                        <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                className="toggle toggle-sm"
+                                checked={includeBots}
+                                onChange={handleIncludeBotsChange}
+                                disabled={!onIncludeBotsChange}
+                                aria-label="Include bot traffic"
+                            />
+                            <span>Include bot traffic</span>
+                        </label>
+                        <div className="w-48">
+                            <Select
+                                options={presetOptions}
+                                value={dateRangePreset}
+                                onChange={handlePresetChange}
+                            />
+                        </div>
                     </div>
                 </div>
             </Card>

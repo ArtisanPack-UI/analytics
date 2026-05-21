@@ -66,6 +66,48 @@ test( 'local provider tracks page view', function (): void {
     ] );
 } );
 
+test( 'local provider stores fingerprint signals in custom data', function (): void {
+    $provider = new LocalAnalyticsProvider;
+
+    $data = new PageViewData(
+        path: '/bot-page',
+        sessionId: 'session-fp',
+        visitorId: 'visitor-fp',
+        fingerprint: [
+            'webdriver'    => true,
+            'headless'     => true,
+            'missing_apis' => false,
+        ],
+    );
+
+    $provider->trackPageView( $data );
+
+    $pageView = PageView::query()->where( 'path', '/bot-page' )->firstOrFail();
+
+    expect( $pageView->custom_data )->toBeArray();
+    expect( $pageView->custom_data['fingerprint']['webdriver'] )->toBeTrue();
+    expect( $pageView->custom_data['fingerprint']['headless'] )->toBeTrue();
+} );
+
+test( 'local provider merges fingerprint with existing custom data', function (): void {
+    $provider = new LocalAnalyticsProvider;
+
+    $data = new PageViewData(
+        path: '/merged-page',
+        sessionId: 'session-merge',
+        visitorId: 'visitor-merge',
+        customData: [ 'experiment' => 'variant_a' ],
+        fingerprint: [ 'webdriver' => false ],
+    );
+
+    $provider->trackPageView( $data );
+
+    $pageView = PageView::query()->where( 'path', '/merged-page' )->firstOrFail();
+
+    expect( $pageView->custom_data['experiment'] )->toBe( 'variant_a' );
+    expect( $pageView->custom_data['fingerprint']['webdriver'] )->toBeFalse();
+} );
+
 test( 'local provider tracks custom event', function (): void {
     $provider = new LocalAnalyticsProvider;
 

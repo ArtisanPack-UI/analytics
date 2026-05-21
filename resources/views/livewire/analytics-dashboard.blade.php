@@ -37,6 +37,16 @@
 				/>
 			</x-artisanpack-dropdown>
 
+			{{-- Bot Traffic Toggle --}}
+			<x-artisanpack-button
+				wire:click="toggleBots"
+				class="btn-sm {{ $includeBots ? 'btn-primary' : 'btn-outline' }}"
+				icon="o-bug-ant"
+				:label="$includeBots ? __( 'Exclude bots' ) : __( 'Include bots' )"
+				:tooltip="$includeBots ? __( 'Bot traffic is included. Click to exclude.' ) : __( 'Bot traffic is excluded. Click to include.' )"
+				aria-pressed="{{ $includeBots ? 'true' : 'false' }}"
+			/>
+
 			{{-- Refresh Button --}}
 			<x-artisanpack-button
 				wire:click="refreshData"
@@ -284,6 +294,15 @@
 					@endif
 				</x-artisanpack-card>
 			</div>
+		@endif
+
+		{{-- Bots Tab --}}
+		@if ( $activeTab === 'bots' )
+			<livewire:artisanpack-analytics::widgets.bot-traffic
+				:date-range-preset="$dateRangePreset"
+				:site-id="$siteId"
+				:limit="10"
+			/>
 		@endif
 	</div>
 </div>

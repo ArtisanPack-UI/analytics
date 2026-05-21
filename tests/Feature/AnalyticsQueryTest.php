@@ -405,3 +405,37 @@ test( 'analytics query returns conversions over time', function (): void {
 
     expect( $conversions )->toBeInstanceOf( Illuminate\Support\Collection::class );
 } );
+
+test( 'one-shot bot modifier does not leak past getTopBotAgents', function (): void {
+    $makeVisitor = function ( bool $isBot ): void {
+        $visitor = ArtisanPackUI\Analytics\Models\Visitor::create( [
+            'fingerprint'   => bin2hex( random_bytes( 16 ) ),
+            'first_seen_at' => now(),
+            'last_seen_at'  => now(),
+            'device_type'   => 'desktop',
+            'is_bot'        => $isBot,
+            'bot_score'     => $isBot ? 90 : null,
+        ] );
+
+        PageView::create( [
+            'path'       => '/p',
+            'session_id' => 'session-' . $visitor->id,
+            'visitor_id' => (string) $visitor->id,
+            'created_at' => now(),
+        ] );
+    };
+
+    $makeVisitor( false );
+    $makeVisitor( false );
+    $makeVisitor( true );
+
+    $query = app( AnalyticsQuery::class );
+    $range = DateRange::today();
+
+    // Consume a one-shot modifier on a method that forces bot-only scoping.
+    $query->onlyBots()->getTopBotAgents( $range );
+
+    // The pending mode must not leak into the next query: the default excludes
+    // bots, so only the two human visitors are counted.
+    expect( $query->getVisitors( $range ) )->toBe( 2 );
+} );

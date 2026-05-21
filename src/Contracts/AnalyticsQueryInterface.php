@@ -159,11 +159,28 @@ interface AnalyticsQueryInterface
 	/**
 	 * Get real-time visitor count.
 	 *
-	 * @param int $minutes The number of minutes to consider as "real-time".
+	 * @param int                  $minutes The number of minutes to consider as "real-time".
+	 * @param array<string, mixed> $filters Optional filters to apply (including bot scoping).
 	 *
 	 * @return int The number of active visitors.
 	 *
 	 * @since 1.0.0
 	 */
-	public function getRealTimeVisitors( int $minutes = 5): int;
+	public function getRealTimeVisitors( int $minutes = 5, array $filters = [] ): int;
+
+	/**
+	 * Get the top bot user agents by visit count.
+	 *
+	 * Returns confirmed bot visitors grouped by user agent within the date
+	 * range, ordered by the number of matching visitors.
+	 *
+	 * @param DateRange            $range   The date range to query.
+	 * @param int                  $limit   Maximum number of user agents to return.
+	 * @param array<string, mixed> $filters Optional filters to apply (site/tenant scoping).
+	 *
+	 * @return Collection<int, array{user_agent: string, visits: int}>
+	 *
+	 * @since 1.2.0
+	 */
+	public function getTopBotAgents( DateRange $range, int $limit = 10, array $filters = []): Collection;
 }

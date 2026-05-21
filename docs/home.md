@@ -30,6 +30,7 @@ Welcome to the ArtisanPack UI Analytics documentation. This package provides com
   - [Top Pages](Components-Top-Pages)
   - [Traffic Sources](Components-Traffic-Sources)
   - [Realtime Visitors](Components-Realtime-Visitors)
+  - [Bot Traffic](Components-Bot-Traffic) *(since 1.2.0)*
 
 - **Frontend Components** *(since 1.1.0)*
   - [Frontend Overview](Frontend-Overview)
@@ -55,6 +56,7 @@ Welcome to the ArtisanPack UI Analytics documentation. This package provides com
   - [Privacy & Consent](Advanced-Privacy-Consent)
   - [Multiple Providers](Advanced-Multiple-Providers)
   - [Caching](Advanced-Caching)
+  - [Bot Filtering](Advanced-Bot-Filtering) *(since 1.2.0)*
   - [Artisan Commands](Advanced-Artisan-Commands)
 
 - **Help**
@@ -70,6 +72,7 @@ Welcome to the ArtisanPack UI Analytics documentation. This package provides com
 - **Livewire Components**: Pre-built dashboard widgets with Chart.js integration
 - **React & Vue Dashboards** *(1.1.0)*: Inertia.js-powered dashboard components for React and Vue
 - **Consent Components** *(1.1.0)*: GDPR consent banner, preferences, and status for React and Vue
+- **Bot Filtering** *(1.2.0)*: Multi-layered detection of AI crawlers and bots with confidence scoring
 - **Goal Tracking**: Define and track conversions with URL, event, and engagement-based goals
 - **Session Management**: Automatic session tracking with engagement metrics
 - **Blade Directives**: Easy integration with `@analyticsScripts` and `@analyticsConsentBanner`

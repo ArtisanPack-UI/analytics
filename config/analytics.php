@@ -358,11 +358,68 @@ return [
         |
         */
         'excluded_user_agents' => [
+            // Generic crawler tokens.
             '/bot/i',
             '/crawler/i',
             '/spider/i',
             '/slurp/i',
             '/mediapartners/i',
+            '/applebot-extended/i',
+
+            // SEO and marketing crawlers.
+            '/semrushbot/i',
+            '/ahrefsbot/i',
+            '/mj12bot/i',
+            '/dotbot/i',
+            '/blexbot/i',
+            '/screaming frog/i',
+            '/rogerbot/i',
+            '/sistrix/i',
+            '/serpstatbot/i',
+            '/dataforseobot/i',
+
+            // AI training and answer-engine crawlers.
+            '/gptbot/i',
+            '/chatgpt-user/i',
+            '/oai-searchbot/i',
+            '/claudebot/i',
+            '/claude-web/i',
+            '/anthropic-ai/i',
+            '/google-extended/i',
+            '/gemini/i',
+            '/amazonbot/i',
+            '/bytespider/i',
+            '/ccbot/i',
+            '/cohere-ai/i',
+            '/diffbot/i',
+            '/facebookbot/i',
+            '/perplexity/i',
+            '/youbot/i',
+
+            // Scraper, headless, and HTTP client patterns.
+            '/headlesschrome/i',
+            '/phantomjs/i',
+            '/puppeteer/i',
+            '/playwright/i',
+            '/python-requests/i',
+            '/go-http-client/i',
+            '/java\//i',
+            '/libwww-perl/i',
+            '/curl\//i',
+            '/wget\//i',
+            '/httpx/i',
+            '/aiohttp/i',
+            '/scrapy/i',
+
+            // Regional crawlers.
+            '/sogou/i',
+            '/yisou/i',
+            '/360spider/i',
+            '/seznambot/i',
+            '/qwantify/i',
+            '/naverbot/i',
+            '/yeti/i',
+            '/daumoa/i',
         ],
 
         /*
@@ -380,6 +437,98 @@ return [
             '/telescope/*',
             '/horizon/*',
         ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Bot Detection
+    |--------------------------------------------------------------------------
+    |
+    | Settings for the multi-signal bot detection system. The BotDetector
+    | service combines user agent, JavaScript fingerprint, engagement, and
+    | request pattern signals into a confidence score (0-100). Visitors that
+    | meet or exceed the threshold are considered bots.
+    |
+    */
+    'bot_detection' => [
+        /*
+        |----------------------------------------------------------------------
+        | Enabled
+        |----------------------------------------------------------------------
+        |
+        | Master switch for behavioral bot detection. When disabled, the
+        | BotDetector never flags visitors as bots.
+        |
+        */
+        'enabled' => env( 'ANALYTICS_BOT_DETECTION_ENABLED', true ),
+
+        /*
+        |----------------------------------------------------------------------
+        | Threshold
+        |----------------------------------------------------------------------
+        |
+        | The minimum confidence score (0-100) required to flag a visitor as
+        | a bot. Lower values are more aggressive; higher values reduce false
+        | positives.
+        |
+        */
+        'threshold' => env( 'ANALYTICS_BOT_DETECTION_THRESHOLD', 70 ),
+
+        /*
+        |----------------------------------------------------------------------
+        | Whitelist
+        |----------------------------------------------------------------------
+        |
+        | User agents and IP addresses that bypass bot scoring entirely.
+        | User agents are matched as case-insensitive substrings; IPs must
+        | match exactly.
+        |
+        */
+        'whitelist' => [
+            'user_agents' => [],
+            'ips'         => [],
+        ],
+
+        /*
+        |----------------------------------------------------------------------
+        | Signals
+        |----------------------------------------------------------------------
+        |
+        | Toggle individual signal categories on or off. Disabled categories
+        | contribute zero points to the confidence score.
+        |
+        */
+        'signals' => [
+            'user_agent'       => true,
+            'engagement'       => true,
+            'request_patterns' => true,
+            'js_fingerprint'   => true,
+        ],
+
+        /*
+        |----------------------------------------------------------------------
+        | Analysis Interval
+        |----------------------------------------------------------------------
+        |
+        | How often, in minutes, the AnalyzeBotTraffic job runs to score recent
+        | visitors. Used to build the scheduled job's cron expression. The value
+        | is normalized down to the nearest divisor of 60 (1, 2, 3, 4, 5, 6, 10,
+        | 12, 15, 20, or 30) so the job fires at an even cadence within the hour.
+        |
+        */
+        'analysis_interval' => env( 'ANALYTICS_BOT_DETECTION_INTERVAL', 15 ),
+
+        /*
+        |----------------------------------------------------------------------
+        | Analysis Window
+        |----------------------------------------------------------------------
+        |
+        | How far back, in minutes, the AnalyzeBotTraffic job looks for unscored
+        | visitors. Visitors last seen within this window that have not yet been
+        | scored are evaluated on each run.
+        |
+        */
+        'analysis_window' => env( 'ANALYTICS_BOT_DETECTION_WINDOW', 60 ),
     ],
 
     /*

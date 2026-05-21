@@ -5,6 +5,7 @@ declare( strict_types=1 );
 namespace ArtisanPackUI\Analytics;
 
 use ArtisanPackUI\Analytics\Auth\ApiKeyGuard;
+use ArtisanPackUI\Analytics\Console\Commands\BotsListCommand;
 use ArtisanPackUI\Analytics\Console\Commands\CacheClearCommand;
 use ArtisanPackUI\Analytics\Console\Commands\CleanupCommand;
 use ArtisanPackUI\Analytics\Console\Commands\GoalsListCommand;
@@ -15,17 +16,21 @@ use ArtisanPackUI\Analytics\Console\Commands\SiteApiKeyCommand;
 use ArtisanPackUI\Analytics\Console\Commands\SiteCreateCommand;
 use ArtisanPackUI\Analytics\Console\Commands\SitesListCommand;
 use ArtisanPackUI\Analytics\Console\Commands\StatsCommand;
+use ArtisanPackUI\Analytics\Console\Commands\WhitelistCommand;
 use ArtisanPackUI\Analytics\Contracts\AnalyticsServiceInterface;
 use ArtisanPackUI\Analytics\Http\Middleware\AnalyticsThrottle;
 use ArtisanPackUI\Analytics\Http\Middleware\AuthenticateWithApiKey;
 use ArtisanPackUI\Analytics\Http\Middleware\PrivacyFilter;
 use ArtisanPackUI\Analytics\Http\Middleware\ResolveSite;
 use ArtisanPackUI\Analytics\Http\Middleware\TenantResolver;
+use ArtisanPackUI\Analytics\Jobs\AnalyzeBotTraffic;
 use ArtisanPackUI\Analytics\Services\AnalyticsQuery;
+use ArtisanPackUI\Analytics\Services\BotDetector;
 use ArtisanPackUI\Analytics\Services\ConsentService;
 use ArtisanPackUI\Analytics\Services\CrossTenantReporting;
 use ArtisanPackUI\Analytics\Services\DataDeletionService;
 use ArtisanPackUI\Analytics\Services\DataExportService;
+use ArtisanPackUI\Analytics\Services\DeviceDetector;
 use ArtisanPackUI\Analytics\Services\EventProcessor;
 use ArtisanPackUI\Analytics\Services\FunnelAnalyzer;
 use ArtisanPackUI\Analytics\Services\GoalMatcher;
@@ -34,6 +39,7 @@ use ArtisanPackUI\Analytics\Services\IpAnonymizer;
 use ArtisanPackUI\Analytics\Services\PrivacyIntegration;
 use ArtisanPackUI\Analytics\Services\SiteSettingsService;
 use ArtisanPackUI\Analytics\Services\TenantManager;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Blade;
@@ -171,6 +177,13 @@ class AnalyticsServiceProvider extends ServiceProvider
         $this->app->singleton( CrossTenantReporting::class, function () {
             return new CrossTenantReporting;
         } );
+
+        // Register the BotDetector service
+        $this->app->singleton( BotDetector::class, function ( $app ) {
+            return new BotDetector(
+                $app->make( DeviceDetector::class ),
+            );
+        } );
     }
 
     /**
@@ -193,6 +206,7 @@ class AnalyticsServiceProvider extends ServiceProvider
         $this->registerMiddleware();
         $this->registerRoutes();
         $this->registerCommands();
+        $this->registerScheduledJobs();
         $this->registerBuiltInProviders();
         $this->registerLivewireComponents();
         $this->registerBladeDirectives();
@@ -480,8 +494,60 @@ class AnalyticsServiceProvider extends ServiceProvider
                 SiteApiKeyCommand::class,
                 GoalsListCommand::class,
                 RealtimeCommand::class,
+                BotsListCommand::class,
+                WhitelistCommand::class,
             ] );
         }
+    }
+
+    /**
+     * Register the scheduled bot analysis job.
+     *
+     * Schedules the AnalyzeBotTraffic job on a configurable interval. The job
+     * is only scheduled when bot detection is enabled. The configured interval
+     * is snapped to a divisor of 60 so the job fires at evenly spaced minutes
+     * within every hour rather than producing an uneven gap at the hour mark.
+     *
+     * @since 1.2.0
+     */
+    protected function registerScheduledJobs(): void
+    {
+        if ( ! (bool) config( 'artisanpack.analytics.bot_detection.enabled', true ) ) {
+            return;
+        }
+
+        $this->app->booted( function (): void {
+            $schedule = $this->app->make( Schedule::class );
+            $interval = $this->botAnalysisIntervalMinutes();
+
+            $schedule->job( new AnalyzeBotTraffic() )
+                ->cron( sprintf( '*/%d * * * *', $interval ) )
+                ->name( 'analytics-analyze-bot-traffic' )
+                ->withoutOverlapping();
+        } );
+    }
+
+    /**
+     * Resolve the bot analysis interval, snapped to a divisor of 60 minutes.
+     *
+     * @return int A minute interval that divides evenly into an hour (1-30).
+     *
+     * @since 1.2.0
+     */
+    protected function botAnalysisIntervalMinutes(): int
+    {
+        $configured = max( 1, (int) config( 'artisanpack.analytics.bot_detection.analysis_interval', 15 ) );
+
+        $divisors = [ 1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30 ];
+        $interval = 1;
+
+        foreach ( $divisors as $divisor ) {
+            if ( $divisor <= $configured ) {
+                $interval = $divisor;
+            }
+        }
+
+        return $interval;
     }
 
     /**
@@ -553,6 +619,7 @@ class AnalyticsServiceProvider extends ServiceProvider
         \Livewire\Livewire::component( 'artisanpack-analytics::widgets.top-pages', Http\Livewire\Widgets\TopPages::class );
         \Livewire\Livewire::component( 'artisanpack-analytics::widgets.traffic-sources', Http\Livewire\Widgets\TrafficSources::class );
         \Livewire\Livewire::component( 'artisanpack-analytics::widgets.realtime-visitors', Http\Livewire\Widgets\RealtimeVisitors::class );
+        \Livewire\Livewire::component( 'artisanpack-analytics::widgets.bot-traffic', Http\Livewire\Widgets\BotTraffic::class );
     }
 
     /**
