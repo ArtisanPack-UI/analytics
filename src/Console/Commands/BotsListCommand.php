@@ -144,7 +144,7 @@ class BotsListCommand extends Command
 		foreach ( $visitors as $visitor ) {
 			fputcsv( $handle, [
 				$visitor->id,
-				$visitor->user_agent,
+				$this->escapeCsvValue( $visitor->user_agent ),
 				$visitor->bot_score,
 				$visitor->total_pageviews,
 				$visitor->first_seen_at?->toDateTimeString(),
@@ -157,6 +157,28 @@ class BotsListCommand extends Command
 		$this->info( sprintf( __( 'Exported %d bot visitors to: %s' ), $visitors->count(), $path ) );
 
 		return self::SUCCESS;
+	}
+
+	/**
+	 * Neutralize spreadsheet formula injection in an exported CSV value.
+	 *
+	 * Prefixes a single quote to values that a spreadsheet application would
+	 * otherwise interpret as a formula, such as those beginning with an equals
+	 * sign, plus, minus, at sign, tab, or carriage return.
+	 *
+	 * @param string|null $value The value to escape.
+	 *
+	 * @return string
+	 *
+	 * @since 1.2.0
+	 */
+	protected function escapeCsvValue( ?string $value ): string
+	{
+		if ( null === $value || '' === $value ) {
+			return '';
+		}
+
+		return 1 === preg_match( '/^[=+\-@\t\r]/', $value ) ? "'" . $value : $value;
 	}
 
 	/**

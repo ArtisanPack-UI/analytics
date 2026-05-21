@@ -280,6 +280,9 @@ class AnalyticsQuery
      */
     public function getTopBotAgents( DateRange $range, int $limit = 10, array $filters = [] ): Collection
     {
+        // Consume any pending one-shot modifier so it cannot leak into a later
+        // query, even though this method always forces bot-only scoping.
+        $this->resolveBotMode( $filters );
         unset( $filters['bots'] );
         $cacheKey = $this->buildCacheKey( 'top_bot_agents', $range, $filters, $limit );
 

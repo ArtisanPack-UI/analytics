@@ -42,7 +42,7 @@
 				wire:click="toggleBots"
 				class="btn-sm {{ $includeBots ? 'btn-primary' : 'btn-outline' }}"
 				icon="o-bug-ant"
-				:label="$includeBots ? __( 'Bots included' ) : __( 'Exclude bots' )"
+				:label="$includeBots ? __( 'Exclude bots' ) : __( 'Include bots' )"
 				:tooltip="$includeBots ? __( 'Bot traffic is included. Click to exclude.' ) : __( 'Bot traffic is excluded. Click to include.' )"
 				aria-pressed="{{ $includeBots ? 'true' : 'false' }}"
 			/>

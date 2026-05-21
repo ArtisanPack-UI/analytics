@@ -101,6 +101,33 @@ test( 'bots command exports results to csv', function (): void {
     }
 } );
 
+test( 'bots command escapes csv formula injection in exported user agents', function (): void {
+    botsCommandVisitor( [ 'user_agent' => '=cmd|/c calc' ] );
+
+    $directory = storage_path( 'app' );
+    $before    = File::exists( $directory ) ? File::glob( $directory . '/analytics-bots-*.csv' ) : [];
+
+    $new = [];
+
+    try {
+        $this->artisan( 'analytics:bots', [ '--export' => 'csv' ] )
+            ->assertSuccessful();
+
+        $after = File::glob( $directory . '/analytics-bots-*.csv' );
+        $new   = array_values( array_diff( $after, $before ) );
+
+        expect( $new )->toHaveCount( 1 );
+
+        $contents = File::get( $new[0] );
+        expect( $contents )->toContain( "'=cmd|/c calc" );
+        expect( $contents )->not->toContain( ',=cmd|/c calc' );
+    } finally {
+        if ( [] !== $new ) {
+            File::delete( $new );
+        }
+    }
+} );
+
 test( 'bots command rejects an unsupported export format', function (): void {
     botsCommandVisitor();
 

@@ -100,6 +100,21 @@ test( 'whitelist add rejects providing both options', function (): void {
         ->assertFailed();
 } );
 
+test( 'whitelist add trims the user agent before storing', function (): void {
+    $this->artisan( 'analytics:whitelist', [ 'action' => 'add', '--user-agent' => '  Googlebot  ' ] )
+        ->assertSuccessful();
+
+    expect( BotWhitelistEntry::query()->userAgents()->where( 'value', 'Googlebot' )->exists() )->toBeTrue();
+} );
+
+test( 'whitelist add rejects a whitespace-only user agent', function (): void {
+    $this->artisan( 'analytics:whitelist', [ 'action' => 'add', '--user-agent' => '   ' ] )
+        ->expectsOutputToContain( 'You must provide either' )
+        ->assertFailed();
+
+    expect( BotWhitelistEntry::query()->count() )->toBe( 0 );
+} );
+
 test( 'whitelist add rejects an invalid ip', function (): void {
     $this->artisan( 'analytics:whitelist', [ 'action' => 'add', '--ip' => 'not-an-ip' ] )
         ->expectsOutputToContain( 'Invalid --ip value' )

@@ -327,7 +327,7 @@ php artisan analytics:bots --export=csv
 Manage the bot detection whitelist. The command lists the combined config and database whitelist and adds or removes runtime (database) entries. Config entries are read-only here.
 
 ```bash
-php artisan analytics:whitelist {action=list}
+php artisan analytics:whitelist list
 ```
 
 Arguments:

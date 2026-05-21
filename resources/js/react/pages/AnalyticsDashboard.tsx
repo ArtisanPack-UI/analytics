@@ -157,6 +157,7 @@ export default function AnalyticsDashboard( {
                                 className="toggle toggle-sm"
                                 checked={includeBots}
                                 onChange={handleIncludeBotsChange}
+                                disabled={!onIncludeBotsChange}
                                 aria-label="Include bot traffic"
                             />
                             <span>Include bot traffic</span>

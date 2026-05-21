@@ -178,6 +178,9 @@ class WhitelistCommand extends Command
 		$userAgent = $this->option( 'user-agent' );
 		$ip        = $this->option( 'ip' );
 
+		$userAgent = is_string( $userAgent ) ? trim( $userAgent ) : $userAgent;
+		$ip        = is_string( $ip ) ? trim( $ip ) : $ip;
+
 		if ( ( null === $userAgent || '' === $userAgent ) && ( null === $ip || '' === $ip ) ) {
 			$this->error( __( 'You must provide either --user-agent or --ip.' ) );
 
