@@ -287,6 +287,72 @@ Top Pages:
   3. /contact (345 views)
 ```
 
+## Bot Detection
+
+> **Since 1.2.0**
+
+Commands for reviewing detected bots and managing the bot detection whitelist. See [Bot Filtering](Advanced-Bot-Filtering) for the full feature guide.
+
+### analytics:bots
+
+List visitors flagged as bots along with their confidence scores:
+
+```bash
+php artisan analytics:bots
+```
+
+Options:
+- `--score=` - Minimum bot score to include (default `70`)
+- `--limit=` - Maximum number of visitors to list (default `50`)
+- `--site=` - Filter by site ID (must be a positive integer)
+- `--since=` - Only include visitors last seen on or after this date
+- `--export=` - Export results to a file format (`csv`)
+
+```bash
+# List bots scoring 70 or higher (the default)
+php artisan analytics:bots
+
+# Lower the score floor and raise the result limit
+php artisan analytics:bots --score=50 --limit=100
+
+# Only bots seen since the start of the month, for one site
+php artisan analytics:bots --since="2026-05-01" --site=1
+
+# Export the results to storage/app/analytics-bots-<timestamp>.csv
+php artisan analytics:bots --export=csv
+```
+
+### analytics:whitelist
+
+Manage the bot detection whitelist. The command lists the combined config and database whitelist and adds or removes runtime (database) entries. Config entries are read-only here.
+
+```bash
+php artisan analytics:whitelist {action=list}
+```
+
+Arguments:
+- `action` - The action to perform: `list` (default), `add`, or `remove`
+
+Options:
+- `--user-agent=` - A user agent pattern to add or remove
+- `--ip=` - An IP address to add or remove (validated)
+
+```bash
+# List the combined config and database whitelist
+php artisan analytics:whitelist list
+
+# Add a user agent pattern
+php artisan analytics:whitelist add --user-agent="Googlebot"
+
+# Add an IP address
+php artisan analytics:whitelist add --ip=203.0.113.5
+
+# Remove a database entry (config entries cannot be removed here)
+php artisan analytics:whitelist remove --ip=203.0.113.5
+```
+
+Provide exactly one of `--user-agent` or `--ip` when adding or removing. The `list` action works even before the whitelist table has been migrated, falling back to config entries; `add` and `remove` require the table to exist.
+
 ## Scheduling Commands
 
 Add to your scheduler for automated maintenance:

@@ -12,6 +12,7 @@ This section covers advanced features and configuration options for ArtisanPack 
 - [Privacy & Consent](Advanced-Privacy-Consent) - GDPR compliance and consent management
 - [Multiple Providers](Advanced-Multiple-Providers) - Use multiple analytics providers
 - [Caching](Advanced-Caching) - Optimize performance with caching
+- [Bot Filtering](Advanced-Bot-Filtering) - Filter AI crawlers and bot traffic *(since 1.2.0)*
 - [Artisan Commands](Advanced-Artisan-Commands) - CLI commands for management
 - [Frontend Components](Frontend-Overview) - React and Vue dashboards via Inertia.js *(since 1.1.0)*
 
@@ -44,6 +45,15 @@ Send analytics data to multiple destinations:
 - Google Analytics 4
 - Plausible Analytics
 - Custom providers
+
+### Bot Filtering *(since 1.2.0)*
+
+Keep automated traffic out of your reported numbers:
+
+- Expanded user agent matching for 60+ AI crawlers, SEO tools, and scrapers
+- Behavioral confidence scoring with a configurable threshold
+- JavaScript fingerprint signals (WebDriver, headless, missing APIs)
+- Config and runtime whitelists, plus a bot traffic dashboard widget
 
 ### Performance Optimization
 
@@ -92,6 +102,15 @@ ANALYTICS_GOOGLE_MEASUREMENT_ID=G-XXXXXXXX
 ANALYTICS_QUEUE_PROCESSING=true
 ANALYTICS_QUEUE_NAME=analytics
 ANALYTICS_CACHE_DURATION=600
+```
+
+### Bot Filtering *(since 1.2.0)*
+
+```php
+// .env
+ANALYTICS_BOT_DETECTION_ENABLED=true
+ANALYTICS_BOT_DETECTION_THRESHOLD=70
+ANALYTICS_BOT_DETECTION_INTERVAL=15
 ```
 
 ## Architecture Decisions

@@ -77,7 +77,7 @@ ANALYTICS_ENABLED=true
 ```
 
 4. **Is the visitor a bot?**
-Check if the user agent matches excluded patterns.
+Check if the user agent matches excluded patterns. Since 1.2.0, visitors may also be flagged by behavioral [bot detection](Advanced-Bot-Filtering) and excluded from results by default. Review flagged visitors with `php artisan analytics:bots`, or whitelist a visitor with `php artisan analytics:whitelist`.
 
 5. **Is consent required but not given?**
 ```php

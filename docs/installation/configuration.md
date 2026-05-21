@@ -208,6 +208,43 @@ Respect the browser's Do Not Track setting.
 ],
 ```
 
+## Bot Detection
+
+> **Since 1.2.0**
+
+Settings for the multi-layered bot filtering system. See [Bot Filtering](Advanced-Bot-Filtering) for the full feature guide.
+
+```php
+'bot_detection' => [
+    'enabled' => env('ANALYTICS_BOT_DETECTION_ENABLED', true),
+    'threshold' => env('ANALYTICS_BOT_DETECTION_THRESHOLD', 70),
+    'whitelist' => [
+        'user_agents' => [],
+        'ips' => [],
+    ],
+    'signals' => [
+        'user_agent' => true,
+        'engagement' => true,
+        'request_patterns' => true,
+        'js_fingerprint' => true,
+    ],
+    'analysis_interval' => env('ANALYTICS_BOT_DETECTION_INTERVAL', 15),
+    'analysis_window' => env('ANALYTICS_BOT_DETECTION_WINDOW', 60),
+],
+```
+
+| Key | Description |
+|-----|-------------|
+| `enabled` | Master switch for behavioral bot detection. When `false`, no visitors are flagged and the analysis job is not scheduled. |
+| `threshold` | Minimum confidence score (0–100) required to flag a visitor as a bot. Lower is more aggressive. |
+| `whitelist.user_agents` | User agents that bypass scoring, matched as case-insensitive substrings. |
+| `whitelist.ips` | IP addresses that bypass scoring, matched exactly. |
+| `signals` | Toggle individual signal categories. A disabled category contributes zero points. |
+| `analysis_interval` | How often, in minutes, the `AnalyzeBotTraffic` job runs. Normalized down to the nearest divisor of 60. |
+| `analysis_window` | How far back, in minutes, the job looks for unscored visitors on each run. |
+
+Runtime whitelist entries can also be managed with the [`analytics:whitelist`](Advanced-Artisan-Commands#analyticswhitelist) command, which supplements the config whitelist above.
+
 ## Data Retention
 
 ```php
@@ -336,6 +373,12 @@ ANALYTICS_CONSENT_REQUIRED=false
 ANALYTICS_CONSENT_LIFETIME=365
 ANALYTICS_RESPECT_DNT=true
 ANALYTICS_EXCLUDED_IPS=
+
+# Bot Detection (since 1.2.0)
+ANALYTICS_BOT_DETECTION_ENABLED=true
+ANALYTICS_BOT_DETECTION_THRESHOLD=70
+ANALYTICS_BOT_DETECTION_INTERVAL=15
+ANALYTICS_BOT_DETECTION_WINDOW=60
 
 # Data Retention
 ANALYTICS_RETENTION_DAYS=90

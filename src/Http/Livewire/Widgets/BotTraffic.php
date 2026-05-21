@@ -120,6 +120,8 @@ class BotTraffic extends Component
 	 * Used to scale the sparkline bars. Returns at least 1 to avoid
 	 * division by zero.
 	 *
+	 * @return int The largest visit count, or 1 when the trend is empty.
+	 *
 	 * @since 1.2.0
 	 */
 	public function getTrendMax(): int

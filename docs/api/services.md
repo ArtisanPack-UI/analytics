@@ -143,6 +143,61 @@ $realtime = $query->getRealtime($minutes = 5);
 ]
 ```
 
+#### excludeBots() / includeBots() / onlyBots()
+
+> **Since 1.2.0**
+
+Scope the next query's bot filtering. Queries exclude bots by default. Each modifier is fluent and applies to a single query. `withBots()` is an alias of `includeBots()`. See [Bot Filtering](Advanced-Bot-Filtering).
+
+```php
+// Default: human traffic only
+$query->getVisitors($range);
+
+// Include bot traffic
+$query->includeBots()->getVisitors($range);
+
+// Bot traffic only
+$query->onlyBots()->getVisitors($range);
+
+// Explicitly exclude bots (the default)
+$query->excludeBots()->getVisitors($range);
+```
+
+#### getTopBotAgents()
+
+> **Since 1.2.0**
+
+Get the top bot user agents by visit count:
+
+```php
+$agents = $query->getTopBotAgents($range, $limit = 10, $filters = []);
+
+// Returns Collection:
+[
+    ['user_agent' => 'GPTBot/1.0', 'visits' => 412],
+    // ...
+]
+```
+
+#### getBotStats()
+
+> **Since 1.2.0**
+
+Get a summary of filtered bot traffic:
+
+```php
+$stats = $query->getBotStats($range, $agentLimit = 10, $granularity = 'day', $filters = []);
+
+// Returns:
+[
+    'bot_visits' => 1240,
+    'total_visits' => 9810,
+    'bot_percentage' => 12.6,
+    'top_agents' => [['user_agent' => 'GPTBot/1.0', 'visits' => 412], ...],
+    'trend' => [['date' => '2026-05-01', 'visits' => 40], ...],
+]
+```
+
 ---
 
 ## TrackingService
@@ -410,3 +465,68 @@ Delete data older than retention period:
 ```php
 $deletionService->deleteOldData($days = 90);
 ```
+
+---
+
+## BotDetector
+
+> **Since 1.2.0**
+
+Implements the multi-signal confidence scoring system used to identify bot traffic. See [Bot Filtering](Advanced-Bot-Filtering) for the full feature guide.
+
+### Usage
+
+```php
+use ArtisanPackUI\Analytics\Services\BotDetector;
+
+$detector = app(BotDetector::class);
+```
+
+### Methods
+
+#### score()
+
+Calculate the bot confidence score (0–100) for a visitor:
+
+```php
+$score = $detector->score($visitor);
+// Returns: int
+```
+
+#### isBot()
+
+Determine whether a visitor should be considered a bot. Returns `false` when detection is disabled or the visitor is whitelisted; otherwise compares the score against the threshold:
+
+```php
+$isBot = $detector->isBot($visitor);
+// Returns: bool
+```
+
+#### isWhitelisted()
+
+Determine whether a visitor is whitelisted from scoring, checking both the config and database whitelists:
+
+```php
+$whitelisted = $detector->isWhitelisted($visitor);
+// Returns: bool
+```
+
+#### threshold()
+
+Get the configured confidence threshold (default `70`):
+
+```php
+$threshold = $detector->threshold();
+// Returns: int
+```
+
+#### enabled()
+
+Determine whether bot detection is enabled:
+
+```php
+$enabled = $detector->enabled();
+// Returns: bool
+```
+
+Scoring is applied to recent visitors in the background by the `AnalyzeBotTraffic` job, which persists the result to the visitor's `is_bot`, `bot_score`, and `bot_detected_at` columns.
