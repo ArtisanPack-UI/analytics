@@ -6,6 +6,7 @@ use ArtisanPackUI\Analytics\Models\BotWhitelistEntry;
 use ArtisanPackUI\Analytics\Models\Visitor;
 use ArtisanPackUI\Analytics\Services\BotDetector;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
 
 uses( RefreshDatabase::class );
 
@@ -27,6 +28,27 @@ test( 'whitelist list shows config and database entries', function (): void {
         ->expectsOutputToContain( 'Googlebot' )
         ->expectsOutputToContain( '1.2.3.4' )
         ->assertSuccessful();
+} );
+
+test( 'whitelist list shows config entries when the table is missing', function (): void {
+    config()->set( 'artisanpack.analytics.bot_detection.whitelist.user_agents', [ 'Googlebot' ] );
+    config()->set( 'artisanpack.analytics.bot_detection.whitelist.ips', [ '1.2.3.4' ] );
+
+    Schema::drop( 'analytics_bot_whitelist' );
+
+    $this->artisan( 'analytics:whitelist', [ 'action' => 'list' ] )
+        ->expectsOutputToContain( 'Googlebot' )
+        ->expectsOutputToContain( '1.2.3.4' )
+        ->doesntExpectOutputToContain( 'table was not found' )
+        ->assertSuccessful();
+} );
+
+test( 'whitelist add fails when the table is missing', function (): void {
+    Schema::drop( 'analytics_bot_whitelist' );
+
+    $this->artisan( 'analytics:whitelist', [ 'action' => 'add', '--user-agent' => 'Googlebot' ] )
+        ->expectsOutputToContain( 'table was not found' )
+        ->assertFailed();
 } );
 
 test( 'whitelist add stores a user agent entry', function (): void {

@@ -63,10 +63,6 @@ class WhitelistCommand extends Command
 	 */
 	protected function list(): int
 	{
-		if ( ! $this->ensureTableExists() ) {
-			return self::FAILURE;
-		}
-
 		$rows = [];
 
 		/** @var array<int, string> $configAgents */
@@ -81,12 +77,14 @@ class WhitelistCommand extends Command
 			$rows[] = [ __( 'IP' ), $value, __( 'config' ) ];
 		}
 
-		foreach ( BotWhitelistEntry::query()->orderBy( 'type' )->orderBy( 'value' )->get() as $entry ) {
-			$rows[] = [
-				BotWhitelistEntry::TYPE_IP === $entry->type ? __( 'IP' ) : __( 'User Agent' ),
-				$entry->value,
-				__( 'database' ),
-			];
+		if ( $this->ensureTableExists( false ) ) {
+			foreach ( BotWhitelistEntry::query()->orderBy( 'type' )->orderBy( 'value' )->get() as $entry ) {
+				$rows[] = [
+					BotWhitelistEntry::TYPE_IP === $entry->type ? __( 'IP' ) : __( 'User Agent' ),
+					$entry->value,
+					__( 'database' ),
+				];
+			}
 		}
 
 		if ( [] === $rows ) {
@@ -208,17 +206,21 @@ class WhitelistCommand extends Command
 	/**
 	 * Ensure the whitelist table has been migrated before querying it.
 	 *
+	 * @param bool $reportError Whether to emit a command error when the table is missing.
+	 *
 	 * @return bool
 	 *
 	 * @since 1.2.0
 	 */
-	protected function ensureTableExists(): bool
+	protected function ensureTableExists( bool $reportError = true ): bool
 	{
 		if ( Schema::hasTable( ( new BotWhitelistEntry() )->getTable() ) ) {
 			return true;
 		}
 
-		$this->error( __( 'The bot whitelist table was not found. Run migrations first.' ) );
+		if ( $reportError ) {
+			$this->error( __( 'The bot whitelist table was not found. Run migrations first.' ) );
+		}
 
 		return false;
 	}
