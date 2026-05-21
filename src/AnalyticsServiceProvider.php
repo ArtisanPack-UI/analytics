@@ -5,6 +5,7 @@ declare( strict_types=1 );
 namespace ArtisanPackUI\Analytics;
 
 use ArtisanPackUI\Analytics\Auth\ApiKeyGuard;
+use ArtisanPackUI\Analytics\Console\Commands\BotsListCommand;
 use ArtisanPackUI\Analytics\Console\Commands\CacheClearCommand;
 use ArtisanPackUI\Analytics\Console\Commands\CleanupCommand;
 use ArtisanPackUI\Analytics\Console\Commands\GoalsListCommand;
@@ -15,6 +16,7 @@ use ArtisanPackUI\Analytics\Console\Commands\SiteApiKeyCommand;
 use ArtisanPackUI\Analytics\Console\Commands\SiteCreateCommand;
 use ArtisanPackUI\Analytics\Console\Commands\SitesListCommand;
 use ArtisanPackUI\Analytics\Console\Commands\StatsCommand;
+use ArtisanPackUI\Analytics\Console\Commands\WhitelistCommand;
 use ArtisanPackUI\Analytics\Contracts\AnalyticsServiceInterface;
 use ArtisanPackUI\Analytics\Http\Middleware\AnalyticsThrottle;
 use ArtisanPackUI\Analytics\Http\Middleware\AuthenticateWithApiKey;
@@ -492,6 +494,8 @@ class AnalyticsServiceProvider extends ServiceProvider
                 SiteApiKeyCommand::class,
                 GoalsListCommand::class,
                 RealtimeCommand::class,
+                BotsListCommand::class,
+                WhitelistCommand::class,
             ] );
         }
     }

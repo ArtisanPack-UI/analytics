@@ -4,9 +4,12 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\Analytics\Services;
 
+use ArtisanPackUI\Analytics\Models\BotWhitelistEntry;
 use ArtisanPackUI\Analytics\Models\PageView;
 use ArtisanPackUI\Analytics\Models\Visitor;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
+use Throwable;
 
 /**
  * Bot detection service.
@@ -98,6 +101,20 @@ class BotDetector
 	 * @var int
 	 */
 	protected const MAX_SCORE = 100;
+
+	/**
+	 * Memoized whitelisted user agent patterns (config + database).
+	 *
+	 * @var array<int, string>|null
+	 */
+	protected ?array $whitelistedUserAgents = null;
+
+	/**
+	 * Memoized whitelisted IP addresses (config + database).
+	 *
+	 * @var array<int, string>|null
+	 */
+	protected ?array $whitelistedIps = null;
 
 	/**
 	 * Create a new bot detector instance.
@@ -196,8 +213,7 @@ class BotDetector
 	 */
 	public function isWhitelisted( Visitor $visitor ): bool
 	{
-		/** @var array<int, string> $userAgents */
-		$userAgents = config( 'artisanpack.analytics.bot_detection.whitelist.user_agents', [] );
+		$userAgents = $this->whitelistedUserAgents();
 
 		if ( null !== $visitor->user_agent && '' !== $visitor->user_agent ) {
 			$userAgentLower = strtolower( $visitor->user_agent );
@@ -209,14 +225,86 @@ class BotDetector
 			}
 		}
 
-		/** @var array<int, string> $ips */
-		$ips = config( 'artisanpack.analytics.bot_detection.whitelist.ips', [] );
-
-		if ( null !== $visitor->ip_address && in_array( $visitor->ip_address, $ips, true ) ) {
+		if ( null !== $visitor->ip_address && in_array( $visitor->ip_address, $this->whitelistedIps(), true ) ) {
 			return true;
 		}
 
 		return false;
+	}
+
+	/**
+	 * Get the whitelisted user agent patterns from config and the database.
+	 *
+	 * Results are memoized for the lifetime of the instance to avoid
+	 * re-querying while scoring a batch of visitors.
+	 *
+	 * @return array<int, string>
+	 *
+	 * @since 1.2.0
+	 */
+	protected function whitelistedUserAgents(): array
+	{
+		if ( null === $this->whitelistedUserAgents ) {
+			/** @var array<int, string> $configAgents */
+			$configAgents = config( 'artisanpack.analytics.bot_detection.whitelist.user_agents', [] );
+
+			$this->whitelistedUserAgents = array_values( array_unique( array_merge(
+				$configAgents,
+				$this->databaseWhitelist( BotWhitelistEntry::TYPE_USER_AGENT ),
+			) ) );
+		}
+
+		return $this->whitelistedUserAgents;
+	}
+
+	/**
+	 * Get the whitelisted IP addresses from config and the database.
+	 *
+	 * Results are memoized for the lifetime of the instance to avoid
+	 * re-querying while scoring a batch of visitors.
+	 *
+	 * @return array<int, string>
+	 *
+	 * @since 1.2.0
+	 */
+	protected function whitelistedIps(): array
+	{
+		if ( null === $this->whitelistedIps ) {
+			/** @var array<int, string> $configIps */
+			$configIps = config( 'artisanpack.analytics.bot_detection.whitelist.ips', [] );
+
+			$this->whitelistedIps = array_values( array_unique( array_merge(
+				$configIps,
+				$this->databaseWhitelist( BotWhitelistEntry::TYPE_IP ),
+			) ) );
+		}
+
+		return $this->whitelistedIps;
+	}
+
+	/**
+	 * Get the database whitelist values for the given type.
+	 *
+	 * Returns an empty list when the whitelist table has not been migrated
+	 * yet, so bot scoring continues to work on a config-only setup.
+	 *
+	 * @param string $type The whitelist entry type.
+	 *
+	 * @return array<int, string>
+	 *
+	 * @since 1.2.0
+	 */
+	protected function databaseWhitelist( string $type ): array
+	{
+		try {
+			if ( ! Schema::hasTable( ( new BotWhitelistEntry() )->getTable() ) ) {
+				return [];
+			}
+
+			return BotWhitelistEntry::query()->where( 'type', $type )->pluck( 'value' )->all();
+		} catch ( Throwable ) {
+			return [];
+		}
 	}
 
 	/**
