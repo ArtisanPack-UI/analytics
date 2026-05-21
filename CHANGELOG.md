@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-05-20
+
+### Added
+
+#### AI Bot Traffic Filtering
+
+A multi-layered system that keeps automated traffic — AI crawlers, SEO tools, scrapers, and headless browsers — out of reported analytics. Bot-flagged data is stored but excluded from dashboard and query results by default. Enabled by default.
+
+- **Expanded bot pattern list**: `DeviceDetector` now matches 60+ known bots, including AI crawlers (GPTBot, ClaudeBot, CCBot, PerplexityBot), regional crawlers (ByteSpider, Baidu, Sogou, Yandex), SEO tools (SEMrush, Ahrefs, Majestic), and scraper/automation tooling
+- **BotDetector service**: Multi-signal confidence scoring (0–100) with a configurable threshold (default 70), combining user agent, engagement, request-pattern, and JavaScript fingerprint signals
+- **Bot detection columns**: `is_bot`, `bot_score`, and `bot_detected_at` added to the `analytics_visitors` table
+- **JS fingerprint signals**: The tracker payload now collects privacy-preserving WebDriver, headless, and missing-API signals
+- **AnalyzeBotTraffic job**: Post-hoc behavioral analysis that scores recent visitors on a configurable schedule
+- **Bot-aware query scoping**: `excludeBots()`, `includeBots()`/`withBots()`, and `onlyBots()` modifiers on `AnalyticsQuery`, plus `getTopBotAgents()` and `getBotStats()`, with a dashboard toggle to view bot traffic
+- **Bot Traffic widget**: New dashboard widget for Livewire, React, and Vue showing filtered bot traffic, the bot share of total traffic, top bot agents, and a bot-only trend
+- **Artisan commands**: `analytics:bots` to list flagged visitors (with CSV export) and `analytics:whitelist` to manage runtime whitelist entries
+- **Runtime whitelist**: `BotWhitelistEntry` model and `analytics_bot_whitelist` table supplementing the static config whitelist
+- **Configuration**: New `bot_detection` config section for the threshold, whitelist, per-signal toggles, and analysis schedule
+- **Documentation**: New Bot Filtering guide and Bot Traffic widget reference, plus updated configuration, artisan command, and API reference docs
+
+### Security
+
+- Updated vulnerable transitive development dependencies to patched versions, clearing all reported advisories (10 advisories across 6 packages, including `symfony/yaml` CVE-2026-45133)
+
 ## [1.1.1] - 2026-05-20
 
 ### Fixed
