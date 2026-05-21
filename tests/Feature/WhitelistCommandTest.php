@@ -34,7 +34,7 @@ test( 'whitelist list shows config entries when the table is missing', function 
     config()->set( 'artisanpack.analytics.bot_detection.whitelist.user_agents', [ 'Googlebot' ] );
     config()->set( 'artisanpack.analytics.bot_detection.whitelist.ips', [ '1.2.3.4' ] );
 
-    Schema::drop( 'analytics_bot_whitelist' );
+    Schema::dropIfExists( 'analytics_bot_whitelist' );
 
     $this->artisan( 'analytics:whitelist', [ 'action' => 'list' ] )
         ->expectsOutputToContain( 'Googlebot' )
@@ -44,7 +44,7 @@ test( 'whitelist list shows config entries when the table is missing', function 
 } );
 
 test( 'whitelist add fails when the table is missing', function (): void {
-    Schema::drop( 'analytics_bot_whitelist' );
+    Schema::dropIfExists( 'analytics_bot_whitelist' );
 
     $this->artisan( 'analytics:whitelist', [ 'action' => 'add', '--user-agent' => 'Googlebot' ] )
         ->expectsOutputToContain( 'table was not found' )
