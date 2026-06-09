@@ -8,11 +8,12 @@ Before installing ArtisanPack UI Analytics, ensure your environment meets the fo
 
 ## PHP Version
 
-- **PHP 8.2** or higher
+- **Laravel 11 or 12:** PHP 8.2 or higher
+- **Laravel 13:** PHP 8.3 or higher
 
 ## Laravel Version
 
-- **Laravel 11.x** or **Laravel 12.x**
+- **Laravel 11.x**, **Laravel 12.x**, or **Laravel 13.x**
 
 ## Required PHP Extensions
 
