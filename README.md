@@ -250,8 +250,8 @@ Schedule::command('analytics:warm-cache')->hourly();
 
 ## Requirements
 
-- PHP 8.2 or higher
-- Laravel 11, 12, or 13
+- Laravel 11 or 12: PHP 8.2+
+- Laravel 13: PHP 8.3+
 - Livewire 3.6.4+
 
 ## Dependencies
