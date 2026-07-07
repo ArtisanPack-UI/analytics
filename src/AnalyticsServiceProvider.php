@@ -4,6 +4,10 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\Analytics;
 
+use ArtisanPackUI\Analytics\Ai\Agents\AnomalyExplanationAgent;
+use ArtisanPackUI\Analytics\Ai\Agents\DigestEmailAgent;
+use ArtisanPackUI\Analytics\Ai\Agents\InsightSummaryAgent;
+use ArtisanPackUI\Analytics\Ai\Agents\SegmentInsightAgent;
 use ArtisanPackUI\Analytics\Auth\ApiKeyGuard;
 use ArtisanPackUI\Analytics\Console\Commands\BotsListCommand;
 use ArtisanPackUI\Analytics\Console\Commands\CacheClearCommand;
@@ -213,6 +217,50 @@ class AnalyticsServiceProvider extends ServiceProvider
         $this->registerPrivacyHooks();
         $this->registerAuthGuard();
         $this->registerInertiaSharedData();
+        $this->registerAiGate();
+        $this->registerAiLivewireComponents();
+    }
+
+    /**
+     * Declare AI features owned by this package.
+     *
+     * Auto-discovered by artisanpack-ui/ai when the ai package is installed.
+     * Each entry maps a fully-qualified feature key to the agent class that
+     * fulfills it, along with a human-readable label and description for the
+     * admin UI.
+     *
+     * @since 1.3.0
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public function aiFeatures(): array
+    {
+        return [
+            'analytics.insight_summary' => [
+                'agent'       => InsightSummaryAgent::class,
+                'package'     => 'artisanpack-ui/analytics',
+                'label'       => __( 'Summarize insights' ),
+                'description' => __( 'Plain-language narrative summary of a date range with highlights and concerns.' ),
+            ],
+            'analytics.explain_anomaly' => [
+                'agent'       => AnomalyExplanationAgent::class,
+                'package'     => 'artisanpack-ui/analytics',
+                'label'       => __( 'Explain anomaly' ),
+                'description' => __( 'Rank likely causes of a detected traffic anomaly with evidence and next steps.' ),
+            ],
+            'analytics.segment_insight' => [
+                'agent'       => SegmentInsightAgent::class,
+                'package'     => 'artisanpack-ui/analytics',
+                'label'       => __( 'Segment insight' ),
+                'description' => __( 'Surface patterns in a visitor segment relative to a baseline.' ),
+            ],
+            'analytics.digest_email' => [
+                'agent'       => DigestEmailAgent::class,
+                'package'     => 'artisanpack-ui/analytics',
+                'label'       => __( 'Digest email' ),
+                'description' => __( 'Compose the AI narrative body of the opt-in weekly/monthly analytics digest.' ),
+            ],
+        ];
     }
 
     /**
@@ -242,6 +290,61 @@ class AnalyticsServiceProvider extends ServiceProvider
             SiteSettingsService::class,
             CrossTenantReporting::class,
         ];
+    }
+
+    /**
+     * Register the default `analytics.ai.use` authorization gate.
+     *
+     * The AI API endpoints gate on this ability so that paid quota isn't spent
+     * by every authenticated user. Ships with a permissive default (any
+     * authenticated user can use AI features) so upgrades are non-breaking;
+     * installers should override this gate to enforce a stricter policy.
+     *
+     * @since 1.3.0
+     *
+     * @return void
+     */
+    protected function registerAiGate(): void
+    {
+        $gate = \Illuminate\Support\Facades\Gate::getFacadeRoot();
+
+        if ( method_exists( $gate, 'has' ) && $gate->has( 'analytics.ai.use' ) ) {
+            return;
+        }
+
+        \Illuminate\Support\Facades\Gate::define(
+            'analytics.ai.use',
+            static function ( $user = null ): bool {
+                return null !== $user;
+            },
+        );
+    }
+
+    /**
+     * Register the AI Livewire components (since 1.3.0).
+     *
+     * The dashboard components are wired via `addNamespace` above, but each
+     * AI trigger is bound by its explicit alias so consumers get a stable
+     * `artisanpack-analytics::ai-*` handle even when the Livewire 3 code
+     * path is used.
+     *
+     * @since 1.3.0
+     *
+     * @return void
+     */
+    protected function registerAiLivewireComponents(): void
+    {
+        if ( ! class_exists( \Livewire\Livewire::class ) ) {
+            return;
+        }
+
+        // Use dot-notation for the sub-namespace segment so Livewire's finder
+        // can round-trip the alias back to the `Ai\*` class. Hyphens between
+        // words in the class name are fine — dots separate class segments.
+        \Livewire\Livewire::component( 'artisanpack-analytics::ai.insight-summary', Http\Livewire\Ai\InsightSummary::class );
+        \Livewire\Livewire::component( 'artisanpack-analytics::ai.anomaly-explanation', Http\Livewire\Ai\AnomalyExplanation::class );
+        \Livewire\Livewire::component( 'artisanpack-analytics::ai.segment-insight', Http\Livewire\Ai\SegmentInsight::class );
+        \Livewire\Livewire::component( 'artisanpack-analytics::ai.digest-subscription', Http\Livewire\Ai\DigestSubscription::class );
     }
 
     /**
@@ -364,6 +467,13 @@ class AnalyticsServiceProvider extends ServiceProvider
                 __DIR__ . '/../resources/js/react' => resource_path( 'js/vendor/artisanpack-analytics/react' ),
                 __DIR__ . '/../resources/js/types' => resource_path( 'js/vendor/artisanpack-analytics/types' ),
             ], 'analytics-react' );
+
+            // Focused publish tag for just the AI trigger components + hooks (since 1.3.0).
+            $this->publishes( [
+                __DIR__ . '/../resources/js/react/components/ai'       => resource_path( 'js/vendor/artisanpack-analytics/react/components/ai' ),
+                __DIR__ . '/../resources/js/react/hooks/useAiAgent.ts' => resource_path( 'js/vendor/artisanpack-analytics/react/hooks/useAiAgent.ts' ),
+                __DIR__ . '/../resources/js/react/hooks/useApi.ts'     => resource_path( 'js/vendor/artisanpack-analytics/react/hooks/useApi.ts' ),
+            ], 'analytics-react-ai' );
         }
     }
 
@@ -382,6 +492,13 @@ class AnalyticsServiceProvider extends ServiceProvider
                 __DIR__ . '/../resources/js/vue'   => resource_path( 'js/vendor/artisanpack-analytics/vue' ),
                 __DIR__ . '/../resources/js/types' => resource_path( 'js/vendor/artisanpack-analytics/types' ),
             ], 'analytics-vue' );
+
+            // Focused publish tag for just the AI trigger components + composables (since 1.3.0).
+            $this->publishes( [
+                __DIR__ . '/../resources/js/vue/components/ai'             => resource_path( 'js/vendor/artisanpack-analytics/vue/components/ai' ),
+                __DIR__ . '/../resources/js/vue/composables/useAiAgent.ts' => resource_path( 'js/vendor/artisanpack-analytics/vue/composables/useAiAgent.ts' ),
+                __DIR__ . '/../resources/js/vue/composables/useApi.ts'     => resource_path( 'js/vendor/artisanpack-analytics/vue/composables/useApi.ts' ),
+            ], 'analytics-vue-ai' );
         }
     }
 

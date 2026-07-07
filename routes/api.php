@@ -4,6 +4,7 @@ declare( strict_types=1 );
 
 use ArtisanPackUI\Analytics\Http\Controllers\AnalyticsController;
 use ArtisanPackUI\Analytics\Http\Controllers\AnalyticsQueryController;
+use ArtisanPackUI\Analytics\Http\Controllers\Api\AiAgentApiController;
 use ArtisanPackUI\Analytics\Http\Controllers\ConsentController;
 use ArtisanPackUI\Analytics\Http\Controllers\SiteApiController;
 use Illuminate\Support\Facades\Route;
@@ -94,6 +95,30 @@ Route::middleware( config( 'artisanpack.analytics.dashboard_middleware', [ 'auth
 
 	Route::get( '/bots', [ AnalyticsQueryController::class, 'bots' ] )
 		->name( 'analytics.bots' );
+
+	/*
+	|--------------------------------------------------------------------------
+	| AI Agent Endpoints (since 1.3.0)
+	|--------------------------------------------------------------------------
+	|
+	| POST endpoints for the four Analytics AI agents. Each dispatches its
+	| corresponding agent behind the `analytics.ai.use` gate and returns a
+	| `{ data, feature_key }` envelope.
+	|
+	*/
+	Route::prefix( 'ai' )->group( function (): void {
+		Route::post( 'insight-summary', [ AiAgentApiController::class, 'insightSummary' ] )
+			->name( 'analytics.api.ai.insight-summary' );
+
+		Route::post( 'explain-anomaly', [ AiAgentApiController::class, 'explainAnomaly' ] )
+			->name( 'analytics.api.ai.explain-anomaly' );
+
+		Route::post( 'segment-insight', [ AiAgentApiController::class, 'segmentInsight' ] )
+			->name( 'analytics.api.ai.segment-insight' );
+
+		Route::post( 'digest-email', [ AiAgentApiController::class, 'digestEmail' ] )
+			->name( 'analytics.api.ai.digest-email' );
+	} );
 } );
 
 /*
