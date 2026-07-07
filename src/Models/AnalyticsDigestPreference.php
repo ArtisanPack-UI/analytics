@@ -16,6 +16,7 @@ declare( strict_types=1 );
 namespace ArtisanPackUI\Analytics\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Per-user opt-in preference for the AI analytics digest email.
@@ -76,6 +77,24 @@ class AnalyticsDigestPreference extends Model
 	public function isOptedIn(): bool
 	{
 		return in_array( $this->cadence, self::ACTIVE_CADENCES, true );
+	}
+
+	/**
+	 * Related user record.
+	 *
+	 * Resolves the application's configured `auth.providers.users.model`
+	 * so this package doesn't hard-code an `App\Models\User` reference.
+	 *
+	 * @since 1.3.0
+	 *
+	 * @return BelongsTo<Model, self>
+	 */
+	public function user(): BelongsTo
+	{
+		/** @var class-string<Model> $userModel */
+		$userModel = config( 'auth.providers.users.model', 'App\\Models\\User' );
+
+		return $this->belongsTo( $userModel, 'user_id' );
 	}
 
 	/**

@@ -24,7 +24,7 @@ return new class extends Migration
 	{
 		Schema::create( 'analytics_digest_preferences', function ( Blueprint $table ) {
 			$table->id();
-			$table->unsignedBigInteger( 'user_id' );
+			$table->foreignId( 'user_id' )->constrained()->cascadeOnDelete();
 			$table->string( 'cadence', 16 )->default( 'off' );
 			$table->timestamp( 'last_sent_at' )->nullable();
 			$table->timestamps();

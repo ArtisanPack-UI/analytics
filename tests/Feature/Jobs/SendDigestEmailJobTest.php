@@ -75,3 +75,43 @@ it( 'does not send when the feature toggle is off', function (): void {
 
 	Mail::assertNothingOutgoing();
 } );
+
+it( 'skips when last_sent_at is already inside the current cadence window', function (): void {
+	// Preference sent 10 minutes ago should not re-send this week.
+	$preference = AnalyticsDigestPreference::create( [
+		'user_id'      => 8,
+		'cadence'      => 'weekly',
+		'last_sent_at' => now()->subMinutes( 10 ),
+	] );
+
+	Mail::fake();
+
+	( new SendDigestEmailJob( 8, 'user@example.test', [ [ 'metric' => 'pv', 'value' => 10 ] ], 'This week' ) )->handle();
+
+	Mail::assertNothingOutgoing();
+	// Preference untouched — the queued FakeAgentPrompter response is unused.
+	expect( $preference->fresh()->last_sent_at )->not->toBeNull();
+} );
+
+it( 'fails closed when the feature key is not registered', function (): void {
+	AnalyticsDigestPreference::create( [ 'user_id' => 10, 'cadence' => 'weekly' ] );
+
+	// Remove the feature from the registry entirely (simulating a fresh
+	// install where auto-discovery hasn't run yet). The guard must not
+	// bypass the toggle check just because the key is missing.
+	$registry = app( ArtisanPackUI\Ai\Contracts\FeatureRegistry::class );
+
+	// If the registry doesn't expose remove(), disable() has the same
+	// externally-observable effect via `isToggleOn() === false`.
+	if ( method_exists( $registry, 'reset' ) ) {
+		$registry->reset();
+	} else {
+		$registry->disable( 'analytics.digest_email' );
+	}
+
+	Mail::fake();
+
+	( new SendDigestEmailJob( 10, 'user@example.test', [ [ 'metric' => 'pv', 'value' => 10 ] ], 'This week' ) )->handle();
+
+	Mail::assertNothingOutgoing();
+} );

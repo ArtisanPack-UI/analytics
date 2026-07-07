@@ -29,8 +29,10 @@ use ArtisanPackUI\Analytics\Ai\Agents\InsightSummaryAgent;
 use ArtisanPackUI\Analytics\Ai\Agents\SegmentInsightAgent;
 use ArtisanPackUI\Analytics\Http\Requests\Api\Ai\AnomalyExplanationAiRequest;
 use ArtisanPackUI\Analytics\Http\Requests\Api\Ai\DigestEmailAiRequest;
+use ArtisanPackUI\Analytics\Http\Requests\Api\Ai\DigestSubscriptionAiRequest;
 use ArtisanPackUI\Analytics\Http\Requests\Api\Ai\InsightSummaryAiRequest;
 use ArtisanPackUI\Analytics\Http\Requests\Api\Ai\SegmentInsightAiRequest;
+use ArtisanPackUI\Analytics\Models\AnalyticsDigestPreference;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Throwable;
@@ -100,6 +102,32 @@ class AiAgentApiController extends Controller
 	}
 
 	/**
+	 * Persist the current user's digest-email opt-in preference.
+	 *
+	 * @since 1.3.0
+	 */
+	public function saveDigestSubscription( DigestSubscriptionAiRequest $request ): JsonResponse
+	{
+		$user = $request->user();
+
+		if ( null === $user ) {
+			return response()->json( [ 'message' => __( 'Unauthenticated.' ) ], 401 );
+		}
+
+		$preference = AnalyticsDigestPreference::query()->updateOrCreate(
+			[ 'user_id' => $user->getAuthIdentifier() ],
+			[ 'cadence' => $request->string( 'cadence' )->toString() ],
+		);
+
+		return response()->json( [
+			'data' => [
+				'cadence'      => $preference->cadence,
+				'last_sent_at' => $preference->last_sent_at?->toIso8601String(),
+			],
+		] );
+	}
+
+	/**
 	 * Run the agent associated with `$featureKey`.
 	 *
 	 * @since 1.3.0
@@ -117,7 +145,9 @@ class AiAgentApiController extends Controller
 
 		$registry = app( FeatureRegistry::class );
 
-		if ( null !== $registry->get( $featureKey ) && ! $registry->isToggleOn( $featureKey ) ) {
+		// Fail closed: `isToggleOn()` already returns false when the feature
+		// key is not registered, so a missing key must not bypass the guard.
+		if ( ! $registry->isToggleOn( $featureKey ) ) {
 			return response()->json( [
 				'message'     => __( 'This AI feature is disabled.' ),
 				'feature_key' => $featureKey,

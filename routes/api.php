@@ -118,6 +118,9 @@ Route::middleware( config( 'artisanpack.analytics.dashboard_middleware', [ 'auth
 
 		Route::post( 'digest-email', [ AiAgentApiController::class, 'digestEmail' ] )
 			->name( 'analytics.api.ai.digest-email' );
+
+		Route::post( 'digest-subscription', [ AiAgentApiController::class, 'saveDigestSubscription' ] )
+			->name( 'analytics.api.ai.digest-subscription' );
 	} );
 } );
 

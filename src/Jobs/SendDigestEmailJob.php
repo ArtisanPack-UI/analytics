@@ -17,6 +17,7 @@ namespace ArtisanPackUI\Analytics\Jobs;
 
 use ArtisanPackUI\Ai\Contracts\FeatureRegistry;
 use ArtisanPackUI\Ai\Exceptions\FeatureDisabledException;
+use ArtisanPackUI\Ai\Exceptions\FeatureError;
 use ArtisanPackUI\Ai\Exceptions\MissingCredentialsException;
 use ArtisanPackUI\Analytics\Ai\Agents\DigestEmailAgent;
 use ArtisanPackUI\Analytics\Mail\DigestEmailMailable;
@@ -82,7 +83,18 @@ class SendDigestEmailJob implements ShouldQueue
 		$registry = app( FeatureRegistry::class );
 		$key      = 'analytics.digest_email';
 
-		if ( null !== $registry->get( $key ) && ! $registry->isToggleOn( $key ) ) {
+		// Fail closed: `isToggleOn()` already returns false when the feature
+		// key is not registered, so a missing key must not bypass the guard.
+		if ( ! $registry->isToggleOn( $key ) ) {
+			return;
+		}
+
+		// Idempotency: skip if a digest for this cadence window has already
+		// been sent, so retries + duplicate scheduler ticks can't re-run the
+		// paid agent or re-deliver the mail.
+		$windowStart = $this->windowStart( $preference->cadence );
+
+		if ( null !== $preference->last_sent_at && CarbonImmutable::instance( $preference->last_sent_at )->greaterThanOrEqualTo( $windowStart ) ) {
 			return;
 		}
 
@@ -95,6 +107,13 @@ class SendDigestEmailJob implements ShouldQueue
 		} catch ( FeatureDisabledException | MissingCredentialsException $exception ) {
 			Log::info( sprintf( 'Analytics digest email skipped for user %d: %s', $this->userId, $exception->getMessage() ) );
 			return;
+		} catch ( FeatureError $exception ) {
+			// Malformed payload — do not retry, and advance last_sent_at
+			// past the current window so the next scheduled tick does not
+			// re-enqueue the same bad payload.
+			Log::warning( sprintf( 'Analytics digest email failed for user %d: %s', $this->userId, $exception->getMessage() ) );
+			$preference->forceFill( [ 'last_sent_at' => CarbonImmutable::now() ] )->save();
+			return;
 		}
 
 		Mail::to( $this->email )->send( new DigestEmailMailable(
@@ -104,5 +123,24 @@ class SendDigestEmailJob implements ShouldQueue
 		) );
 
 		$preference->forceFill( [ 'last_sent_at' => CarbonImmutable::now() ] )->save();
+	}
+
+	/**
+	 * Start of the current cadence window (Monday 00:00 for weekly, day-1
+	 * of the month for monthly). Used for idempotency comparisons only.
+	 *
+	 * @since 1.3.0
+	 *
+	 * @param  string  $cadence  Preference cadence.
+	 *
+	 * @return CarbonImmutable
+	 */
+	protected function windowStart( string $cadence ): CarbonImmutable
+	{
+		$now = CarbonImmutable::now();
+
+		return AnalyticsDigestPreference::CADENCE_MONTHLY === $cadence
+			? $now->startOfMonth()
+			: $now->startOfWeek();
 	}
 }

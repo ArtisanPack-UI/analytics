@@ -12,6 +12,7 @@ use ArtisanPackUI\Analytics\Auth\ApiKeyGuard;
 use ArtisanPackUI\Analytics\Console\Commands\BotsListCommand;
 use ArtisanPackUI\Analytics\Console\Commands\CacheClearCommand;
 use ArtisanPackUI\Analytics\Console\Commands\CleanupCommand;
+use ArtisanPackUI\Analytics\Console\Commands\DispatchDigestsCommand;
 use ArtisanPackUI\Analytics\Console\Commands\GoalsListCommand;
 use ArtisanPackUI\Analytics\Console\Commands\InstallCommand;
 use ArtisanPackUI\Analytics\Console\Commands\InstallFrontendCommand;
@@ -613,6 +614,7 @@ class AnalyticsServiceProvider extends ServiceProvider
                 RealtimeCommand::class,
                 BotsListCommand::class,
                 WhitelistCommand::class,
+                DispatchDigestsCommand::class,
             ] );
         }
     }
@@ -629,18 +631,37 @@ class AnalyticsServiceProvider extends ServiceProvider
      */
     protected function registerScheduledJobs(): void
     {
-        if ( ! (bool) config( 'artisanpack.analytics.bot_detection.enabled', true ) ) {
-            return;
-        }
-
         $this->app->booted( function (): void {
             $schedule = $this->app->make( Schedule::class );
-            $interval = $this->botAnalysisIntervalMinutes();
 
-            $schedule->job( new AnalyzeBotTraffic() )
-                ->cron( sprintf( '*/%d * * * *', $interval ) )
-                ->name( 'analytics-analyze-bot-traffic' )
+            if ( (bool) config( 'artisanpack.analytics.bot_detection.enabled', true ) ) {
+                $interval = $this->botAnalysisIntervalMinutes();
+
+                $schedule->job( new AnalyzeBotTraffic() )
+                    ->cron( sprintf( '*/%d * * * *', $interval ) )
+                    ->name( 'analytics-analyze-bot-traffic' )
+                    ->withoutOverlapping();
+            }
+
+            // Digest email dispatcher: iterates opted-in preferences and
+            // enqueues SendDigestEmailJob for any user whose cadence window
+            // is due. Host apps override the schedule (or opt out entirely)
+            // via `artisanpack.analytics.digest.schedule`.
+            $digestSchedule = (string) config( 'artisanpack.analytics.digest.schedule', 'hourly' );
+
+            if ( 'off' === $digestSchedule ) {
+                return;
+            }
+
+            $entry = $schedule->command( 'analytics:dispatch-digests' )
+                ->name( 'analytics-dispatch-digests' )
                 ->withoutOverlapping();
+
+            if ( method_exists( $entry, $digestSchedule ) ) {
+                $entry->{$digestSchedule}();
+            } else {
+                $entry->cron( $digestSchedule );
+            }
         } );
     }
 
