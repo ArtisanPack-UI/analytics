@@ -57,8 +57,13 @@ abstract class TestCase extends BaseTestCase
 	{
 		$providers = [
 			LivewireServiceProvider::class,
-			AnalyticsServiceProvider::class,
 		];
+
+		if ( class_exists( \ArtisanPackUI\Ai\AiServiceProvider::class ) ) {
+			$providers[] = \ArtisanPackUI\Ai\AiServiceProvider::class;
+		}
+
+		$providers[] = AnalyticsServiceProvider::class;
 
 		// Register Inertia service provider when available
 		if ( class_exists( \Inertia\ServiceProvider::class ) ) {

@@ -57,6 +57,81 @@ $stats = analyticsStats(DateRange::last30Days());
 - **IP Anonymization**: GDPR-compliant IP address handling
 - **Bot Filtering**: Automatic exclusion of known bots and crawlers
 
+## AI features
+
+The Analytics package ships four AI agents that plug into `artisanpack-ui/ai`. Every feature is toggleable via the `artisanpack.ai.features.{key}.enabled` config (or the AI package's runtime registry) — Livewire, React, and Vue triggers all render a "disabled" state when a feature is off.
+
+| Feature key | Input | Output | Default model |
+|-------------|-------|--------|---------------|
+| `analytics.insight_summary` | `{ date_range, metrics, compare_to? }` | `{ summary, highlights[], concerns[] }` | `claude-sonnet-4-6` (streams) |
+| `analytics.explain_anomaly` | `{ anomaly: {metric,direction,magnitude,date}, context: {recent_content_changes, referrer_deltas, campaign_launches} }` | `{ hypotheses:[{cause,confidence,evidence[]}], recommended_next_steps[] }` | `claude-sonnet-4-6` |
+| `analytics.segment_insight` | `{ segment:{type,value}, metrics, baseline }` | `{ patterns:[{observation,significance,suggested_action}] }` | `claude-sonnet-4-6` |
+| `analytics.digest_email` | `{ items[], focus?, length? }` (inherits `SummarizationAgent`) | `{ summary, key_points[], caveats[] }` | `claude-sonnet-4-6` |
+
+### Livewire triggers
+
+```blade
+<livewire:artisanpack-analytics::ai.insight-summary
+	:date-from="'2026-05-01'"
+	:date-to="'2026-05-07'"
+	:metrics="$weeklyMetrics"
+/>
+
+<livewire:artisanpack-analytics::ai.anomaly-explanation :anomaly="$anomaly" :context="$context" />
+<livewire:artisanpack-analytics::ai.segment-insight ... />
+<livewire:artisanpack-analytics::ai.digest-subscription />
+```
+
+### React / Vue triggers
+
+Publish the components alongside the analytics dashboards (`analytics-react` / `analytics-vue` publish tags) and mount them anywhere in your Inertia app:
+
+```tsx
+import { InsightSummary } from '@/vendor/artisanpack-analytics/react/components/ai';
+
+<InsightSummary
+	api={ { baseUrl: '/api/analytics' } }
+	dateRange={ { from: '2026-05-01', to: '2026-05-07' } }
+	metrics={ weeklyMetrics }
+/>
+```
+
+### Enabling / disabling features
+
+Every feature is opt-in per-app via `config/artisanpack.php` (merged from the AI package):
+
+```php
+'ai' => [
+	'features' => [
+		'analytics.insight_summary' => [ 'enabled' => true ],
+		'analytics.explain_anomaly' => [ 'enabled' => true ],
+		'analytics.segment_insight' => [ 'enabled' => true ],
+		'analytics.digest_email'    => [ 'enabled' => true ],
+	],
+],
+```
+
+Requests are gated by the `analytics.ai.use` gate. The ship default allows any authenticated user; override in your `AuthServiceProvider` for stricter policies.
+
+### Digest email opt-in
+
+The `analytics.digest_email` feature is delivered via a queued job (`SendDigestEmailJob`) and honors a per-user preference stored in `analytics_digest_preferences` (`off | weekly | monthly`). Users pick their cadence via the `DigestSubscription` component; you schedule `SendDigestEmailJob` on your cadence of choice (the job is a no-op for users whose preference is `off` or missing).
+
+```php
+use ArtisanPackUI\Analytics\Jobs\SendDigestEmailJob;
+
+$schedule->call( function () {
+	AnalyticsDigestPreference::where( 'cadence', 'weekly' )->each( function ( $preference ) {
+		SendDigestEmailJob::dispatch(
+			userId: $preference->user_id,
+			email: $preference->user->email,
+			items: $weeklyDigestItems( $preference->user ),
+			periodLabel: 'Last 7 days',
+		);
+	} );
+} )->weekly();
+```
+
 ## Components
 
 ### Livewire Components
