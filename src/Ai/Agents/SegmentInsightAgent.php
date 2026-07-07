@@ -232,7 +232,7 @@ PROMPT;
 	 */
 	protected function validateOutput( array $output ): array
 	{
-		$rawPatterns = is_array( $output['patterns'] ?? null ) ? $output['patterns'] : [];
+		$rawPatterns = $this->coerceListField( $output['patterns'] ?? null, 'patterns' );
 		$patterns    = [];
 
 		foreach ( $rawPatterns as $entry ) {
@@ -262,5 +262,41 @@ PROMPT;
 		}
 
 		return [ 'patterns' => $patterns ];
+	}
+
+	/**
+	 * Coerce a top-level list field into an array.
+	 *
+	 * Some providers (e.g. Anthropic Opus under certain schema shapes)
+	 * return the whole nested payload as a JSON-encoded string instead of
+	 * a real array. Decode transparently so the downstream validator can
+	 * still iterate the entries.
+	 *
+	 * @since 1.3.0
+	 *
+	 * @param  mixed   $raw  Raw field from the model.
+	 * @param  string  $key  The field key to look up when the model re-nests under the same key.
+	 *
+	 * @return array<int|string, mixed>
+	 */
+	protected function coerceListField( mixed $raw, string $key ): array
+	{
+		if ( is_array( $raw ) ) {
+			return $raw;
+		}
+
+		if ( is_string( $raw ) && '' !== trim( $raw ) ) {
+			$decoded = json_decode( $raw, true );
+
+			if ( is_array( $decoded ) ) {
+				if ( isset( $decoded[ $key ] ) && is_array( $decoded[ $key ] ) ) {
+					return $decoded[ $key ];
+				}
+
+				return $decoded;
+			}
+		}
+
+		return [];
 	}
 }

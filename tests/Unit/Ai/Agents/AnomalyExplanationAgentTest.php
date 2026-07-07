@@ -62,6 +62,40 @@ it( 'clamps invalid confidence levels to low', function (): void {
 	expect( $result['hypotheses'][0]['confidence'] )->toBe( 'low' );
 } );
 
+it( 'decodes hypotheses when the model returns a stringified JSON payload', function (): void {
+	// Reproduces the Opus behavior where the model returns the entire
+	// nested payload as a JSON-encoded string instead of an array.
+	$this->prompter->queue( [
+		'hypotheses'             => json_encode( [
+			'hypotheses' => [
+				[
+					'cause'      => 'A Reddit thread went viral',
+					'confidence' => 'high',
+					'evidence'   => [ 'referrer reddit.com rose 340% on 2026-06-14' ],
+				],
+			],
+		] ),
+		'recommended_next_steps' => [ 'audit the thread' ],
+	] );
+
+	$result = AnomalyExplanationAgent::for( [
+		'anomaly' => [
+			'metric'    => 'sessions',
+			'direction' => 'spike',
+			'magnitude' => 320.0,
+			'date'      => '2026-06-14',
+		],
+		'context' => [
+			'recent_content_changes' => [],
+			'referrer_deltas'        => [ [ 'referrer' => 'reddit.com', 'delta_pct' => 340 ] ],
+			'campaign_launches'      => [],
+		],
+	] )->run();
+
+	expect( $result['hypotheses'] )->toHaveCount( 1 );
+	expect( $result['hypotheses'][0]['cause'] )->toBe( 'A Reddit thread went viral' );
+} );
+
 it( 'raises FeatureError when anomaly is missing required fields', function (): void {
 	expect( fn () => AnomalyExplanationAgent::for( [ 'anomaly' => [] ] )->run() )
 		->toThrow( FeatureError::class );
