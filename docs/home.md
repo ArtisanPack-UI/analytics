@@ -57,6 +57,7 @@ Welcome to the ArtisanPack UI Analytics documentation. This package provides com
   - [Multiple Providers](Advanced-Multiple-Providers)
   - [Caching](Advanced-Caching)
   - [Bot Filtering](Advanced-Bot-Filtering) *(since 1.2.0)*
+  - [AI Features](Advanced-AI-Features) *(since 1.3.0)*
   - [Artisan Commands](Advanced-Artisan-Commands)
 
 - **Help**

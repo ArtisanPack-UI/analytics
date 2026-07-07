@@ -13,6 +13,7 @@ This section covers advanced features and configuration options for ArtisanPack 
 - [Multiple Providers](Advanced-Multiple-Providers) - Use multiple analytics providers
 - [Caching](Advanced-Caching) - Optimize performance with caching
 - [Bot Filtering](Advanced-Bot-Filtering) - Filter AI crawlers and bot traffic *(since 1.2.0)*
+- [AI Features](Advanced-AI-Features) - AI-powered insight summaries, anomaly explanations, segment insights, and digest emails *(since 1.3.0)*
 - [Artisan Commands](Advanced-Artisan-Commands) - CLI commands for management
 - [Frontend Components](Frontend-Overview) - React and Vue dashboards via Inertia.js *(since 1.1.0)*
 
@@ -54,6 +55,16 @@ Keep automated traffic out of your reported numbers:
 - Behavioral confidence scoring with a configurable threshold
 - JavaScript fingerprint signals (WebDriver, headless, missing APIs)
 - Config and runtime whitelists, plus a bot traffic dashboard widget
+
+### AI Features *(since 1.3.0)*
+
+Turn raw metrics into narrative insights via `artisanpack-ui/ai`:
+
+- Streaming insight summaries over a date range with highlights and concerns
+- Anomaly explanations that rank likely causes with evidence and next steps
+- Segment insights that compare a referrer, page, or time slice to a baseline
+- Opt-in weekly and monthly narrative digest emails with per-user cadence preferences
+- Livewire, React, and Vue triggers gated behind the `analytics.ai.use` ability
 
 ### Performance Optimization
 

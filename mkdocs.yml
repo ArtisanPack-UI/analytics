@@ -51,6 +51,7 @@ nav:
     - Multi-Tenancy: advanced/multi-tenancy.md
     - Multiple Providers: advanced/multiple-providers.md
     - Caching: advanced/caching.md
+    - AI Features: advanced/ai-features.md
     - Artisan Commands: advanced/artisan-commands.md
   - FAQ: faq.md
   - Troubleshooting: troubleshooting.md

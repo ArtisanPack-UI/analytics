@@ -7,7 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.2.1] - 2026-06-09
+## [1.3.0] - 2026-07-07
+
+### Added
+
+#### AI-Powered Analytics Agents
+
+Four opt-in AI features that plug into `artisanpack-ui/ai` to turn raw analytics into narrative insights. Every feature ships an Agent, Livewire component, React and Vue components, and API endpoint, and honors the shared `FeatureRegistry` toggle.
+
+- **Insight summary agent** (`analytics.insight_summary`): Streaming plain-language summary of what changed over a date range, returning `{summary, highlights[], concerns[]}`. Backed by `InsightSummaryAgent`.
+- **Anomaly explanation agent** (`analytics.explain_anomaly`): Generates ranked hypotheses for a traffic spike or drop with confidence scores, evidence, and recommended next steps. Backed by `AnomalyExplanationAgent`.
+- **Segment insight agent** (`analytics.segment_insight`): Surfaces non-obvious patterns in a referrer, page, or time segment relative to a baseline, returning observations with significance and suggested actions. Backed by `SegmentInsightAgent`.
+- **Digest email agent** (`analytics.digest_email`): Composes opt-in weekly or monthly narrative digest emails. Extends the shared `SummarizationAgent` and ships with `SendDigestEmailJob`, `DigestEmailMailable`, a text-focused email template, an `AnalyticsDigestPreference` model, and per-user cadence preferences (`off | weekly | monthly`).
+- **Livewire triggers**: `<livewire:artisanpack-analytics::ai.insight-summary />`, `ai.anomaly-explanation`, `ai.segment-insight`, and `ai.digest-subscription` components with disabled states when the corresponding feature is toggled off.
+- **React and Vue components**: `InsightSummary`, `AnomalyExplanation`, `SegmentInsight`, and `DigestSubscription` shipped for both frameworks, together with `useAiAgent` and `useApi` hooks/composables.
+- **API endpoints**: New routes under `/api/analytics/ai/*` for each agent, gated behind the `analytics.ai.use` ability. Ships with a permissive default gate (any authenticated user); override in your `AuthServiceProvider` for stricter policies.
+- **Digest dispatch command**: `analytics:digests:dispatch` artisan command queues `SendDigestEmailJob` for every subscribed user; wire it into the scheduler on your preferred cadence.
+- **`aiFeatures()` registration**: `AnalyticsServiceProvider::aiFeatures()` registers all four features with the AI package's feature registry so admin UIs can list them.
+- **Migration**: `analytics_digest_preferences` table for per-user digest cadence.
+- **Documentation**: New AI features guide covering feature keys, Livewire and React/Vue usage, gate customization, and digest scheduling.
+
+
 
 ### Added
 
