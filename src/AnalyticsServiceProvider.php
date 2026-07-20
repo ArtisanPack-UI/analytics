@@ -201,6 +201,8 @@ class AnalyticsServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Support\HookAliases::register();
+
         $this->mergeConfiguration();
         $this->publishConfiguration();
         $this->publishMigrations();

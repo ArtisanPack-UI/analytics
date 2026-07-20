@@ -181,7 +181,7 @@ class SiteSelector extends Component
 	{
 		// Use the hooks package if available
 		if ( function_exists( 'applyFilters' ) ) {
-			return applyFilters( 'ap.analytics.site_selector.query', $query, Auth::user() );
+			return applyFilters( 'ap.analytics.siteSelector.query', $query, Auth::user() );
 		}
 
 		return $query;

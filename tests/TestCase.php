@@ -59,6 +59,10 @@ abstract class TestCase extends BaseTestCase
 			LivewireServiceProvider::class,
 		];
 
+		if ( class_exists( \ArtisanPackUI\Hooks\Providers\HooksServiceProvider::class ) ) {
+			$providers[] = \ArtisanPackUI\Hooks\Providers\HooksServiceProvider::class;
+		}
+
 		if ( class_exists( \ArtisanPackUI\Ai\AiServiceProvider::class ) ) {
 			$providers[] = \ArtisanPackUI\Ai\AiServiceProvider::class;
 		}

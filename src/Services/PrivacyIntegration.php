@@ -99,6 +99,7 @@ class PrivacyIntegration
 	protected function registerExportHooks(): void
 	{
 		// Filter to add analytics data to privacy export
+		// TODO(#82 follow-up): rename to 'ap.privacy.*' once privacy #64 rename ships (alias keeps this working meanwhile).
 		addFilter( 'privacy.export-data', function ( array $exportData, string $identifier ) {
 			$analyticsData = $this->exportService->exportVisitorData( $identifier );
 
@@ -110,6 +111,7 @@ class PrivacyIntegration
 		}, 10 );
 
 		// Filter to provide export formats
+		// TODO(#82 follow-up): rename to 'ap.privacy.*' once privacy #64 rename ships (alias keeps this working meanwhile).
 		addFilter( 'privacy.export-formats', function ( array $formats ) {
 			$formats['analytics_csv']  = __( 'Analytics Data (CSV)' );
 			$formats['analytics_json'] = __( 'Analytics Data (JSON)' );
@@ -118,6 +120,7 @@ class PrivacyIntegration
 		}, 10 );
 
 		// Action to handle format-specific exports
+		// TODO(#82 follow-up): rename to 'ap.privacy.*' once privacy #64 rename ships (alias keeps this working meanwhile).
 		addAction( 'privacy.export-format', function ( string $format, string $identifier ) {
 			if ( 'analytics_csv' === $format ) {
 				return $this->exportService->exportAsCsv( $identifier );
@@ -144,6 +147,7 @@ class PrivacyIntegration
 	protected function registerDeletionHooks(): void
 	{
 		// Action to delete analytics data
+		// TODO(#82 follow-up): rename to 'ap.privacy.*' once privacy #64 rename ships (alias keeps this working meanwhile).
 		addAction( 'privacy.delete-data', function ( string $identifier ): void {
 			$result = $this->deletionService->deleteVisitorData( $identifier );
 
@@ -155,6 +159,7 @@ class PrivacyIntegration
 		}, 10 );
 
 		// Action to anonymize analytics data (alternative to deletion)
+		// TODO(#82 follow-up): rename to 'ap.privacy.*' once privacy #64 rename ships (alias keeps this working meanwhile).
 		addAction( 'privacy.anonymize-data', function ( string $identifier ): void {
 			$result = $this->deletionService->anonymizeVisitorData( $identifier );
 
@@ -166,6 +171,7 @@ class PrivacyIntegration
 		}, 10 );
 
 		// Filter to check if visitor has data
+		// TODO(#82 follow-up): rename to 'ap.privacy.*' once privacy #64 rename ships (alias keeps this working meanwhile).
 		addFilter( 'privacy.has-data', function ( bool $hasData, string $identifier ) {
 			if ( $this->deletionService->hasVisitorData( $identifier ) ) {
 				return true;
@@ -175,6 +181,7 @@ class PrivacyIntegration
 		}, 10 );
 
 		// Filter to get data summary
+		// TODO(#82 follow-up): rename to 'ap.privacy.*' once privacy #64 rename ships (alias keeps this working meanwhile).
 		addFilter( 'privacy.data-summary', function ( array $summary, string $identifier ) {
 			$analyticsSummary = $this->deletionService->getDataSummary( $identifier );
 
@@ -199,6 +206,7 @@ class PrivacyIntegration
 	protected function registerConsentHooks(): void
 	{
 		// Action when consent is granted via privacy package
+		// TODO(#82 follow-up): rename to 'ap.privacy.*' once privacy #64 rename ships (alias keeps this working meanwhile).
 		addAction( 'privacy.consent-granted', function ( string $identifier, array $categories ): void {
 			$this->consentService->grantConsent( $identifier, $categories );
 
@@ -208,6 +216,7 @@ class PrivacyIntegration
 		}, 10 );
 
 		// Action when consent is revoked via privacy package
+		// TODO(#82 follow-up): rename to 'ap.privacy.*' once privacy #64 rename ships (alias keeps this working meanwhile).
 		addAction( 'privacy.consent-revoked', function ( string $identifier, array $categories ): void {
 			$this->consentService->revokeConsent( $identifier, $categories );
 
@@ -217,6 +226,7 @@ class PrivacyIntegration
 		}, 10 );
 
 		// Filter to get consent status
+		// TODO(#82 follow-up): rename to 'ap.privacy.*' once privacy #64 rename ships (alias keeps this working meanwhile).
 		addFilter( 'privacy.consent-status', function ( array $status, string $identifier ) {
 			$analyticsStatus = $this->consentService->getConsentStatus( $identifier );
 
@@ -228,6 +238,7 @@ class PrivacyIntegration
 		}, 10 );
 
 		// Filter to provide available consent categories
+		// TODO(#82 follow-up): rename to 'ap.privacy.*' once privacy #64 rename ships (alias keeps this working meanwhile).
 		addFilter( 'privacy.consent-categories', function ( array $categories ) {
 			$analyticsCategories = config( 'artisanpack.analytics.privacy.consent_categories', [] );
 
