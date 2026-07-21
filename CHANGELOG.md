@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-07-21
+
+### Changed
+
+- Renamed hook `ap.analytics.site_selector.query` → `ap.analytics.siteSelector.query` to align with cross-package hooks convention. Old name registered as a deprecation alias. Alias removal deferred to next major.
+- Bumped `artisanpack-ui/hooks` to `^1.3`.
+
+### Notes
+
+- `PrivacyIntegration` still subscribes to legacy `privacy.*` hook names. Those will be updated to `ap.privacy.*` after the privacy package's Wave 1 rename ships; aliases in that package keep the current subscriptions working in the meantime.
+
 ## [1.3.0] - 2026-07-07
 
 ### Added

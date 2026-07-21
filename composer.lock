@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "4e786d32d17be43c0848759a71db9cab",
+    "content-hash": "b6be0e62a7262da2a3e63eef6c25d51b",
     "packages": [
         {
             "name": "artisanpack-ui/ai",
@@ -146,6 +146,72 @@
                 "source": "https://github.com/ArtisanPack-UI/core/tree/v1.2.0"
             },
             "time": "2026-05-24T02:53:50+00:00"
+        },
+        {
+            "name": "artisanpack-ui/hooks",
+            "version": "1.3.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/ArtisanPack-UI/hooks.git",
+                "reference": "2834223f643ee5e12f93edc816a6d2dca66d09aa"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/ArtisanPack-UI/hooks/zipball/2834223f643ee5e12f93edc816a6d2dca66d09aa",
+                "reference": "2834223f643ee5e12f93edc816a6d2dca66d09aa",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/support": "^11.0|^12.0|^13.0",
+                "php": "^8.2"
+            },
+            "require-dev": {
+                "artisanpack-ui/code-style": "^1.0",
+                "artisanpack-ui/code-style-pint": "^1.0",
+                "dealerdirect/phpcodesniffer-composer-installer": "^1.1",
+                "laravel/pint": "^1.25",
+                "orchestra/testbench": "^10.6",
+                "pestphp/pest": "^3.8",
+                "pestphp/pest-plugin-laravel": "^3.1",
+                "squizlabs/php_codesniffer": "^3.13"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "aliases": {
+                        "Action": "ArtisanPackUI\\Hooks\\Facades\\Action",
+                        "Filter": "ArtisanPackUI\\Hooks\\Facades\\Filter"
+                    },
+                    "providers": [
+                        "ArtisanPackUI\\Hooks\\Providers\\HooksServiceProvider",
+                        "ArtisanPackUI\\Hooks\\Providers\\BladeDirectiveServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "files": [
+                    "src/helpers.php"
+                ],
+                "psr-4": {
+                    "ArtisanPackUI\\Hooks\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Jacob Martella",
+                    "email": "me@jacobmartella.com"
+                }
+            ],
+            "description": "WordPress-style actions and filters for Laravel, with Blade directives and helper functions.",
+            "support": {
+                "issues": "https://github.com/ArtisanPack-UI/hooks/issues",
+                "source": "https://github.com/ArtisanPack-UI/hooks/tree/v1.3.0"
+            },
+            "time": "2026-07-20T18:37:59+00:00"
         },
         {
             "name": "aws/aws-crt-php",
