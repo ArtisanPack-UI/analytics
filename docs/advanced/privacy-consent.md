@@ -141,6 +141,78 @@ analytics.revokeConsent(['marketing']);
 const status = analytics.getConsentStatus();
 ```
 
+## Anonymous Mode
+
+By default a visitor who never answers the consent banner produces nothing at
+all. On a site where most visitors ignore the banner, that means most of your
+traffic is invisible.
+
+Anonymous mode records a page view for those visitors without identifying
+them:
+
+```php
+// config/artisanpack/analytics.php
+'privacy' => [
+    'anonymous_mode' => env( 'ANALYTICS_ANONYMOUS_MODE', false ),
+],
+```
+
+```javascript
+window.__ARTISANPACK_ANALYTICS_CONFIG__ = {
+    anonymousMode: true,
+};
+```
+
+### What is and is not collected
+
+Recorded to `analytics_anonymous_page_views`: path, page title, referring
+**host**, device class (`desktop` / `mobile` / `tablet`) and a timestamp.
+
+Never recorded: visitor ID, session ID, fingerprint, IP address, user agent
+string, or the full referring URL — a referrer query string can carry search
+terms or share identifiers, so the server reduces it to a host regardless of
+what the client sent.
+
+Nothing is written in the browser either. Anonymous mode never calls the
+visitor, session or fingerprint setup, so no cookie and no `localStorage` key
+is created before consent.
+
+The table has no column capable of holding an identifier, which is deliberate:
+two anonymous rows cannot be correlated to one person even by mistake, because
+the columns that would let you do it do not exist.
+
+### The trade
+
+Anonymous rows support counting and nothing else. There are no sessions, no
+returning-visitor detection and no per-visitor drill-down for this traffic,
+because there is no identifier to group by. That is the cost of collecting it
+without consent, and it is why the rows live in their own table rather than in
+`analytics_page_views` — every visitor- and session-scoped query stays correct
+without needing to know this feature exists.
+
+### Granting consent mid-visit
+
+When a visitor accepts, the tracker upgrades to normal identified tracking for
+the rest of the visit. Rows already written stay anonymous and are never
+back-filled with an identity: they were collected under a promise, and
+retroactively attaching a visitor to them would break it.
+
+### Do Not Track still wins
+
+An explicit opt-out — `DNT: 1` or `Sec-GPC: 1` — suppresses everything,
+anonymous mode included, both in the browser and at the ingest endpoint.
+Anonymous mode is an argument about identifiability, not a way around someone
+saying no.
+
+### Before you enable it
+
+Enabling this changes what you collect before consent. Review your consent
+banner copy and privacy policy alongside it — wording along the lines of "we
+don't collect anything until you accept" stops being true, and the usual basis
+for this collection is legitimate interest rather than consent. That is a
+decision for you and your legal advice, not a default this package can make
+for you, which is why it ships off.
+
 ## Do Not Track
 
 When enabled, the DNT browser header is respected:

@@ -31,6 +31,7 @@
         trackEngagement: true,
         trackHashChanges: false,
         trackHistoryChanges: true,
+        anonymousMode: false,
         trackOutboundLinks: true,
         trackFileDownloads: true,
         downloadExtensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'zip', 'rar', 'gz', 'tar', 'exe', 'dmg'],
@@ -155,16 +156,28 @@
             this._granted = Storage.getLocal('consent_' + config.consentCategory) === true;
         },
 
+        /**
+         * Whether the visitor has signalled an explicit opt-out.
+         *
+         * Kept separate from check() because the two mean different things.
+         * "No consent yet" is an absence of an answer and anonymous mode may
+         * still count the visit; Do Not Track / Global Privacy Control is an
+         * answer, and nothing may be sent at all.
+         */
+        isOptedOut: function() {
+            if (!config.respectDNT) return false;
+
+            return navigator.doNotTrack === '1' ||
+                navigator.doNotTrack === 'yes' ||
+                navigator.globalPrivacyControl === true ||
+                window.doNotTrack === '1';
+        },
+
         check: function() {
             // Check DNT header
-            if (config.respectDNT) {
-                if (navigator.doNotTrack === '1' ||
-                    navigator.doNotTrack === 'yes' ||
-                    navigator.globalPrivacyControl === true ||
-                    window.doNotTrack === '1') {
-                    log('DNT enabled, tracking disabled');
-                    return false;
-                }
+            if (this.isOptedOut()) {
+                log('DNT enabled, tracking disabled');
+                return false;
             }
 
             // Check consent
@@ -783,6 +796,25 @@
             }
         },
 
+        /**
+         * Send a payload with no identity envelope attached.
+         *
+         * send() stamps every payload with visitor_id, session_id and a
+         * fingerprint. Anonymous hits must carry none of those, so they
+         * bypass it entirely rather than relying on those values happening
+         * to be empty. Sent immediately: the batch queue is shared, and
+         * mixing identified and anonymous items in one flush is exactly the
+         * mistake this separation exists to prevent.
+         */
+        sendAnonymous: function(endpoint, data) {
+            if (Consent.isOptedOut()) {
+                log('Tracking blocked by opt-out signal');
+                return;
+            }
+
+            this._sendNow(endpoint, data);
+        },
+
         _sendNow: function(endpoint, data) {
             var url = config.endpoint + '/' + endpoint;
             var payload = JSON.stringify(data);
@@ -863,6 +895,11 @@
         // Path + query of the last page view sent, used to ignore history
         // entries that do not represent a real navigation.
         _lastTrackedUrl: null,
+        // Running pre-consent: page views carry no identifiers, and no
+        // cookie, storage key or fingerprint is created.
+        _anonymous: false,
+        // History wrapping is installed once per page, not once per init().
+        _historyTracked: false,
 
         init: function(userConfig) {
             if (this._initialized) {
@@ -880,7 +917,22 @@
             // Initialize modules
             Consent.init();
 
+            // An explicit opt-out ends it here. Anonymous mode is an argument
+            // about identifiability, not a way around someone saying no.
+            if (Consent.isOptedOut()) {
+                log('Tracking disabled by opt-out signal');
+                this._initialized = true;
+                return;
+            }
+
             if (!Consent.check()) {
+                if (config.anonymousMode) {
+                    this._initAnonymous();
+                    this._initialized = true;
+                    log('Initialized in anonymous mode');
+                    return;
+                }
+
                 log('Tracking disabled');
                 this._initialized = true;
                 return;
@@ -916,6 +968,90 @@
         },
 
         /**
+         * Boot the pre-consent path.
+         *
+         * Nothing here resolves a visitor, opens a session or computes a
+         * fingerprint, so no cookie and no localStorage key is written — the
+         * absence of those calls is the privacy guarantee, not a flag checked
+         * later on. Engagement is not tracked either: time on page and scroll
+         * depth only mean something attached to a page view you can update,
+         * and anonymous rows have no identifier to update against.
+         */
+        _initAnonymous: function() {
+            this._anonymous = true;
+
+            if (config.trackPageViews) {
+                var self = this;
+                var send = function() {
+                    self.anonymousPageView();
+                };
+
+                if (document.readyState === 'complete') {
+                    setTimeout(send, 0);
+                } else {
+                    window.addEventListener('load', function() {
+                        setTimeout(send, 0);
+                    });
+                }
+            }
+
+            if (config.trackHistoryChanges) {
+                this._trackHistoryChanges();
+            }
+        },
+
+        /**
+         * Record a page view with no identifiers attached.
+         *
+         * Only the referring *host* is sent. A full referrer URL can carry
+         * search terms or share identifiers in its query string, which would
+         * put back exactly the kind of data anonymous mode exists to avoid.
+         */
+        anonymousPageView: function() {
+            if (Consent.isOptedOut()) return;
+
+            var referrerHost = null;
+
+            if (document.referrer) {
+                try {
+                    var parsed = new URL(document.referrer);
+                    if (parsed.hostname !== window.location.hostname) {
+                        referrerHost = parsed.hostname;
+                    }
+                } catch (e) {}
+            }
+
+            var data = {
+                path: window.location.pathname,
+                title: document.title,
+                referrer_host: referrerHost
+            };
+
+            log('Anonymous page view:', data);
+            Transport.sendAnonymous('anonymous/pageview', data);
+        },
+
+        /**
+         * Promote a session that started anonymously to full tracking.
+         *
+         * Called when consent is granted mid-visit. Earlier anonymous rows are
+         * deliberately left alone: they were recorded without an identifier,
+         * and going back to attach one would undo the promise under which they
+         * were collected.
+         */
+        _upgradeToIdentifiedTracking: function() {
+            if (!this._anonymous) return;
+
+            this._anonymous = false;
+            this._initialized = false;
+
+            // Re-run init now that consent passes, which brings up the
+            // visitor, session, engagement and link tracking that the
+            // anonymous path deliberately skipped.
+            this.init();
+        },
+
+        /**
          * Detect client-side navigation performed through the History API.
          *
          * Hash routing (above) is not how current SPA routers navigate —
@@ -925,6 +1061,13 @@
          * back/forward.
          */
         _trackHistoryChanges: function() {
+            // init() runs a second time when an anonymous session is upgraded
+            // after consent. Wrapping pushState twice would double-count every
+            // navigation from that point on.
+            if (this._historyTracked) return;
+
+            this._historyTracked = true;
+
             var self = this;
 
             this._lastTrackedUrl = this._currentUrl();
@@ -969,6 +1112,13 @@
             if (url === this._lastTrackedUrl) return;
 
             this._lastTrackedUrl = url;
+
+            if (this._anonymous) {
+                // No engagement to close out — the anonymous path never
+                // started measuring any.
+                this.anonymousPageView();
+                return;
+            }
 
             // Close out the previous page before the new page view, so its
             // scroll depth and time on page do not leak forward.
@@ -1090,6 +1240,10 @@
         consent: {
             grant: function(categories) {
                 Consent.grant(categories);
+
+                // A visit that began anonymously becomes a normal tracked
+                // visit from here on. Rows already recorded stay anonymous.
+                Analytics._upgradeToIdentifiedTracking();
             },
             revoke: function(categories) {
                 Consent.revoke(categories);

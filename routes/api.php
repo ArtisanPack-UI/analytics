@@ -49,6 +49,12 @@ Route::post( '/batch', [ AnalyticsController::class, 'batch' ] )
 Route::post( '/pageview/update', [ AnalyticsController::class, 'updatePageview' ] )
 	->name( 'analytics.pageview.update' );
 
+// Pre-consent tracking. Kept on its own path so the identifier-free payload
+// gets its own validation surface, and cannot be confused with an identified
+// beacon that merely forgot to send its visitor ID.
+Route::post( '/anonymous/pageview', [ AnalyticsController::class, 'anonymousPageview' ] )
+	->name( 'analytics.anonymous.pageview' );
+
 /*
 |--------------------------------------------------------------------------
 | Consent Routes
