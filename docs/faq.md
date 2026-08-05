@@ -118,19 +118,29 @@ Check these common issues:
 
 ### How do I track single-page applications?
 
-Enable hash change tracking:
+Nothing to do — since 1.5.0 the tracker detects History API navigation on its
+own, which is how Inertia, React Router, Vue Router and `wire:navigate` all
+move between pages. `trackHistoryChanges` defaults to `true`.
 
-```php
-'tracker' => [
-    'track_hash_changes' => true,
-],
+Each navigation records a page view for the new path, and closes out the
+previous page's engagement metrics (time on page, scroll depth) against the
+path they were measured on.
+
+Only a change of path or query string counts. A `replaceState` that leaves the
+URL alone — routers do this constantly to sync state — records nothing, and
+hash-only changes are left to `trackHashChanges` so the two options cannot
+double count.
+
+If your app already bridges its router's navigation events by hand, turn the
+built-in detection off or you will count every page view twice:
+
+```js
+window.__ARTISANPACK_ANALYTICS_CONFIG__ = {
+    trackHistoryChanges: false,
+};
 ```
 
-Or manually track route changes:
-
-```javascript
-analytics.trackPageView(window.location.pathname, document.title);
-```
+`trackHashChanges` (default `false`) remains available for hash-based routers.
 
 ### Can I track logged-in users?
 

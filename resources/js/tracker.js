@@ -30,6 +30,7 @@
         trackScrollDepth: true,
         trackEngagement: true,
         trackHashChanges: false,
+        trackHistoryChanges: true,
         trackOutboundLinks: true,
         trackFileDownloads: true,
         downloadExtensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'zip', 'rar', 'gz', 'tar', 'exe', 'dmg'],
@@ -486,9 +487,15 @@
         _lastActiveTime: null,
         _isVisible: true,
         _engagementTimer: null,
+        // The path these metrics are being measured on. Held separately from
+        // window.location because an SPA navigation changes location before
+        // the outgoing page's engagement is flushed, and the server matches
+        // the row to update by path.
+        _path: null,
 
         init: function() {
             var self = this;
+            this._path = window.location.pathname;
             this._pageLoadTime = now();
             this._lastActiveTime = now();
             this._reachedMilestones = [];
@@ -613,12 +620,33 @@
             return this._scrollDepth;
         },
 
+        /**
+         * Flush the outgoing page's metrics and re-baseline for a new one.
+         *
+         * Called on SPA navigation. Without it every counter here would keep
+         * accumulating across pages: scroll depth would only ever ratchet up,
+         * time on page would measure the whole session, and the milestone
+         * list would suppress scroll events on every page after the first.
+         */
+        reset: function() {
+            // Flush before re-baselining, while _path still names the page
+            // the metrics were actually measured on.
+            this._sendEngagementData();
+
+            this._path = window.location.pathname;
+            this._pageLoadTime = now();
+            this._lastActiveTime = now();
+            this._engagedTime = 0;
+            this._scrollDepth = 0;
+            this._reachedMilestones = [];
+        },
+
         _sendEngagementData: function() {
             if (!Consent.check()) return;
 
             var data = {
                 session_id: Session.getId(),
-                path: window.location.pathname,
+                path: this._path || window.location.pathname,
                 time_on_page: this.getTimeOnPage(),
                 engaged_time: this.getEngagedTime(),
                 scroll_depth: this.getScrollDepth()
@@ -832,6 +860,9 @@
     var Analytics = {
         version: '1.0.0',
         _initialized: false,
+        // Path + query of the last page view sent, used to ignore history
+        // entries that do not represent a real navigation.
+        _lastTrackedUrl: null,
 
         init: function(userConfig) {
             if (this._initialized) {
@@ -875,8 +906,85 @@
                 });
             }
 
+            // Track History API navigation for SPAs
+            if (config.trackHistoryChanges) {
+                this._trackHistoryChanges();
+            }
+
             this._initialized = true;
             log('Initialized successfully');
+        },
+
+        /**
+         * Detect client-side navigation performed through the History API.
+         *
+         * Hash routing (above) is not how current SPA routers navigate —
+         * Inertia, React Router, Vue Router and wire:navigate all use
+         * pushState. Neither pushState nor replaceState emits an event, so
+         * the only way to observe them is to wrap them; popstate covers
+         * back/forward.
+         */
+        _trackHistoryChanges: function() {
+            var self = this;
+
+            this._lastTrackedUrl = this._currentUrl();
+
+            var onNavigate = function() {
+                // Routers set document.title after pushing the history entry,
+                // so defer a tick — reading it synchronously would attribute
+                // the outgoing page's title to the incoming path.
+                setTimeout(function() {
+                    self._handleHistoryChange();
+                }, 0);
+            };
+
+            if (typeof history.pushState === 'function') {
+                var originalPushState = history.pushState;
+                history.pushState = function() {
+                    var result = originalPushState.apply(this, arguments);
+                    onNavigate();
+                    return result;
+                };
+            }
+
+            if (typeof history.replaceState === 'function') {
+                var originalReplaceState = history.replaceState;
+                history.replaceState = function() {
+                    var result = originalReplaceState.apply(this, arguments);
+                    onNavigate();
+                    return result;
+                };
+            }
+
+            window.addEventListener('popstate', onNavigate);
+        },
+
+        _handleHistoryChange: function() {
+            var url = this._currentUrl();
+
+            // Routers call replaceState for state sync without a real
+            // navigation, and a single move can emit both replaceState and
+            // popstate. Only a changed path or query counts as a new page
+            // view, which collapses both cases to one send.
+            if (url === this._lastTrackedUrl) return;
+
+            this._lastTrackedUrl = url;
+
+            // Close out the previous page before the new page view, so its
+            // scroll depth and time on page do not leak forward.
+            Engagement.reset();
+
+            this.pageView();
+        },
+
+        /**
+         * Identity of the current page for navigation comparison. The hash is
+         * excluded deliberately: hash-only moves are the business of
+         * trackHashChanges, and including it here would double-count when
+         * both options are on.
+         */
+        _currentUrl: function() {
+            return window.location.pathname + window.location.search;
         },
 
         _trackInitialPageView: function() {
