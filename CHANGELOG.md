@@ -7,14 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **SPA navigation tracking.** The JS tracker now detects History API navigation (`pushState`, `replaceState`, `popstate`) — the mechanism Inertia, React Router, Vue Router and `wire:navigate` all navigate through — and records a page view whenever the path or query string changes. Previously page views were bound to the window `load` event and `hashchange` only, so in any SPA the tracker recorded the initial document load and nothing else; hash routing is not how current routers work. Controlled by the new `trackHistoryChanges` option, default `true`. ([#86](https://github.com/ArtisanPack-UI/analytics/issues/86))
+
 ### Fixed
 
+- Engagement metrics are now attributed to the page they were measured on and reset per navigation. `_sendEngagementData()` read `window.location.pathname` at flush time, which in an SPA is the *incoming* path — and the server matches the row to update by path, so the update landed on the wrong page view or none at all. Scroll depth, time on page, engaged time and scroll milestones also accumulated across the whole session rather than per page, so scroll depth could only ratchet upward and milestone events stopped firing after the first page.
 - Batched beacons are no longer silently discarded. `PrivacyFilter` resolved the excluded path with `$request->input( 'path', $request->path() )`; a batch payload carries its paths in `items[].data.path` and has no top-level `path`, so the check fell through to the ingest route's own URI (`api/analytics/batch`). That matches the `/api/*` pattern shipped in the default `excluded_paths`, so every batch was rejected with a 204 before reaching the controller — no error, no log, and the same status a successful beacon returns. Since the JS tracker batches whenever two or more items are queued within `batchInterval`, this dropped a large share of real traffic while single-item flushes kept working, which made it present as under-counting rather than as a broken endpoint. ([#85](https://github.com/ArtisanPack-UI/analytics/issues/85))
 
 ### Changed
 
 - Excluded-path filtering moved from `PrivacyFilter` to `TrackingService`, so the decision is made once per tracked page view or event rather than once per HTTP request. A batch containing an excluded path now drops only that item instead of discarding the items alongside it. `PrivacyFilter` keeps the request-level checks it can actually evaluate (enabled flag, DNT/GPC, IP, user agent).
 - Exclusion matching now compares the path component only, so a tracked path arriving with a query string or fragment is matched on its path. A `null` or empty tracked path is treated as not excluded rather than being dropped.
+- **SPA page-view counts will rise.** `trackHistoryChanges` defaults to `true`, so applications that were silently recording only the initial document load will start recording every navigation. That is the intent, but expect a step change in reported page views rather than a regression. Applications that already bridge their router's navigation events by hand must set `trackHistoryChanges: false` or they will count each page view twice.
 
 ### Deprecated
 
