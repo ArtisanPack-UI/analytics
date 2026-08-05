@@ -53,6 +53,13 @@ class PrivacyFilter
 		}
 
 		// Check excluded paths
+		//
+		// TrackingService is the authority for this now: it applies the
+		// exclusion once per tracked item, which is the only way a batch
+		// beacon — many tracked paths in one HTTP request — can be filtered
+		// correctly. This call is kept so subclasses overriding
+		// isExcludedPath() continue to work, and it short-circuits only when
+		// the request carries a single unambiguous tracked path.
 		if ( $this->isExcludedPath( $request ) ) {
 			return $this->returnNoContent();
 		}
@@ -235,23 +242,43 @@ class PrivacyFilter
 	/**
 	 * Check if the request path matches an exclusion pattern.
 	 *
+	 * Only consults an explicit top-level `path` on the payload — the path of
+	 * the page being tracked. It no longer falls back to `$request->path()`,
+	 * which is the URI of the ingest endpoint itself: a batch beacon carries
+	 * its paths in `items[].data.path` and has no top-level `path`, so that
+	 * fallback matched `api/analytics/batch` against the `/api/*` pattern in
+	 * the default config and discarded every batch. Returning false for those
+	 * requests defers to the per-item filtering in TrackingService.
+	 *
 	 * @param Request $request The incoming request.
 	 *
 	 * @return bool
 	 *
-	 * @since 1.0.0
+	 * @since      1.0.0
+	 * @deprecated 1.5.0 Excluded-path filtering moved to
+	 *             {@see \ArtisanPackUI\Analytics\Services\TrackingService::isExcludedPath()},
+	 *             which evaluates one tracked path per item and so handles
+	 *             batched beacons correctly. Retained for backwards
+	 *             compatibility; scheduled for removal in 2.0. Note that
+	 *             overriding this method only affects requests carrying a
+	 *             single tracked path — batched items are filtered by
+	 *             TrackingService and are unaffected by the override.
 	 */
 	protected function isExcludedPath( Request $request ): bool
 	{
 		$excludedPaths = config( 'artisanpack.analytics.privacy.excluded_paths', [] );
-		$path          = $request->input( 'path', $request->path() );
+		$path          = $request->input( 'path' );
 
 		if ( empty( $excludedPaths ) ) {
 			return false;
 		}
 
+		if ( ! is_string( $path ) || '' === $path ) {
+			return false;
+		}
+
 		foreach ( $excludedPaths as $excludedPath ) {
-			if ( $this->pathMatches( $path, $excludedPath ) ) {
+			if ( $this->pathMatches( $path, (string) $excludedPath ) ) {
 				return true;
 			}
 		}
@@ -267,10 +294,18 @@ class PrivacyFilter
 	 *
 	 * @return bool
 	 *
-	 * @since 1.0.0
+	 * @since      1.0.0
+	 * @deprecated 1.5.0 Superseded by the matching in
+	 *             {@see \ArtisanPackUI\Analytics\Services\TrackingService}.
+	 *             Retained for backwards compatibility; scheduled for removal
+	 *             in 2.0.
 	 */
 	protected function pathMatches( string $path, string $pattern ): bool
 	{
+		// Compare path only — a tracked path may arrive with a query string
+		// or fragment attached, and neither should affect exclusion.
+		$path = (string) parse_url( $path, PHP_URL_PATH );
+
 		// Normalize paths
 		$path    = '/' . ltrim( $path, '/' );
 		$pattern = '/' . ltrim( $pattern, '/' );

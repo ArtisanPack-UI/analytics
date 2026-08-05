@@ -204,6 +204,15 @@ ANALYTICS_EXCLUDED_IPS=192.168.1.1,10.0.0.0/8
 ],
 ```
 
+Patterns are matched against the path of the **page being tracked**, never against
+the URI of the ingest endpoint the beacon was posted to. That distinction matters
+because the ingest routes themselves live under `/api`, which the default list
+excludes — matching on the ingest route would drop every beacon.
+
+Exclusion is evaluated once per tracked page view or event, so a batched beacon
+carrying several paths records the ones that are not excluded and drops only
+those that are. Query strings and fragments are ignored when matching.
+
 ## Data Retention
 
 Configure automatic data cleanup:

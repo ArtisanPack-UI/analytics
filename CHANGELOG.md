@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Batched beacons are no longer silently discarded. `PrivacyFilter` resolved the excluded path with `$request->input( 'path', $request->path() )`; a batch payload carries its paths in `items[].data.path` and has no top-level `path`, so the check fell through to the ingest route's own URI (`api/analytics/batch`). That matches the `/api/*` pattern shipped in the default `excluded_paths`, so every batch was rejected with a 204 before reaching the controller — no error, no log, and the same status a successful beacon returns. Since the JS tracker batches whenever two or more items are queued within `batchInterval`, this dropped a large share of real traffic while single-item flushes kept working, which made it present as under-counting rather than as a broken endpoint. ([#85](https://github.com/ArtisanPack-UI/analytics/issues/85))
+
+### Changed
+
+- Excluded-path filtering moved from `PrivacyFilter` to `TrackingService`, so the decision is made once per tracked page view or event rather than once per HTTP request. A batch containing an excluded path now drops only that item instead of discarding the items alongside it. `PrivacyFilter` keeps the request-level checks it can actually evaluate (enabled flag, DNT/GPC, IP, user agent).
+- Exclusion matching now compares the path component only, so a tracked path arriving with a query string or fragment is matched on its path. A `null` or empty tracked path is treated as not excluded rather than being dropped.
+
+### Deprecated
+
+- `PrivacyFilter::isExcludedPath()` and `PrivacyFilter::pathMatches()` are deprecated in favour of `TrackingService::isExcludedPath()`. Both are retained and still called by the middleware, so subclasses that call or override them keep working; they are scheduled for removal in 2.0. `isExcludedPath()` no longer falls back to `$request->path()` — it returns `false` when the request carries no single top-level tracked path, deferring to the per-item filtering in `TrackingService`. One consequence worth knowing if you override it: the override governs only requests carrying a single tracked path, since batched items are filtered by `TrackingService` and are not routed through the middleware hook.
+
 ## [1.4.0] - 2026-07-21
 
 ### Changed
