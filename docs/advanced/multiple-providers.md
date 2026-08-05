@@ -193,6 +193,52 @@ public function boot(): void
 ANALYTICS_ACTIVE_PROVIDERS=local,mixpanel
 ```
 
+### Providers That Track In The Browser
+
+Some providers cannot record anything server-side — their tracking half is a
+vendor snippet that has to reach the page, so `trackPageView()` and
+`trackEvent()` are necessarily no-ops. Those providers implement
+`ProvidesTrackerScript`, and `@analyticsScripts` emits what they return
+alongside the package's own tracker:
+
+```php
+use ArtisanPackUI\Analytics\Contracts\AnalyticsProviderInterface;
+use ArtisanPackUI\Analytics\Contracts\ProvidesTrackerScript;
+
+class VendorPixelProvider implements AnalyticsProviderInterface, ProvidesTrackerScript
+{
+    public function trackPageView( PageViewData $data ): void
+    {
+        // Nothing to do — the snippet below records page views in the browser.
+    }
+
+    public function trackerScript(): string
+    {
+        if ( ! $this->isEnabled() ) {
+            return '';
+        }
+
+        return '<script src="https://vendor.example/pixel.js" async></script>';
+    }
+
+    // ... the rest of AnalyticsProviderInterface
+}
+```
+
+Two things to know:
+
+- The return value is echoed **unescaped**, because it is script markup. Any
+  value interpolated into it — a measurement ID, a config option — must be
+  encoded by the provider.
+- Return an empty string when the provider is not configured. Empty snippets
+  are skipped, and a provider that throws is logged and skipped rather than
+  breaking the page it was rendering into.
+
+The snippets are only emitted where `@analyticsScripts` (or
+`<x-analytics::tracker-script />`) appears, and only for providers listed in
+`active_providers`. To render them yourself, call
+`Analytics::trackerScripts()`, which returns them as an array.
+
 ## Provider Methods
 
 ### Get a Specific Provider

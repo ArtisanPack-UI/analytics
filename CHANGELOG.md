@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`@analyticsScripts` now emits the client-side snippets of active providers.** Providers whose tracking half runs in the browser can expose it through the new `ProvidesTrackerScript` contract, and the directive renders it alongside the package's own tracker. Previously nothing in this package ever called a provider's `trackerScript()`, so such a provider could be registered, listed in `active_providers`, and report success while contributing nothing in either direction — its server-side track methods are no-ops by design, and its snippet never reached the page. Providers exposing a `trackerScript()` method without implementing the contract are also honoured, so `artisanpack-ui/analytics-google` 1.0 works without a matching release. A provider that throws while producing its snippet is logged and skipped rather than taking down the page. ([#88](https://github.com/ArtisanPack-UI/analytics/issues/88))
+- `Analytics::trackerScripts()` returns the collected snippets for callers rendering their own markup.
 - **SPA navigation tracking.** The JS tracker now detects History API navigation (`pushState`, `replaceState`, `popstate`) — the mechanism Inertia, React Router, Vue Router and `wire:navigate` all navigate through — and records a page view whenever the path or query string changes. Previously page views were bound to the window `load` event and `hashchange` only, so in any SPA the tracker recorded the initial document load and nothing else; hash routing is not how current routers work. Controlled by the new `trackHistoryChanges` option, default `true`. ([#86](https://github.com/ArtisanPack-UI/analytics/issues/86))
 
 ### Fixed
