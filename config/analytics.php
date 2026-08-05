@@ -271,6 +271,31 @@ return [
 
         /*
         |----------------------------------------------------------------------
+        | Anonymous Mode
+        |----------------------------------------------------------------------
+        |
+        | When enabled, visitors who have not granted analytics consent still
+        | contribute a page view — recorded to `analytics_anonymous_page_views`
+        | with no visitor ID, session ID, fingerprint, IP or user agent, and
+        | with no cookie or localStorage written in the browser. Without this,
+        | a visitor who ignores the consent banner produces nothing at all.
+        |
+        | The trade is that anonymous rows cannot be joined to anything: no
+        | sessions, no returning visitors, no per-visitor drill-down. They
+        | support counting and nothing else, which is what makes them safe to
+        | collect under legitimate interest.
+        |
+        | Off by default. Enabling it changes what you collect before consent,
+        | so review your consent banner copy and privacy policy alongside it.
+        |
+        | An explicit opt-out — Do Not Track or Global Privacy Control — still
+        | suppresses everything, including anonymous mode.
+        |
+        */
+        'anonymous_mode' => env( 'ANALYTICS_ANONYMOUS_MODE', false ),
+
+        /*
+        |----------------------------------------------------------------------
         | Consent Cookie Lifetime
         |----------------------------------------------------------------------
         |
@@ -847,6 +872,7 @@ return [
         'privacy' => [
             'consent_required'        => false,
             'consent_cookie_lifetime' => 365,
+            'anonymous_mode'          => false,
             'excluded_paths'          => [],
             'excluded_ips'            => [],
         ],

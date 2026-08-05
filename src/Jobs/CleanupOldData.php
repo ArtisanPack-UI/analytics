@@ -5,6 +5,7 @@ declare( strict_types=1 );
 namespace ArtisanPackUI\Analytics\Jobs;
 
 use ArtisanPackUI\Analytics\Models\Aggregate;
+use ArtisanPackUI\Analytics\Models\AnonymousPageView;
 use ArtisanPackUI\Analytics\Models\Consent;
 use ArtisanPackUI\Analytics\Models\Conversion;
 use ArtisanPackUI\Analytics\Models\Event;
@@ -90,6 +91,7 @@ class CleanupOldData implements ShouldQueue
 		$this->deleteOldConversions( $cutoff );
 		$this->deleteOldEvents( $cutoff );
 		$this->deleteOldPageViews( $cutoff );
+		$this->deleteOldAnonymousPageViews( $cutoff );
 		$this->deleteOldSessions( $cutoff );
 		$this->deleteExpiredConsents();
 		$this->deleteOrphanedVisitors( $cutoff );
@@ -122,6 +124,37 @@ class CleanupOldData implements ShouldQueue
 		$count = $query->delete();
 
 		Log::info( __( '[Analytics] Deleted :count old page views.', [ 'count' => $count ] ) );
+	}
+
+	/**
+	 * Delete old anonymous page views.
+	 *
+	 * These rows carry no identifier, so they are not personal data in the
+	 * sense the retention window exists to bound — but leaving them to
+	 * accumulate forever while everything beside them expires would be a
+	 * surprise, and an ever-growing table nobody sweeps.
+	 *
+	 * @param Carbon $cutoff The cutoff date.
+	 *
+	 * @return void
+	 *
+	 * @since 1.5.0
+	 */
+	protected function deleteOldAnonymousPageViews( Carbon $cutoff ): void
+	{
+		$query = AnonymousPageView::query()->where( 'created_at', '<', $cutoff );
+
+		if ( null !== $this->siteId ) {
+			$query->where( 'site_id', $this->siteId );
+		}
+
+		if ( null !== $this->tenantId ) {
+			$query->where( 'tenant_id', $this->tenantId );
+		}
+
+		$count = $query->delete();
+
+		Log::info( __( '[Analytics] Deleted :count old anonymous page views.', [ 'count' => $count ] ) );
 	}
 
 	/**

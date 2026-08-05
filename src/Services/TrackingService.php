@@ -11,6 +11,7 @@ use ArtisanPackUI\Analytics\Data\VisitorData;
 use ArtisanPackUI\Analytics\Jobs\ProcessBatchTracking;
 use ArtisanPackUI\Analytics\Jobs\ProcessEvent;
 use ArtisanPackUI\Analytics\Jobs\ProcessPageView;
+use ArtisanPackUI\Analytics\Models\AnonymousPageView;
 use ArtisanPackUI\Analytics\Models\Session;
 use ArtisanPackUI\Analytics\Models\Visitor;
 use Illuminate\Http\Request;
@@ -309,6 +310,73 @@ class TrackingService
 	}
 
 	/**
+	 * Record a page view from a visitor who has not granted consent.
+	 *
+	 * Writes to `analytics_anonymous_page_views`, which has no columns capable
+	 * of identifying anyone. Nothing here resolves a visitor or touches a
+	 * session, so no cookie is set and no fingerprint is computed — the row is
+	 * a count, not a person.
+	 *
+	 * Deliberately still honours `canTrack()` (Do Not Track / Global Privacy
+	 * Control, excluded IPs, excluded user agents, bot detection) and the
+	 * excluded-path list. Anonymous mode is a lawful-basis argument about
+	 * *identifiability*, not a licence to ignore an explicit opt-out.
+	 *
+	 * @param array{path: string, title?: string|null, referrer_host?: string|null} $data    Validated payload.
+	 * @param Request                                                               $request The HTTP request.
+	 * @param int|null                                                              $siteId  The site ID.
+	 *
+	 * @since 1.5.0
+	 */
+	public function trackAnonymousPageView( array $data, Request $request, ?int $siteId = null ): void
+	{
+		try {
+			if ( ! $this->isAnonymousModeEnabled() ) {
+				return;
+			}
+
+			if ( ! $this->canTrack( $request ) ) {
+				return;
+			}
+
+			$path = (string) ( $data['path'] ?? '' );
+
+			if ( '' === $path || $this->isExcludedPath( $path ) ) {
+				return;
+			}
+
+			AnonymousPageView::create( [
+				'site_id'       => $siteId,
+				'path'          => $path,
+				'title'         => $data['title'] ?? null,
+				'referrer_host' => $this->normalizeReferrerHost( $data['referrer_host'] ?? null ),
+				// Device *class* only — 'desktop' / 'mobile' / 'tablet'. The
+				// user agent string itself is never stored here; it is a
+				// meaningful component of a browser fingerprint.
+				'device_type'   => $this->deviceDetector->getDeviceType( $request->userAgent() ),
+				'country'       => null,
+				'tenant_id'     => $this->getTenantId( $request ),
+				'created_at'    => now(),
+			] );
+		} catch ( Throwable $e ) {
+			Log::error( 'Analytics tracking error (anonymous pageview)', [
+				'error' => $e->getMessage(),
+				'path'  => $data['path'] ?? null,
+			] );
+		}
+	}
+
+	/**
+	 * Whether pre-consent anonymous tracking is enabled.
+	 *
+	 * @since 1.5.0
+	 */
+	public function isAnonymousModeEnabled(): bool
+	{
+		return (bool) config( 'artisanpack.analytics.privacy.anonymous_mode', false );
+	}
+
+	/**
 	 * Start a new session.
 	 *
 	 * @param SessionData $data    The session data.
@@ -467,6 +535,38 @@ class TrackingService
 		}
 
 		return false;
+	}
+
+	/**
+	 * Reduce a referrer to its host.
+	 *
+	 * Clients are asked to send a host, but a full URL arriving here would
+	 * otherwise be stored verbatim along with whatever its query string
+	 * carries — search terms, share identifiers. Reducing it server-side means
+	 * the guarantee does not depend on the client behaving.
+	 *
+	 * @since 1.5.0
+	 */
+	protected function normalizeReferrerHost( ?string $referrer ): ?string
+	{
+		if ( null === $referrer || '' === trim( $referrer ) ) {
+			return null;
+		}
+
+		$referrer = trim( $referrer );
+		$host     = parse_url( $referrer, PHP_URL_HOST );
+
+		if ( is_string( $host ) && '' !== $host ) {
+			return $host;
+		}
+
+		// Not a URL. Accept a bare host, but never anything with a path,
+		// query or fragment hanging off it.
+		if ( 1 === preg_match( '/^[A-Za-z0-9.\-]+$/', $referrer ) ) {
+			return $referrer;
+		}
+
+		return null;
 	}
 
 	/**
