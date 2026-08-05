@@ -59,6 +59,14 @@ class TrackingService
 	public function trackPageView( PageViewData $data, Request $request, ?int $siteId = null ): void
 	{
 		try {
+			// Excluded-path filtering happens here rather than in PrivacyFilter
+			// so the decision is made once per tracked page view. A batch beacon
+			// carries many paths in one HTTP request, so the middleware has no
+			// single path it can evaluate on the request's behalf.
+			if ( $this->isExcludedPath( $data->path ) ) {
+				return;
+			}
+
 			// Enrich data with device info
 			$enrichedData = $this->enrichPageViewData( $data, $request );
 
@@ -186,6 +194,11 @@ class TrackingService
 	public function trackEvent( EventData $data, Request $request, ?int $siteId = null ): void
 	{
 		try {
+			// See trackPageView() — one exclusion decision per tracked item.
+			if ( $this->isExcludedPath( $data->path ) ) {
+				return;
+			}
+
 			// Resolve or create visitor from request
 			$visitorData = $this->createVisitorDataFromRequest( $request, $data->toArray() );
 			$visitor     = $this->visitorResolver->resolve( $visitorData, $siteId );
@@ -415,6 +428,82 @@ class TrackingService
 		}
 
 		return true;
+	}
+
+	/**
+	 * Check whether a tracked path is excluded from tracking.
+	 *
+	 * Takes the path of the page being tracked — never the URI of the
+	 * ingest endpoint the beacon was posted to. Those are different
+	 * things, and conflating them is what made every batched beacon
+	 * match the `/api/*` exclusion that ships in the default config.
+	 *
+	 * A null or empty path is not treated as excluded; there is nothing
+	 * to match against, and silently dropping such an item would repeat
+	 * the same class of invisible data loss.
+	 *
+	 * @param string|null $path The path of the tracked page.
+	 *
+	 * @return bool
+	 *
+	 * @since 1.5.0
+	 */
+	public function isExcludedPath( ?string $path ): bool
+	{
+		if ( null === $path || '' === $path ) {
+			return false;
+		}
+
+		$excludedPaths = config( 'artisanpack.analytics.privacy.excluded_paths', [] );
+
+		if ( empty( $excludedPaths ) ) {
+			return false;
+		}
+
+		foreach ( $excludedPaths as $excludedPath ) {
+			if ( $this->pathMatches( $path, (string) $excludedPath ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Check if a path matches an exclusion pattern (supports wildcards).
+	 *
+	 * @param string $path    The path to check.
+	 * @param string $pattern The exclusion pattern.
+	 *
+	 * @return bool
+	 *
+	 * @since 1.5.0
+	 */
+	protected function pathMatches( string $path, string $pattern ): bool
+	{
+		// Compare path only — a tracked path may arrive with a query string
+		// or fragment attached, and neither should affect exclusion.
+		$path = (string) parse_url( $path, PHP_URL_PATH );
+
+		// Normalize paths
+		$path    = '/' . ltrim( $path, '/' );
+		$pattern = '/' . ltrim( $pattern, '/' );
+
+		// Exact match
+		if ( $path === $pattern ) {
+			return true;
+		}
+
+		// Wildcard match
+		if ( str_contains( $pattern, '*' ) ) {
+			// Escape regex metacharacters first, then convert escaped wildcards to regex
+			$escaped = preg_quote( $pattern, '/' );
+			$regex   = '/^' . str_replace( '\\*', '.*', $escaped ) . '$/';
+
+			return 1 === preg_match( $regex, $path );
+		}
+
+		return false;
 	}
 
 	/**
