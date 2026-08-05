@@ -40,4 +40,15 @@
         </script>
     @endif
     <script src="{{ $scriptPath }}" {{ implode( ' ', $attributes ) }}></script>
+
+    {{--
+        Client-side snippets contributed by active providers (see
+        ProvidesTrackerScript). Emitted unescaped because they are script
+        markup; each provider is responsible for encoding anything it
+        interpolates. Without this, a provider whose tracking half runs in
+        the browser registers successfully and then contributes nothing.
+    --}}
+    @foreach ( \ArtisanPackUI\Analytics\Facades\Analytics::trackerScripts() as $providerScript )
+        {!! $providerScript !!}
+    @endforeach
 @endif
