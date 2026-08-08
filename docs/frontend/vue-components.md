@@ -181,7 +181,7 @@ Live visitor count with automatic polling.
 
 ### AnonymousTraffic
 
-Page views recorded before consent by [anonymous mode](../advanced/privacy-consent.md).
+Page views recorded before consent by [anonymous mode](Advanced-Privacy-Consent).
 Every figure is a page-view count: anonymous rows carry no visitor or session,
 so the component deliberately reports no visitor, session or bounce metric.
 

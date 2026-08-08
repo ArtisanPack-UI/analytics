@@ -203,7 +203,7 @@ $stats = $query->getBotStats($range, $agentLimit = 10, $granularity = 'day', $fi
 > **Since 1.5.0**
 
 Get a summary of the page views collected before consent by
-[anonymous mode](../advanced/privacy-consent.md):
+[anonymous mode](Advanced-Privacy-Consent):
 
 ```php
 $stats = $query->getAnonymousStats($range, $limit = 10, $granularity = 'day', $filters = []);

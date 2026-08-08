@@ -4,6 +4,7 @@ declare( strict_types=1 );
 
 use ArtisanPackUI\Analytics\Data\DateRange;
 use ArtisanPackUI\Analytics\Http\Controllers\AnalyticsQueryController;
+use ArtisanPackUI\Analytics\Http\Controllers\InertiaDashboardController;
 use ArtisanPackUI\Analytics\Models\AnonymousPageView;
 use ArtisanPackUI\Analytics\Models\PageView;
 use ArtisanPackUI\Analytics\Models\Session;
@@ -413,6 +414,23 @@ test( 'the referrers endpoint honours the anonymous query parameter', function (
     )->getData( true );
 
     expect( $combined['data'][0]['views'] )->toBe( 2 );
+} );
+
+test( 'the inertia dashboard does not accept the anonymous-only mode', function (): void {
+    $controller = new ReflectionClass( InertiaDashboardController::class );
+    $getFilters = $controller->getMethod( 'getFilters' );
+    $instance   = app( InertiaDashboardController::class );
+
+    // The dashboard's control is a boolean and its page props reduce the mode
+    // to one, so an anonymous-only response would be rendered as though it
+    // were combined, with zeroed visitor figures shown unlabelled.
+    $only = $getFilters->invoke( $instance, Request::create( '/analytics', 'GET', [ 'anonymous' => 'only' ] ) );
+
+    expect( $only )->not->toHaveKey( 'anonymous' );
+
+    $include = $getFilters->invoke( $instance, Request::create( '/analytics', 'GET', [ 'anonymous' => 'include' ] ) );
+
+    expect( $include['anonymous'] )->toBe( 'include' );
 } );
 
 test( 'the stats endpoint rejects an unknown anonymous mode', function (): void {

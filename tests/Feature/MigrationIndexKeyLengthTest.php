@@ -40,7 +40,10 @@ test( 'the anonymous page view path index is built over a prefix', function (): 
 	) );
 
 	expect( $pathIndexes )->toHaveCount( 1 );
-	expect( $pathIndexes[0] )->toContain( 'path(191)' );
+
+	// Identifiers may or may not be quoted, so match the prefix itself rather
+	// than one spelling of it.
+	expect( str_replace( '`', '', $pathIndexes[0] ) )->toContain( 'path(191)' );
 } );
 
 test( 'no anonymous page view index can exceed the MySQL key length limit', function (): void {
@@ -58,10 +61,14 @@ test( 'no anonymous page view index can exceed the MySQL key length limit', func
 		'tenant_id'     => 255,
 	];
 
+	$inspected = 0;
+
 	foreach ( $statements as $statement ) {
 		if ( ! preg_match( '/index [`\w]+ on [`\w]+ \((.+)\)$|index `[^`]+`\((.+)\)/i', $statement, $matches ) ) {
 			continue;
 		}
+
+		++$inspected;
 
 		$columns = $matches[1] ?: $matches[2];
 		$bytes   = 0;
@@ -88,6 +95,11 @@ test( 'no anonymous page view index can exceed the MySQL key length limit', func
 			sprintf( 'Index key exceeds the MySQL limit: %s', $statement ),
 		);
 	}
+
+	// Every assertion above lives inside the loop, so a change to the compiled
+	// DDL that stopped matching would turn this test into a silent no-op —
+	// removing the very protection it exists to provide.
+	expect( $inspected )->toBeGreaterThan( 0 );
 } );
 
 test( 'the anonymous page view index name fits MySQL identifier limits', function (): void {
@@ -96,6 +108,9 @@ test( 'the anonymous page view index name fits MySQL identifier limits', functio
 	);
 
 	preg_match_all( '/index [`]?([a-z_]+)[`]?[ (]/i', implode( ' ', $statements ), $matches );
+
+	// Guard against the pattern silently matching nothing.
+	expect( $matches[1] )->not->toBeEmpty();
 
 	foreach ( $matches[1] as $name ) {
 		expect( strlen( $name ) )->toBeLessThanOrEqual( 64 );

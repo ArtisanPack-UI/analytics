@@ -341,7 +341,9 @@
 		@endif
 
 		{{-- Anonymous Tab --}}
-		@if ( $activeTab === 'anonymous' )
+		{{-- Guarded on the data as well as the tab: the tab is dropped the
+		     moment there is nothing to show, and the panel must not outlive it. --}}
+		@if ( $activeTab === 'anonymous' && $hasAnonymousData )
 			<livewire:artisanpack-analytics::widgets.anonymous-traffic
 				:date-range-preset="$dateRangePreset"
 				:site-id="$siteId"

@@ -23,6 +23,7 @@ interface Stats {
     realtime_visitors?: number;
     anonymous_pageviews?: number;
     anonymous_mode?: AnonymousFilterMode;
+    identified_only_metrics_available?: boolean;
     comparison?: StatsComparison | null;
 }
 
@@ -31,12 +32,38 @@ const props = defineProps<{
     stats: Stats;
 }>();
 
-// When anonymous page views are folded in, every card says which scope it
+// When anonymous page views are in scope, every card says which scope it
 // covers. A combined page-view figure sitting unlabelled beside a
 // consented-only visitor figure invites a ratio nobody should compute.
 const combined = computed( () => props.stats.anonymous_mode === 'include' );
-const withAnonymous = computed( () => ( combined.value ? ' (incl. anonymous)' : '' ) );
-const consentedOnly = computed( () => ( combined.value ? ' (consented only)' : '' ) );
+const anonymousOnly = computed( () => props.stats.anonymous_mode === 'only' );
+
+const withAnonymous = computed( () => {
+    if ( combined.value ) {
+        return ' (incl. anonymous)';
+    }
+
+    return anonymousOnly.value ? ' (anonymous only)' : '';
+} );
+
+// In an anonymous-only view these metrics are not reported at all. The API
+// sends zeroes so the shape stays stable; rendering those as real figures
+// would invent a fact, so they are shown as unavailable instead.
+const unavailable = computed(
+    () => anonymousOnly.value || false === props.stats.identified_only_metrics_available,
+);
+
+const consentedOnly = computed( () => {
+    if ( unavailable.value ) {
+        return ' (not available)';
+    }
+
+    return combined.value ? ' (consented only)' : '';
+} );
+
+function identifiedValue( value: string ): string {
+    return unavailable.value ? '—' : value;
+}
 
 function formatDuration( seconds: number ): string {
     const totalSeconds = Math.round( seconds );
@@ -81,30 +108,30 @@ function changeDirection( value?: { change: number } ): 'up' | 'down' | 'neutral
         />
         <Stat
             :title="`Visitors${consentedOnly}`"
-            :value="new Intl.NumberFormat().format( props.stats.visitors )"
-            :change="formatChange( props.stats.comparison?.visitors )"
-            :change-direction="changeDirection( props.stats.comparison?.visitors )"
+            :value="identifiedValue( new Intl.NumberFormat().format( props.stats.visitors ) )"
+            :change="unavailable ? undefined : formatChange( props.stats.comparison?.visitors )"
+            :change-direction="unavailable ? 'neutral' : changeDirection( props.stats.comparison?.visitors )"
             :description="props.stats.comparison ? 'vs previous period' : undefined"
         />
         <Stat
             :title="`Sessions${consentedOnly}`"
-            :value="new Intl.NumberFormat().format( props.stats.sessions )"
-            :change="formatChange( props.stats.comparison?.sessions )"
-            :change-direction="changeDirection( props.stats.comparison?.sessions )"
+            :value="identifiedValue( new Intl.NumberFormat().format( props.stats.sessions ) )"
+            :change="unavailable ? undefined : formatChange( props.stats.comparison?.sessions )"
+            :change-direction="unavailable ? 'neutral' : changeDirection( props.stats.comparison?.sessions )"
             :description="props.stats.comparison ? 'vs previous period' : undefined"
         />
         <Stat
             :title="`Bounce Rate${consentedOnly}`"
-            :value="`${props.stats.bounce_rate.toFixed( 1 )}%`"
-            :change="formatChange( props.stats.comparison?.bounce_rate )"
-            :change-direction="changeDirection( props.stats.comparison?.bounce_rate )"
+            :value="identifiedValue( `${props.stats.bounce_rate.toFixed( 1 )}%` )"
+            :change="unavailable ? undefined : formatChange( props.stats.comparison?.bounce_rate )"
+            :change-direction="unavailable ? 'neutral' : changeDirection( props.stats.comparison?.bounce_rate )"
             :description="props.stats.comparison ? 'vs previous period' : undefined"
         />
         <Stat
             :title="`Avg. Session Duration${consentedOnly}`"
-            :value="formatDuration( props.stats.avg_session_duration )"
-            :change="formatChange( props.stats.comparison?.avg_session_duration )"
-            :change-direction="changeDirection( props.stats.comparison?.avg_session_duration )"
+            :value="identifiedValue( formatDuration( props.stats.avg_session_duration ) )"
+            :change="unavailable ? undefined : formatChange( props.stats.comparison?.avg_session_duration )"
+            :change-direction="unavailable ? 'neutral' : changeDirection( props.stats.comparison?.avg_session_duration )"
             :description="props.stats.comparison ? 'vs previous period' : undefined"
         />
     </div>

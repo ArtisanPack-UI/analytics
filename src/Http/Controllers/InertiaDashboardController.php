@@ -382,9 +382,16 @@ class InertiaDashboardController extends Controller
 
 		// Anonymous (pre-consent) traffic filter. Excluded by default; the
 		// dashboard toggle opts in via ?anonymous=include.
-		$anonymous = $request->query( 'anonymous' );
-		if ( is_string( $anonymous ) && in_array( $anonymous, [ 'exclude', 'include', 'only' ], true ) ) {
-			$filters['anonymous'] = $anonymous;
+		//
+		// `only` is deliberately not accepted here. The dashboard's control is
+		// a boolean, and the page props reduce the mode to one, so an
+		// anonymous-only response would be rendered as though it were combined
+		// — with the visitor and session figures, which anonymous rows cannot
+		// produce, shown as unlabelled zeroes. The mode remains available on
+		// the query API, and the Anonymous panel already reports the
+		// anonymous-only view in a shape that cannot be misread.
+		if ( 'include' === $request->query( 'anonymous' ) ) {
+			$filters['anonymous'] = 'include';
 		}
 
 		return $filters;

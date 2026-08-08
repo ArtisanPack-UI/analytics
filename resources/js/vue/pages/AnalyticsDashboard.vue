@@ -9,11 +9,11 @@
   @since 1.1.0
 -->
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Card, Tabs, Select, Grid } from '@artisanpack-ui/vue';
 
 import type { TabItem } from '@artisanpack-ui/vue';
-import type { AnonymousStatsData, TopPageItem, TrafficSourceItem, StatsComparison } from '../../types';
+import type { AnonymousStatsData, DateRangePreset, TopPageItem, TrafficSourceItem, StatsComparison } from '../../types';
 
 import AnonymousTraffic from '../components/AnonymousTraffic.vue';
 import StatsCards from '../components/StatsCards.vue';
@@ -92,6 +92,19 @@ const activeTab = ref( 'overview' );
 const hasAnonymousData = computed(
     () => Boolean( props.anonymousStats?.enabled && props.anonymousStats.anonymous_pageviews > 0 ),
 );
+
+// The Anonymous tab disappears the moment there is nothing to show, which a
+// date-range change can do at any time. Anyone sitting on it would otherwise be
+// left on a tab that no longer exists, with no panel rendered.
+watch( hasAnonymousData, ( available ) => {
+    if ( ! available && activeTab.value === 'anonymous' ) {
+        activeTab.value = 'overview';
+    }
+} );
+
+// The Anonymous panel fetches its own data, so it has to be told which period
+// the dashboard is showing or it silently reports its own default instead.
+const anonymousPeriod = computed( () => props.dateRangePreset as DateRangePreset );
 
 const scopeAnnouncement = computed( () => {
     if ( ! hasAnonymousData.value ) {
@@ -244,6 +257,7 @@ const tabs = computed<TabItem[]>( () => {
             <template #anonymous>
                 <div class="space-y-6 pt-4">
                     <AnonymousTraffic
+                        :period="anonymousPeriod"
                         :include-anonymous="props.includeAnonymous"
                         @include-anonymous-change="handleIncludeAnonymousChange"
                     />

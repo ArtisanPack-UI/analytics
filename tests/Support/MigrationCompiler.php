@@ -93,6 +93,12 @@ final class MigrationCompiler
 			DB::purge( 'mysql_fake' );
 			config()->set( 'database.default', 'mysql_fake' );
 
+			// Purging clears the manager's connection cache but not the
+			// resolved facades. A migration reaching for Schema::getConnection()
+			// would otherwise be handed a schema builder still bound to
+			// whichever connection was resolved first in the process.
+			self::forgetResolvedConnections();
+
 			$migration = require $migrationFile;
 			$migration->up();
 
@@ -101,6 +107,7 @@ final class MigrationCompiler
 			config()->set( 'database.default', $originalDefault );
 			config()->set( 'database.connections.mysql_fake', $originalConnection );
 			DB::purge( 'mysql_fake' );
+			self::forgetResolvedConnections();
 		}
 	}
 
@@ -122,5 +129,19 @@ final class MigrationCompiler
 		}
 
 		return $matches[0];
+	}
+
+	/**
+	 * Drop the cached database and schema facade instances.
+	 *
+	 * @since 1.5.0
+	 */
+	private static function forgetResolvedConnections(): void
+	{
+		// Only the schema builder is discarded. The `db` manager holds the
+		// DB::extend() registration for the fake connection, so forgetting it
+		// would send the next resolve looking for a real MySQL server.
+		app()->forgetInstance( 'db.schema' );
+		DB::clearResolvedInstance( 'db.schema' );
 	}
 }

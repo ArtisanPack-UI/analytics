@@ -9,7 +9,7 @@
  * @since 1.1.0
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Card, Tabs, Select, Grid } from '@artisanpack-ui/react';
 
 import type { TabItem } from '@artisanpack-ui/react';
@@ -18,7 +18,7 @@ import type {
     VisitorsChartProps,
 } from '../components/VisitorsChart';
 import type { StatsCardsProps } from '../components/StatsCards';
-import type { AnonymousStatsData, TopPageItem, TrafficSourceItem } from '../../types';
+import type { AnonymousStatsData, DateRangePreset, TopPageItem, TrafficSourceItem } from '../../types';
 
 import AnonymousTraffic from '../components/AnonymousTraffic';
 import StatsCards from '../components/StatsCards';
@@ -108,6 +108,15 @@ export default function AnalyticsDashboard( {
         anonymousStats?.enabled && anonymousStats.anonymous_pageviews > 0,
     );
 
+    // The Anonymous tab disappears the moment there is nothing to show, which
+    // a date-range change can do at any time. Anyone sitting on it would
+    // otherwise be left on a tab that no longer exists, with no panel rendered.
+    useEffect( () => {
+        if ( ! hasAnonymousData && activeTab === 'anonymous' ) {
+            setActiveTab( 'overview' );
+        }
+    }, [ hasAnonymousData, activeTab ] );
+
     const handlePresetChange = ( e: React.ChangeEvent<HTMLSelectElement> ): void => {
         onDateRangeChange?.( e.target.value );
     };
@@ -180,6 +189,7 @@ export default function AnalyticsDashboard( {
                 content: (
                     <div className="space-y-6 pt-4">
                         <AnonymousTraffic
+                            period={dateRangePreset as DateRangePreset}
                             initialData={anonymousStats}
                             includeAnonymous={includeAnonymous}
                             onIncludeAnonymousChange={
@@ -203,6 +213,7 @@ export default function AnalyticsDashboard( {
         anonymousStats,
         includeAnonymous,
         onIncludeAnonymousChange,
+        dateRangePreset,
     ] );
 
     return (

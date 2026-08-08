@@ -4,7 +4,6 @@ declare( strict_types=1 );
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -82,10 +81,18 @@ return new class extends Migration
 	{
 		$indexName = 'analytics_anon_page_views_site_path_index';
 
-		if ( in_array( DB::connection()->getDriverName(), [ 'mysql', 'mariadb' ], true ) ) {
-			DB::statement( sprintf(
-				'CREATE INDEX %s ON analytics_anonymous_page_views (site_id, path(191))',
+		// Read the connection from the schema builder rather than the default
+		// one. Schema::create() above ran on the connection the migrator
+		// selected and applied that connection's table prefix; a raw statement
+		// does neither on its own, so on a prefixed installation it would try
+		// to index a table name that does not exist.
+		$connection = Schema::getConnection();
+
+		if ( in_array( $connection->getDriverName(), [ 'mysql', 'mariadb' ], true ) ) {
+			$connection->statement( sprintf(
+				'CREATE INDEX `%s` ON `%s` (`site_id`, `path`(191))',
 				$indexName,
+				$connection->getTablePrefix() . 'analytics_anonymous_page_views',
 			) );
 
 			return;

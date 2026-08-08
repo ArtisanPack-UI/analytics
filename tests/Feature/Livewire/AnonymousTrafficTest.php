@@ -15,6 +15,10 @@ beforeEach( function (): void {
     config()->set( 'artisanpack.analytics.local.queue_processing', false );
     config()->set( 'artisanpack.analytics.local.enabled', true );
     config()->set( 'artisanpack.analytics.privacy.anonymous_mode', true );
+
+    // Widgets re-query on every toggle and refresh; a cached count would hide
+    // whether they actually reloaded.
+    config()->set( 'artisanpack.analytics.dashboard.cache_enabled', false );
 } );
 
 /**
@@ -129,6 +133,24 @@ test( 'the dashboard announces the traffic scope when anonymous rows are include
 
     expect( $component->instance()->getAnonymousAnnouncement() )
         ->toContain( 'consented and anonymous visitors' );
+} );
+
+test( 'the dashboard leaves the anonymous tab when its data disappears', function (): void {
+    anonymousWidgetPageView( '/a' );
+
+    $component = Livewire::test( AnalyticsDashboard::class )
+        ->call( 'switchTab', 'anonymous' )
+        ->call( 'syncAnonymousInclusion', true )
+        ->assertSet( 'activeTab', 'anonymous' );
+
+    // Narrow the range to one that collected nothing. The tab is dropped, so
+    // staying on it would render a dashboard with no active panel at all.
+    AnonymousPageView::query()->delete();
+
+    $component->call( 'refreshData' )
+        ->assertSet( 'hasAnonymousData', false )
+        ->assertSet( 'activeTab', 'overview' )
+        ->assertSet( 'includeAnonymous', false );
 } );
 
 test( 'chart series are renamed for their scope when anonymous rows are included', function (): void {

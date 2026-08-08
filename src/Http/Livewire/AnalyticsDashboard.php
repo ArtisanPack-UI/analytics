@@ -133,8 +133,15 @@ class AnalyticsDashboard extends Component
 
 		// Nothing collected means nothing to include; drop back to the
 		// identified-only view rather than leaving a toggle stuck on.
-		if ( ! $this->hasAnonymousData && $this->includeAnonymous ) {
+		if ( ! $this->hasAnonymousData ) {
 			$this->includeAnonymous = false;
+
+			// getTabs() drops the Anonymous tab at the same moment. Someone
+			// sitting on it when they change the range would otherwise be left
+			// on a tab that no longer exists, with no panel rendered at all.
+			if ( 'anonymous' === $this->activeTab ) {
+				$this->activeTab = 'overview';
+			}
 		}
 
 		$this->isLoading = false;
