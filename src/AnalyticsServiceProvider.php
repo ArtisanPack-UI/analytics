@@ -826,6 +826,7 @@ class AnalyticsServiceProvider extends ServiceProvider
         \Livewire\Livewire::component( 'artisanpack-analytics::widgets.traffic-sources', Http\Livewire\Widgets\TrafficSources::class );
         \Livewire\Livewire::component( 'artisanpack-analytics::widgets.realtime-visitors', Http\Livewire\Widgets\RealtimeVisitors::class );
         \Livewire\Livewire::component( 'artisanpack-analytics::widgets.bot-traffic', Http\Livewire\Widgets\BotTraffic::class );
+        \Livewire\Livewire::component( 'artisanpack-analytics::widgets.anonymous-traffic', Http\Livewire\Widgets\AnonymousTraffic::class );
     }
 
     /**

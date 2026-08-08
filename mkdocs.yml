@@ -29,6 +29,8 @@ nav:
     - Top Pages: components/top-pages.md
     - Traffic Sources: components/traffic-sources.md
     - Realtime Visitors: components/realtime-visitors.md
+    - Bot Traffic: components/bot-traffic.md
+    - Anonymous Traffic: components/anonymous-traffic.md
   - Frontend Components:
     - Overview: frontend/overview.md
     - Installation: frontend/installation.md

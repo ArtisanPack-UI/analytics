@@ -49,6 +49,14 @@
 					{{ trans_choice( 'visitor online now|visitors online now', $visitorCount ) }}
 				</p>
 
+				{{-- Active visitors are counted per visitor, which anonymous
+				     rows do not have, so this figure can never include them. --}}
+				@if ( $this->isAnonymousModeEnabled() )
+					<p class="mt-1 text-xs text-base-content/60">
+						{{ __( 'Consented visitors only' ) }}
+					</p>
+				@endif
+
 				{{-- Trend Indicator --}}
 				@if ( $previousCount > 0 && $this->getTrend() !== 'stable' )
 					<div class="mt-3 flex items-center gap-1 text-sm">

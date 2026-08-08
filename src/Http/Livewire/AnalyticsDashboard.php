@@ -68,6 +68,15 @@ class AnalyticsDashboard extends Component
 	public Collection $countryBreakdown;
 
 	/**
+	 * Whether any anonymous rows were collected for the current range.
+	 *
+	 * Drives whether the anonymous toggle and tab are offered at all, so a
+	 * site with the feature off — or on but with nothing collected yet — is
+	 * not shown an empty panel that reads like a fault.
+	 */
+	public bool $hasAnonymousData = false;
+
+	/**
 	 * Mount the component.
 	 *
 	 * @param string|null $dateRangePreset The initial date range.
@@ -119,6 +128,22 @@ class AnalyticsDashboard extends Component
 		$this->browserBreakdown = $query->getBrowserBreakdown( $range, 10, $filters );
 		$this->countryBreakdown = $query->getCountryBreakdown( $range, 10, $filters );
 
+		$this->hasAnonymousData = $this->isAnonymousModeEnabled()
+			&& $query->hasAnonymousData( $range, $filters );
+
+		// Nothing collected means nothing to include; drop back to the
+		// identified-only view rather than leaving a toggle stuck on.
+		if ( ! $this->hasAnonymousData ) {
+			$this->includeAnonymous = false;
+
+			// getTabs() drops the Anonymous tab at the same moment. Someone
+			// sitting on it when they change the range would otherwise be left
+			// on a tab that no longer exists, with no panel rendered at all.
+			if ( 'anonymous' === $this->activeTab ) {
+				$this->activeTab = 'overview';
+			}
+		}
+
 		$this->isLoading = false;
 	}
 
@@ -148,6 +173,42 @@ class AnalyticsDashboard extends Component
 	}
 
 	/**
+	 * Toggle whether anonymous (pre-consent) traffic is included.
+	 *
+	 * Dispatches the toggle so the dashboard and any standalone widgets that
+	 * use the analytics widget trait refresh with the new state. Only
+	 * page-view figures change; visitor-, session- and bounce-based metrics
+	 * cannot include anonymous rows and are labelled as such in the view.
+	 *
+	 * @since 1.5.0
+	 */
+	public function toggleAnonymous(): void
+	{
+		$this->dispatch( 'analytics-anonymous-toggled', includeAnonymous: ! $this->includeAnonymous );
+	}
+
+	/**
+	 * Get a screen-reader announcement describing the current traffic scope.
+	 *
+	 * Rendered into a live region so toggling does not leave a screen reader
+	 * user on stale figures with no indication the numbers changed.
+	 *
+	 * @return string The announcement text.
+	 *
+	 * @since 1.5.0
+	 */
+	public function getAnonymousAnnouncement(): string
+	{
+		if ( ! $this->hasAnonymousData ) {
+			return '';
+		}
+
+		return $this->includeAnonymous
+			? __( 'Showing page views from consented and anonymous visitors. Visitors, sessions, bounce rate and session duration still count consented visitors only.' )
+			: __( 'Showing consented visitors only.' );
+	}
+
+	/**
 	 * Refresh the dashboard data.
 	 *
 	 * @since 1.0.0
@@ -169,7 +230,7 @@ class AnalyticsDashboard extends Component
 	 */
 	public function getTabs(): array
 	{
-		return [
+		$tabs = [
 			'overview' => [
 				'label' => __( 'Overview' ),
 				'icon'  => 'chart-bar',
@@ -191,6 +252,16 @@ class AnalyticsDashboard extends Component
 				'icon'  => 'bug-ant',
 			],
 		];
+
+		// Only offered once there is anonymous traffic to show.
+		if ( $this->hasAnonymousData ) {
+			$tabs['anonymous'] = [
+				'label' => __( 'Anonymous' ),
+				'icon'  => 'eye-slash',
+			];
+		}
+
+		return $tabs;
 	}
 
 	/**
@@ -348,7 +419,12 @@ class AnalyticsDashboard extends Component
 			'labels'   => $labels,
 			'datasets' => [
 				[
-					'label'           => __( 'Page Views' ),
+					// Named for the scope actually plotted: with anonymous
+					// rows folded in, this series and the Visitors series
+					// below no longer describe the same population.
+					'label'           => $this->includeAnonymous
+						? __( 'Page Views (incl. anonymous)' )
+						: __( 'Page Views' ),
 					'data'            => $pageviews,
 					'borderColor'     => 'rgb(59, 130, 246)',
 					'backgroundColor' => 'rgba(59, 130, 246, 0.1)',
@@ -356,7 +432,9 @@ class AnalyticsDashboard extends Component
 					'tension'         => 0.4,
 				],
 				[
-					'label'           => __( 'Visitors' ),
+					'label'           => $this->includeAnonymous
+						? __( 'Visitors (consented only)' )
+						: __( 'Visitors' ),
 					'data'            => $visitors,
 					'borderColor'     => 'rgb(16, 185, 129)',
 					'backgroundColor' => 'rgba(16, 185, 129, 0.1)',

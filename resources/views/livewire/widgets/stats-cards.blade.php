@@ -20,6 +20,8 @@
 					$value = $stats[ $config['key'] ] ?? 0;
 					$formattedValue = $this->formatStatValue( $value, $config['format'] );
 					$comparison = $stats['comparison'][ $config['key'] ] ?? null;
+					$scopeNote = $this->getStatScopeNote( $config );
+					$anonymousViews = $stats['anonymous_pageviews'] ?? 0;
 				@endphp
 
 				<x-artisanpack-card class="hover:shadow-md transition-shadow">
@@ -39,6 +41,21 @@
 							{{ $formattedValue }}
 						</span>
 					</div>
+
+					{{-- Scope note. A card that cannot include anonymous traffic
+					     says so, so a combined page-view figure is never read
+					     next to a consented-only figure as if they matched. --}}
+					@if ( '' !== $scopeNote )
+						<div class="mt-1 flex items-center gap-1 text-xs text-base-content/60">
+							<x-artisanpack-icon :name="$config['anonymous_aware'] ? 'o-eye-slash' : 'o-shield-check'" class="w-3.5 h-3.5 shrink-0" />
+							<span>
+								{{ $scopeNote }}
+								@if ( $config['anonymous_aware'] && $anonymousViews > 0 )
+									({{ $this->formatStatValue( $anonymousViews, 'number' ) }})
+								@endif
+							</span>
+						</div>
+					@endif
 
 					{{-- Comparison --}}
 					@if ( $showComparison && $comparison )

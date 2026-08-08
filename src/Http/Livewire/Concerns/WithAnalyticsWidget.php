@@ -53,6 +53,16 @@ trait WithAnalyticsWidget
 	public bool $includeBots = false;
 
 	/**
+	 * Whether anonymous (pre-consent) traffic is included in the widget's data.
+	 *
+	 * Anonymous rows are excluded by default; the dashboard toggle opts back
+	 * in. Only page-view figures can ever reflect this — anonymous rows carry
+	 * no visitor or session, so visitor-, session- and bounce-based metrics
+	 * stay identified-only whatever this is set to.
+	 */
+	public bool $includeAnonymous = false;
+
+	/**
 	 * Initialize the widget with default date range.
 	 *
 	 * Call this in your component's mount() method.
@@ -114,6 +124,38 @@ trait WithAnalyticsWidget
 	{
 		$this->includeBots = $includeBots;
 		$this->refreshData();
+	}
+
+	/**
+	 * Sync the anonymous-inclusion state and refresh data.
+	 *
+	 * Listens for the dashboard toggle so every widget that uses this trait
+	 * stays in sync with the chosen anonymous-filter state.
+	 *
+	 * @param bool $includeAnonymous Whether anonymous traffic should be included.
+	 *
+	 * @since 1.5.0
+	 */
+	#[On( 'analytics-anonymous-toggled' )]
+	public function syncAnonymousInclusion( bool $includeAnonymous ): void
+	{
+		$this->includeAnonymous = $includeAnonymous;
+		$this->refreshData();
+	}
+
+	/**
+	 * Whether pre-consent anonymous collection is enabled.
+	 *
+	 * Views use this to hide the anonymous surface entirely when the feature
+	 * is off, rather than showing a control that cannot do anything.
+	 *
+	 * @return bool True when `privacy.anonymous_mode` is on.
+	 *
+	 * @since 1.5.0
+	 */
+	public function isAnonymousModeEnabled(): bool
+	{
+		return (bool) config( 'artisanpack.analytics.privacy.anonymous_mode', false );
 	}
 
 	/**
@@ -248,7 +290,8 @@ trait WithAnalyticsWidget
 			$filters['site_id'] = $this->siteId;
 		}
 
-		$filters['bots'] = $this->includeBots ? 'include' : 'exclude';
+		$filters['bots']      = $this->includeBots ? 'include' : 'exclude';
+		$filters['anonymous'] = $this->includeAnonymous ? 'include' : 'exclude';
 
 		return array_merge( $filters, $additionalFilters );
 	}

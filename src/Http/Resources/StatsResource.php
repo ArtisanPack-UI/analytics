@@ -51,6 +51,13 @@ class StatsResource extends JsonResource
 			'pages_per_session'    => $data['pages_per_session'] ?? 0.0,
 			'realtime_visitors'    => $data['realtime_visitors'] ?? 0,
 			'comparison'           => $data['comparison'] ?? null,
+
+			// Anonymous scope. Only `pageviews` above can reflect it; the
+			// dashboards use these keys to label the metrics that cannot.
+			'identified_pageviews'              => $data['identified_pageviews'] ?? ( $data['pageviews'] ?? 0 ),
+			'anonymous_pageviews'               => $data['anonymous_pageviews'] ?? 0,
+			'anonymous_mode'                    => $data['anonymous_mode'] ?? 'exclude',
+			'identified_only_metrics_available' => $data['identified_only_metrics_available'] ?? true,
 		];
 	}
 }

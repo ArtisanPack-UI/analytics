@@ -58,7 +58,48 @@ return new class extends Migration
 				->cascadeOnDelete();
 
 			$table->index( [ 'site_id', 'created_at' ] );
-			$table->index( [ 'site_id', 'path' ] );
+		} );
+
+		$this->addSitePathIndex();
+	}
+
+	/**
+	 * Index the per-site path lookup used by the top-pages query.
+	 *
+	 * `path` is 2048 characters, which under utf8mb4 is 8192 bytes on its own
+	 * — far past MySQL's 3072-byte limit for an index key, so the composite
+	 * index has to be built over a prefix of the column there. Other drivers
+	 * have no such limit and take the whole column.
+	 *
+	 * 191 characters is the usual utf8mb4 prefix length and is long enough to
+	 * separate real request paths; the rare longer path shares a prefix
+	 * bucket, which costs a filter rather than a correct answer.
+	 *
+	 * @since 1.5.0
+	 */
+	private function addSitePathIndex(): void
+	{
+		$indexName = 'analytics_anon_page_views_site_path_index';
+
+		// Read the connection from the schema builder rather than the default
+		// one. Schema::create() above ran on the connection the migrator
+		// selected and applied that connection's table prefix; a raw statement
+		// does neither on its own, so on a prefixed installation it would try
+		// to index a table name that does not exist.
+		$connection = Schema::getConnection();
+
+		if ( in_array( $connection->getDriverName(), [ 'mysql', 'mariadb' ], true ) ) {
+			$connection->statement( sprintf(
+				'CREATE INDEX `%s` ON `%s` (`site_id`, `path`(191))',
+				$indexName,
+				$connection->getTablePrefix() . 'analytics_anonymous_page_views',
+			) );
+
+			return;
+		}
+
+		Schema::table( 'analytics_anonymous_page_views', function ( Blueprint $table ) use ( $indexName ) {
+			$table->index( [ 'site_id', 'path' ], $indexName );
 		} );
 	}
 

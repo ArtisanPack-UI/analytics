@@ -24,6 +24,15 @@
 				/>
 			</x-slot:menu>
 
+				{{-- Sources are counted per session, and an anonymous row has
+				     no session, so this panel cannot include that traffic even
+				     when the dashboard toggle is on. --}}
+				@if ( $includeAnonymous )
+					<p class="text-xs text-base-content/60 mb-3">
+						{{ __( 'Consented visitors only — traffic sources are counted per session, which anonymous traffic does not have. Referring hosts for anonymous traffic are on the Anonymous tab.' ) }}
+					</p>
+				@endif
+
 				@if ( $sources->isEmpty() )
 					<div class="flex flex-col items-center justify-center py-8 text-base-content/50">
 						<x-artisanpack-icon name="o-globe-alt" class="w-12 h-12 mb-2" />

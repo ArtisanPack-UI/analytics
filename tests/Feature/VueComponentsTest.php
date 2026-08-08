@@ -41,6 +41,7 @@ test( 'all vue widget components exist in components directory', function ( stri
 	'TopPages',
 	'TrafficSources',
 	'RealtimeVisitors',
+	'AnonymousTraffic',
 ] );
 
 test( 'all vue consent components exist in components directory', function ( string $component ): void {
@@ -113,6 +114,7 @@ test( 'vue barrel export references all components', function (): void {
 		->toContain( 'TopPages' )
 		->toContain( 'TrafficSources' )
 		->toContain( 'RealtimeVisitors' )
+		->toContain( 'AnonymousTraffic' )
 		->toContain( 'AnalyticsDashboard' )
 		->toContain( 'PageAnalytics' )
 		->toContain( 'SiteSelector' )

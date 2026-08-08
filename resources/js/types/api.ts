@@ -51,11 +51,27 @@ export interface StatsComparison {
 }
 
 export interface StatsData {
+    /**
+     * Total page views. Includes anonymous (pre-consent) page views when the
+     * request asked for them. Every other metric here is derived from a
+     * visitor or a session and is therefore always consented-only.
+     */
     pageviews: number;
     visitors: number;
     sessions: number;
     bounce_rate: number;
     avg_session_duration: number;
+    /** Page views from consented visitors. */
+    identified_pageviews?: number;
+    /** Page views recorded before consent. Zero unless anonymous is included. */
+    anonymous_pageviews?: number;
+    /** Which anonymous scope produced these figures. */
+    anonymous_mode?: AnonymousFilterMode;
+    /**
+     * False in an anonymous-only view, where visitors, sessions, bounce rate
+     * and session duration are not reported rather than shown as zero.
+     */
+    identified_only_metrics_available?: boolean;
     comparison?: StatsComparison;
 }
 
@@ -164,6 +180,63 @@ export interface BotStatsData {
 }
 
 export type BotStatsResponse = ApiSuccessResponse<BotStatsData>;
+
+// --- /anonymous ---
+
+export interface AnonymousTopPageItem {
+    path: string;
+    title: string;
+    views: number;
+}
+
+export interface AnonymousReferringHostItem {
+    host: string;
+    views: number;
+}
+
+export interface AnonymousDeviceItem {
+    device_type: string;
+    views: number;
+    percentage: number;
+}
+
+export interface AnonymousTrendPoint {
+    date: string;
+    pageviews: number;
+}
+
+/**
+ * Anonymous (pre-consent) traffic summary.
+ *
+ * Every figure is a page-view count. Anonymous rows carry no visitor or
+ * session, so there is deliberately no visitor, session, bounce or duration
+ * metric here — those numbers do not exist for this traffic.
+ */
+export interface AnonymousStatsData {
+    /** Whether anonymous mode is enabled. */
+    enabled: boolean;
+    anonymous_pageviews: number;
+    identified_pageviews: number;
+    total_pageviews: number;
+    anonymous_percentage: number;
+    top_pages: AnonymousTopPageItem[];
+    referring_hosts: AnonymousReferringHostItem[];
+    device_breakdown: AnonymousDeviceItem[];
+    trend: AnonymousTrendPoint[];
+}
+
+export type AnonymousStatsResponse = ApiSuccessResponse<AnonymousStatsData>;
+
+// --- /referrers ---
+
+export interface ReferringHostItem {
+    host: string;
+    views: number;
+    identified_views: number;
+    anonymous_views: number;
+}
+
+export type ReferringHostsResponse = ApiSuccessResponse<ReferringHostItem[]>;
 
 // --- /visitors ---
 
@@ -308,6 +381,18 @@ export interface ConsentUpdateResponse {
  */
 export type BotFilterMode = 'exclude' | 'include' | 'only';
 
+/**
+ * Anonymous (pre-consent) traffic filter mode.
+ *
+ * - `exclude` (default): consented visitors only.
+ * - `include`: add anonymous page views to the page-view figures.
+ * - `only`: anonymous page views only.
+ *
+ * Only page-view figures respond to this. Visitors, sessions, bounce rate and
+ * session duration are derived from identifiers anonymous rows do not have.
+ */
+export type AnonymousFilterMode = 'exclude' | 'include' | 'only';
+
 export interface AnalyticsQueryParams {
     period?: DateRangePreset;
     start_date?: string;
@@ -320,6 +405,7 @@ export interface AnalyticsQueryParams {
     limit?: number;
     compare?: boolean;
     bots?: BotFilterMode;
+    anonymous?: AnonymousFilterMode;
 }
 
 export interface RealtimeQueryParams {

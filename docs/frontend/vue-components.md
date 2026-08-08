@@ -179,6 +179,29 @@ Live visitor count with automatic polling.
 </template>
 ```
 
+### AnonymousTraffic
+
+Page views recorded before consent by [anonymous mode](Advanced-Privacy-Consent).
+Every figure is a page-view count: anonymous rows carry no visitor or session,
+so the component deliberately reports no visitor, session or bounce metric.
+
+Renders an explanatory panel rather than zeroes when anonymous mode is off, and
+a distinct one when it is on with nothing collected for the period.
+
+```vue
+<template>
+    <AnonymousTraffic
+        period="30d"
+        :include-anonymous="includeAnonymous"
+        @include-anonymous-change="includeAnonymous = $event"
+    />
+</template>
+```
+
+Pass `anonymousStats` and `includeAnonymous` to `AnalyticsDashboard` to get the
+dashboard-level toggle and Anonymous tab; both are hidden unless the summary
+reports collected rows.
+
 ### SiteSelector
 
 Site picker dropdown for multi-tenant setups.

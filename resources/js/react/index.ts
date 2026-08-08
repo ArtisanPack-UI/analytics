@@ -16,6 +16,7 @@ export { default as TopPages } from './components/TopPages';
 export { default as TrafficSources } from './components/TrafficSources';
 export { default as RealtimeVisitors } from './components/RealtimeVisitors';
 export { default as BotTraffic } from './components/BotTraffic';
+export { default as AnonymousTraffic } from './components/AnonymousTraffic';
 
 // Components (consent)
 export { default as ConsentBanner } from './components/ConsentBanner';
