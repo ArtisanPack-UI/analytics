@@ -374,6 +374,32 @@ if ( ! function_exists( 'analyticsRealtime' ) ) {
 |--------------------------------------------------------------------------
 */
 
+if ( ! function_exists( 'analyticsMultiTenancyEnabled' ) ) {
+	/**
+	 * Determine whether analytics should scope its data by site.
+	 *
+	 * True when either switch is on: `artisanpack.core.multi_tenant.enabled`,
+	 * the ecosystem-wide flag every package reads, or this package's own
+	 * `artisanpack.analytics.multi_tenant.enabled`, which predates it. The
+	 * legacy flag is still honoured because an application that switched
+	 * analytics tenancy on before 1.5.0 would otherwise silently stop scoping
+	 * — every site's visits pooling into one dashboard, with nothing in the
+	 * logs to say why.
+	 *
+	 * @return bool True when a site should be resolved and queries scoped.
+	 *
+	 * @since 1.5.0
+	 */
+	function analyticsMultiTenancyEnabled(): bool
+	{
+		if ( (bool) config( 'artisanpack.analytics.multi_tenant.enabled', false ) ) {
+			return true;
+		}
+
+		return (bool) config( 'artisanpack.core.multi_tenant.enabled', false );
+	}
+}
+
 if ( ! function_exists( 'analyticsSite' ) ) {
 	/**
 	 * Get the current analytics site from the TenantManager.
@@ -384,11 +410,11 @@ if ( ! function_exists( 'analyticsSite' ) ) {
 	 */
 	function analyticsSite(): ?Site
 	{
-		if ( ! config( 'artisanpack.analytics.multi_tenant.enabled', false ) ) {
+		if ( ! analyticsMultiTenancyEnabled() ) {
 			return null;
 		}
 
-		return app( TenantManager::class )->currentSite();
+		return app( TenantManager::class )->current();
 	}
 }
 
@@ -402,11 +428,11 @@ if ( ! function_exists( 'analyticsTenantId' ) ) {
 	 */
 	function analyticsTenantId(): int|string|null
 	{
-		if ( ! config( 'artisanpack.analytics.multi_tenant.enabled', false ) ) {
+		if ( ! analyticsMultiTenancyEnabled() ) {
 			return null;
 		}
 
-		return app( TenantManager::class )->currentTenantId();
+		return app( TenantManager::class )->currentId();
 	}
 }
 

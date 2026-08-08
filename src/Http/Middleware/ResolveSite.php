@@ -13,9 +13,10 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * Middleware to resolve the current site using TenantManager.
  *
- * Uses the registered site resolvers to determine the current site
- * and sets it in the TenantManager for downstream processing.
- * Also shares the current site with all views.
+ * Resolution itself happens in `artisanpack-ui/core`'s shared site context,
+ * from one ecosystem-wide configuration. What this middleware adds is putting
+ * the resolved `Site` where the rest of a request expects it: on the request
+ * attributes and shared with every view.
  *
  * @since   1.0.0
  *
@@ -51,14 +52,22 @@ class ResolveSite
 	public function handle( Request $request, Closure $next ): Response
 	{
 		// Check if multi-tenant is enabled
-		if ( ! config( 'artisanpack.analytics.multi_tenant.enabled', false ) ) {
+		if ( ! analyticsMultiTenancyEnabled() ) {
 			return $next( $request );
 		}
 
-		// Resolve the current site
-		$site = $this->tenantManager->resolve( $request );
+		// Ask the shared site context every ArtisanPack UI package reads from,
+		// so this request cannot be site 2 here and site 1 somewhere else.
+		$site = $this->tenantManager->current();
 
 		if ( null !== $site ) {
+			// Pin it for the rest of the request. The site a request is for
+			// cannot change mid-request, and resolvers are asked afresh on
+			// every call by design — without pinning, each scoped query would
+			// re-run the whole chain, putting a domain or API-key lookup in
+			// front of it.
+			$this->tenantManager->setCurrent( $site );
+
 			// Add site to request attributes
 			$request->attributes->set( 'site', $site );
 			$request->attributes->set( 'site_id', $site->id );

@@ -44,10 +44,12 @@ use ArtisanPackUI\Analytics\Services\IpAnonymizer;
 use ArtisanPackUI\Analytics\Services\PrivacyIntegration;
 use ArtisanPackUI\Analytics\Services\SiteSettingsService;
 use ArtisanPackUI\Analytics\Services\TenantManager;
+use ArtisanPackUI\Core\MultiTenancy\SiteContext;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -157,18 +159,16 @@ class AnalyticsServiceProvider extends ServiceProvider
             );
         } );
 
-        // Register TenantManager as singleton
-        $this->app->singleton( TenantManager::class, function () {
-            $manager = new TenantManager;
-
-            // Register resolvers from config
-            $resolvers = config( 'artisanpack.analytics.multi_tenant.resolvers', [] );
-
-            if ( ! empty( $resolvers ) ) {
-                $manager->registerResolversFromConfig( $resolvers );
-            }
-
-            return $manager;
+        // Register TenantManager over the ecosystem's shared site context.
+        //
+        // Scoped rather than singleton, to match the context it wraps: Laravel
+        // forgets scoped instances between Octane requests and between queue
+        // jobs, so a site pinned by one job cannot scope the next job's data,
+        // and neither can the Site model this manager caches.
+        $this->app->scoped( TenantManager::class, function ( $app ) {
+            return new TenantManager(
+                $app->make( SiteContext::class ),
+            );
         } );
 
         // Register SiteSettingsService
@@ -204,6 +204,7 @@ class AnalyticsServiceProvider extends ServiceProvider
         Support\HookAliases::register();
 
         $this->mergeConfiguration();
+        $this->bridgeLegacyMultiTenantConfig();
         $this->publishConfiguration();
         $this->publishMigrations();
         $this->publishViews();
@@ -293,6 +294,71 @@ class AnalyticsServiceProvider extends ServiceProvider
             SiteSettingsService::class,
             CrossTenantReporting::class,
         ];
+    }
+
+    /**
+     * Carry a pre-1.5 multi-tenant configuration onto the shared one.
+     *
+     * Site resolution moved to `artisanpack-ui/core` in 1.5.0 so that every
+     * package in an installation resolves one site from one configuration.
+     * Applications configured before that switched tenancy on with
+     * `artisanpack.analytics.multi_tenant.enabled` and listed their resolvers
+     * under the same block, and core's own switch defaults to off — so without
+     * this bridge an upgrade would silently stop scoping analytics by site,
+     * pooling every site's visits into one dashboard with nothing in the logs
+     * to explain it.
+     *
+     * The legacy resolvers go in front of whatever the shared list already
+     * holds, which preserves the order they resolved in before: an API key or
+     * `X-Site-ID` header identifies the site a tracking request is *for*,
+     * which is not always the site the request is *served from*.
+     *
+     * Applications that have migrated set the core keys and either switch the
+     * analytics flag off or empty its resolver list; nothing is bridged then.
+     *
+     * @return void
+     *
+     * @since 1.5.0
+     */
+    protected function bridgeLegacyMultiTenantConfig(): void
+    {
+        if ( ! config( 'artisanpack.analytics.multi_tenant.enabled', false ) ) {
+            return;
+        }
+
+        $config = $this->app->make( 'config' );
+
+        if ( ! $config->get( 'artisanpack.core.multi_tenant.enabled', false ) ) {
+            $config->set( 'artisanpack.core.multi_tenant.enabled', true );
+        }
+
+        $legacyResolvers = $config->get( 'artisanpack.analytics.multi_tenant.resolvers', [] );
+        $sharedResolvers = $config->get( 'artisanpack.core.multi_tenant.resolvers', [] );
+
+        // A shared list that is not a list is a configuration fault, and core
+        // reports it as one when the resolver is built. Merging into it here
+        // would turn that report into a confusing one about analytics.
+        if ( ! is_array( $legacyResolvers ) || [] === $legacyResolvers || ! is_array( $sharedResolvers ) ) {
+            return;
+        }
+
+        $merged = array_values( array_unique( array_merge(
+            array_values( $legacyResolvers ),
+            array_values( $sharedResolvers ),
+        ) ) );
+
+        if ( $merged === array_values( $sharedResolvers ) ) {
+            return;
+        }
+
+        $config->set( 'artisanpack.core.multi_tenant.resolvers', $merged );
+
+        Log::notice( __(
+            '[Analytics] Bridging the deprecated "artisanpack.analytics.multi_tenant" settings onto'
+                . ' "artisanpack.core.multi_tenant", which every ArtisanPack UI package now resolves sites from.'
+                . ' Move your resolvers to the core key and switch tenancy on there; support for the analytics'
+                . ' key will be removed in 2.0.',
+        ) );
     }
 
     /**

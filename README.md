@@ -252,10 +252,11 @@ return [
         'aggregate_before_delete' => true,
     ],
 
-    // Multi-tenant settings
+    // Multi-tenant settings. Since 1.5.0, 'enabled' and the resolver list
+    // live under artisanpack.core.multi_tenant, shared with every other
+    // ArtisanPack UI package; the keys here are deprecated but still honoured.
     'multi_tenant' => [
         'enabled' => false,
-        'resolver' => 'domain', // domain, subdomain, api_key, header
     ],
 
     // Dashboard settings
@@ -413,27 +414,41 @@ Analytics::extend('mixpanel', function ($app) {
 
 ### Custom Site Resolvers (Multi-Tenant)
 
-Create custom resolvers by implementing `SiteResolverInterface`:
+Which site a request is for is decided once for the whole ArtisanPack UI
+ecosystem, by `artisanpack-ui/core`. Implement its contract, which is keyed on
+the site identifier so packages need not share models:
 
 ```php
-use ArtisanPackUI\Analytics\Contracts\SiteResolverInterface;
+use ArtisanPackUI\Core\Contracts\SiteResolver;
 use Illuminate\Http\Request;
 
-class TeamResolver implements SiteResolverInterface
+class TeamResolver implements SiteResolver
 {
-    public function resolve(Request $request): ?Site
+    public function __construct(private Request $request)
     {
-        $teamId = $request->user()?->current_team_id;
-        return Site::where('team_id', $teamId)->first();
+    }
+
+    public function currentSiteId(): int|string|null
+    {
+        $teamId = $this->request->user()?->current_team_id;
+
+        return Site::where('team_id', $teamId)->value('id');
     }
 }
 
-// Register in config
-'multi_tenant' => [
-    'enabled' => true,
-    'resolver' => App\Analytics\TeamResolver::class,
+// Register in config/artisanpack.php
+'core' => [
+    'multi_tenant' => [
+        'enabled' => true,
+        'resolvers' => [
+            App\Analytics\TeamResolver::class,
+        ],
+    ],
 ],
 ```
+
+See [Multi-Tenancy](docs/advanced/multi-tenancy.md) for migrating a resolver
+written against the deprecated `SiteResolverInterface`.
 
 ### Filter Hooks
 
