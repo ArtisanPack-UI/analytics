@@ -99,6 +99,7 @@ it( 'resolves the same site for analytics and a sibling package from one configu
 	$siteOne = sharedResolutionSite( 'Site One' );
 	$siteTwo = sharedResolutionSite( 'Site Two' );
 
+	config()->set( 'artisanpack.analytics.multi_tenant.trust_site_header', true );
 	useSharedResolvers( [ HeaderResolver::class ] );
 
 	app()->instance( 'request', Request::create( '/', 'GET', [], [], [], [
@@ -320,6 +321,7 @@ it( 'bridges nothing twice when the legacy resolvers are already shared', functi
 it( 'shares the context-resolved site through the ResolveSite middleware', function (): void {
 	$site = sharedResolutionSite( 'Middleware', 'middleware.test' );
 
+	config()->set( 'artisanpack.analytics.multi_tenant.trust_site_header', true );
 	useSharedResolvers( [ HeaderResolver::class ] );
 
 	$request = Request::create( '/', 'GET', [], [], [], [
@@ -373,6 +375,7 @@ it( 'ignores a soft-deleted default site', function (): void {
 it( 'pins the resolved site for the rest of the request', function (): void {
 	$site = sharedResolutionSite( 'Pinned by middleware' );
 
+	config()->set( 'artisanpack.analytics.multi_tenant.trust_site_header', true );
 	useSharedResolvers( [ HeaderResolver::class ] );
 
 	$request = Request::create( '/', 'GET', [], [], [], [

@@ -138,7 +138,7 @@ wins.
 | Resolver | Resolution Method |
 |----------|-------------------|
 | `ApiKeyResolver` | API key in header or query |
-| `HeaderResolver` | Custom header (X-Site-ID) |
+| `HeaderResolver` | Custom header (X-Site-ID), only where `multi_tenant.trust_site_header` permits it |
 | `SubdomainResolver` | Subdomain extraction |
 | `DomainResolver` | Full domain matching |
 
