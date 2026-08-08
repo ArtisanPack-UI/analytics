@@ -252,9 +252,21 @@ return [
         'aggregate_before_delete' => true,
     ],
 
-    // Multi-tenant settings. Since 1.5.0, 'enabled' and the resolver list
-    // live under artisanpack.core.multi_tenant, shared with every other
-    // ArtisanPack UI package; the keys here are deprecated but still honoured.
+    // Multi-tenant settings. Since 1.5.0, whether site scoping is on and
+    // which resolvers decide the site are configured once for every
+    // ArtisanPack UI package, in config/artisanpack.php:
+    //
+    //     'core' => [
+    //         'multi_tenant' => [
+    //             'enabled'   => env('ARTISANPACK_MULTI_TENANT_ENABLED', false),
+    //             'resolvers' => [
+    //                 ArtisanPackUI\Analytics\Resolvers\DomainResolver::class,
+    //             ],
+    //         ],
+    //     ],
+    //
+    // The keys below are deprecated compatibility settings, still honoured
+    // and carried onto the shared configuration at boot.
     'multi_tenant' => [
         'enabled' => false,
     ],
@@ -419,6 +431,7 @@ ecosystem, by `artisanpack-ui/core`. Implement its contract, which is keyed on
 the site identifier so packages need not share models:
 
 ```php
+use ArtisanPackUI\Analytics\Models\Site;
 use ArtisanPackUI\Core\Contracts\SiteResolver;
 use Illuminate\Http\Request;
 
@@ -431,6 +444,12 @@ class TeamResolver implements SiteResolver
     public function currentSiteId(): int|string|null
     {
         $teamId = $this->request->user()?->current_team_id;
+
+        // Return before querying. A null $teamId would become
+        // where team_id is null, which matches unassigned sites.
+        if ($teamId === null) {
+            return null;
+        }
 
         return Site::where('team_id', $teamId)->value('id');
     }

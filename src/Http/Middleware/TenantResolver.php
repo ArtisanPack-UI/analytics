@@ -50,7 +50,9 @@ class TenantResolver
 		}
 
 		// The shared context is authoritative; the legacy resolver only fills
-		// in when nothing has put a site in context.
+		// in when nothing has put a site in context. No bound() guard: core is
+		// a hard requirement of this package, so its provider is always
+		// registered and SiteContext always resolvable.
 		$tenantId = app( SiteContext::class )->currentSiteId();
 
 		if ( null === $tenantId ) {

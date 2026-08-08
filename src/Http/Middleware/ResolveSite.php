@@ -58,15 +58,23 @@ class ResolveSite
 
 		// Ask the shared site context every ArtisanPack UI package reads from,
 		// so this request cannot be site 2 here and site 1 somewhere else.
-		$site = $this->tenantManager->current();
+		$resolvedSiteId = $this->tenantManager->context()->currentSiteId();
+		$site           = $this->tenantManager->current();
 
 		if ( null !== $site ) {
-			// Pin it for the rest of the request. The site a request is for
-			// cannot change mid-request, and resolvers are asked afresh on
-			// every call by design — without pinning, each scoped query would
-			// re-run the whole chain, putting a domain or API-key lookup in
-			// front of it.
-			$this->tenantManager->setCurrent( $site );
+			// Pin it for the rest of the request, but only when a shared
+			// resolver actually named it. The site a request is for cannot
+			// change mid-request, and resolvers are asked afresh on every call
+			// by design — without pinning, each scoped query would re-run the
+			// whole chain, putting a domain or API-key lookup in front of it.
+			//
+			// A site that came from `multi_tenant.default_site_id` is not
+			// pinned: that key is this package's own fallback, and writing it
+			// into the shared context would scope every other package to a
+			// default it never opted into.
+			if ( null !== $resolvedSiteId ) {
+				$this->tenantManager->setCurrent( $site );
+			}
 
 			// Add site to request attributes
 			$request->attributes->set( 'site', $site );

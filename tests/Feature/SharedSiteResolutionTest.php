@@ -406,3 +406,81 @@ it( 'leaves queries unscoped when the shared site is not an analytics site ID', 
 	expect( $analytics->currentId() )->toBeNull()
 		->and( $analytics->current() )->toBeNull();
 } );
+
+it( 'restores the default-site suppression after withoutSite()', function (): void {
+	$default = sharedResolutionSite( 'Default' );
+
+	useSharedResolvers( [] );
+	config()->set( 'artisanpack.analytics.multi_tenant.default_site_id', $default->id );
+
+	$analytics = app( TenantManager::class );
+
+	// A callback that pins "no site" must not leave that suppression behind
+	// for the rest of the request.
+	$analytics->withoutSite( function () use ( $analytics ): void {
+		$analytics->setCurrent( null );
+	} );
+
+	expect( $analytics->currentId() )->toBe( $default->id );
+} );
+
+it( 'rejects identifiers that only look numeric', function ( int|string $siteId ): void {
+	useSharedResolvers( [] );
+
+	app( SiteContext::class )->setSiteId( $siteId );
+
+	expect( app( TenantManager::class )->currentId() )->toBeNull();
+} )->with( [
+	'decimal'     => '12.5',
+	'exponent'    => '1e3',
+	'padded'      => ' 12',
+	'negative'    => '-3',
+	'hexadecimal' => '0x1A',
+] );
+
+it( 'accepts an integer-shaped identifier from another package', function (): void {
+	$site = sharedResolutionSite( 'Stringly typed' );
+
+	useSharedResolvers( [] );
+
+	app( SiteContext::class )->setSiteId( (string) $site->id );
+
+	expect( app( TenantManager::class )->currentId() )->toBe( $site->id );
+} );
+
+it( 'scopes models when tenancy is switched on after the model booted', function (): void {
+	$site = sharedResolutionSite( 'Late' );
+
+	// Boot the model while tenancy is off, the way a model touched by another
+	// provider during boot would be.
+	config()->set( 'artisanpack.analytics.multi_tenant.enabled', false );
+	config()->set( 'artisanpack.core.multi_tenant.enabled', false );
+	Goal::query()->count();
+
+	sharedResolutionGoal( 'Scoped late', $site->id );
+	sharedResolutionGoal( 'Other site', $site->id + 100 );
+
+	useSharedResolvers( [] );
+	app( SiteContext::class )->setSiteId( $site->id );
+
+	expect( Goal::query()->pluck( 'name' )->all() )->toBe( [ 'Scoped late' ] );
+} );
+
+it( 'does not publish the analytics default site into the shared context', function (): void {
+	$default = sharedResolutionSite( 'Default' );
+
+	useSharedResolvers( [ HeaderResolver::class ] );
+	config()->set( 'artisanpack.analytics.multi_tenant.default_site_id', $default->id );
+
+	$request = Request::create( '/', 'GET' );
+	app()->instance( 'request', $request );
+
+	app( ResolveSite::class )->handle( $request, fn () => new Response );
+
+	// Analytics still falls back to its own default...
+	expect( app( TenantManager::class )->currentId() )->toBe( $default->id )
+		->and( $request->attributes->get( 'site_id' ) )->toBe( $default->id )
+		// ...but a sibling package must not be scoped to a default it never
+		// configured.
+		->and( app( SiteContext::class )->currentSiteId() )->toBeNull();
+} );

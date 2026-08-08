@@ -18,10 +18,13 @@ use Illuminate\Http\Request;
  * sibling packages resolved an identifier from nothing at all, and an
  * application installing both could resolve to a different site in each.
  *
- * Implement `currentSiteId()` — that is the method the shared resolver chain
- * calls. `resolve()` and `priority()` are retained for existing resolvers and
- * are no longer consulted during resolution: ordering now comes from the order
- * of `artisanpack.core.multi_tenant.resolvers`, because a chain assembled from
+ * `currentSiteId()` is the only method the shared resolver chain calls.
+ * `resolve()` is never called by core — it is called by
+ * {@see \ArtisanPackUI\Analytics\Resolvers\AbstractSiteResolver}, whose
+ * `currentSiteId()` delegates to it, so a resolver already written against the
+ * request keeps working through that adapter. `priority()` is called by nothing
+ * at all: ordering comes from the order of
+ * `artisanpack.core.multi_tenant.resolvers`, because a chain assembled from
  * several packages' resolvers cannot be ordered by a priority number only one
  * of those packages knows about.
  *

@@ -172,9 +172,11 @@ class TenantIdResolver implements SiteResolver
 
 `ArtisanPackUI\Analytics\Contracts\SiteResolverInterface` now extends the core
 contract and keeps its `resolve(Request): ?Site` and `priority()` methods for
-existing implementations. Neither is consulted during resolution. Extend
-`ArtisanPackUI\Analytics\Resolvers\AbstractSiteResolver` to keep a
-request-shaped resolver working; both are removed in 2.0.
+existing implementations. Core calls only `currentSiteId()`; `resolve()` is
+called by the compatibility adapter,
+`ArtisanPackUI\Analytics\Resolvers\AbstractSiteResolver`, whose
+`currentSiteId()` delegates to it — extend that class to keep a request-shaped
+resolver working. `priority()` is called by nothing. Both are removed in 2.0.
 
 ### Registering Custom Resolvers
 

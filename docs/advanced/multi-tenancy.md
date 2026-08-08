@@ -352,12 +352,13 @@ rather than a `Site` model, because core cannot depend on this package's models
 — analytics looks the model up from the identifier you return:
 
 ```php
-use ArtisanPackUI\Core\Contracts\SiteResolver;
 use ArtisanPackUI\Analytics\Models\Site;
+use ArtisanPackUI\Core\Contracts\SiteResolver;
+use Illuminate\Http\Request;
 
 class TeamBasedResolver implements SiteResolver
 {
-    public function __construct(private \Illuminate\Http\Request $request)
+    public function __construct(private Request $request)
     {
     }
 
@@ -403,7 +404,9 @@ A resolver implementing `SiteResolverInterface` keeps working if you extend
 `currentSiteId()` in terms of your existing `resolve(Request): ?Site`:
 
 ```php
+use ArtisanPackUI\Analytics\Models\Site;
 use ArtisanPackUI\Analytics\Resolvers\AbstractSiteResolver;
+use Illuminate\Http\Request;
 
 class TeamBasedResolver extends AbstractSiteResolver
 {
@@ -413,6 +416,9 @@ class TeamBasedResolver extends AbstractSiteResolver
     }
 }
 ```
+
+`AbstractSiteResolver::currentSiteId()` is what core calls; it reads the request
+from the container and hands it to your `resolve()`, returning the site's ID.
 
 `SiteResolverInterface` and its `priority()` method are deprecated and will be
 removed in 2.0.

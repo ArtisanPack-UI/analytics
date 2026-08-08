@@ -372,7 +372,10 @@ $tenantManager = app(TenantManager::class);
 
 #### current()
 
-Get the current site, or `null` when none is in context:
+Get the site in context. When the shared context has no answer, this returns the
+site configured as `artisanpack.analytics.multi_tenant.default_site_id` — unless
+that site is missing, inactive or deleted, or unless no site was asked for
+explicitly through `withoutSite()` or `setCurrent( null )`. `null` otherwise:
 
 ```php
 $site = $tenantManager->current();

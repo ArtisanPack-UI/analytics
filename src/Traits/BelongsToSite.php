@@ -178,27 +178,34 @@ trait BelongsToSite
 	 */
 	protected static function bootBelongsToSite(): void
 	{
-		// Add global scope for automatic site filtering when multi-tenant is enabled
-		if ( analyticsMultiTenancyEnabled() ) {
-			static::addGlobalScope( 'site', new class implements Scope {
-				/**
-				 * Apply the scope to a given Eloquent query builder.
-				 *
-				 * @param Builder $builder The query builder.
-				 * @param Model   $model   The model.
-				 *
-				 * @return void
-				 */
-				public function apply( Builder $builder, Model $model ): void
-				{
-					$siteId = app( TenantManager::class )->currentId();
-
-					if ( null !== $siteId ) {
-						$builder->where( $model->getTable() . '.site_id', $siteId );
-					}
+		// The scope is registered unconditionally and decides at query time
+		// whether to apply. Booting a model happens once per class per
+		// process, and whether tenancy is on is only settled once every
+		// provider has booted — a model that booted first would otherwise
+		// carry no scope for the life of the process, and run unscoped in an
+		// installation whose configuration says it is multi-site.
+		static::addGlobalScope( 'site', new class implements Scope {
+			/**
+			 * Apply the scope to a given Eloquent query builder.
+			 *
+			 * @param Builder $builder The query builder.
+			 * @param Model   $model   The model.
+			 *
+			 * @return void
+			 */
+			public function apply( Builder $builder, Model $model ): void
+			{
+				if ( ! analyticsMultiTenancyEnabled() ) {
+					return;
 				}
-			} );
-		}
+
+				$siteId = app( TenantManager::class )->currentId();
+
+				if ( null !== $siteId ) {
+					$builder->where( $model->getTable() . '.site_id', $siteId );
+				}
+			}
+		} );
 
 		// Automatically set site_id when creating new records
 		static::creating( function ( $model ): void {

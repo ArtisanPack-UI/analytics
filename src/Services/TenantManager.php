@@ -200,7 +200,11 @@ class TenantManager
 		$siteId = $this->context->currentSiteId();
 
 		if ( null !== $siteId ) {
-			if ( is_numeric( $siteId ) ) {
+			// Deliberately stricter than is_numeric(), which accepts "12.5",
+			// "1e3", " 12" and "-3" — each of which casts to an int that is
+			// either a different site or no site at all. "12.5" becoming site
+			// 12 would attribute this work to a real, wrong site.
+			if ( is_int( $siteId ) || ( is_string( $siteId ) && 1 === preg_match( '/^\d+$/', $siteId ) ) ) {
 				return (int) $siteId;
 			}
 
@@ -287,8 +291,9 @@ class TenantManager
 	 */
 	public function withoutSite( Closure $callback ): mixed
 	{
-		$previousSite   = $this->cachedSite;
-		$previousSiteId = $this->cachedSiteId;
+		$previousSite         = $this->cachedSite;
+		$previousSiteId       = $this->cachedSiteId;
+		$previouslySuppressed = $this->defaultSuppressed;
 
 		$this->cachedSite   = null;
 		$this->cachedSiteId = null;
@@ -300,6 +305,11 @@ class TenantManager
 			--$this->withoutSiteDepth;
 			$this->cachedSite   = $previousSite;
 			$this->cachedSiteId = $previousSiteId;
+
+			// Restored like the rest: a `setCurrent( null )` inside the
+			// callback would otherwise outlive the scope and suppress the
+			// default site for every later query in the request.
+			$this->defaultSuppressed = $previouslySuppressed;
 		}
 	}
 
