@@ -324,9 +324,17 @@ configuration at boot so upgrades keep resolving the site they always did.
     ],
     'base_domain' => env('ANALYTICS_BASE_DOMAIN'),
     'site_header' => env('ANALYTICS_SITE_HEADER', 'X-Site-ID'),
+    // HeaderResolver resolves nothing until this is on
+    'trust_site_header' => env('ANALYTICS_TRUST_SITE_HEADER', false),
+    'trusted_site_header_ips' => [], // or ANALYTICS_TRUSTED_SITE_HEADER_IPS
     'default_site_id' => env('ANALYTICS_DEFAULT_SITE_ID'),
 ],
 ```
+
+Nothing authenticates `X-Site-ID`, and the site it names is the one every
+ArtisanPack UI package scopes its data by — so `HeaderResolver` ignores the
+header unless `trust_site_header` is on and, where `trusted_site_header_ips` is
+set, unless the request comes from one of those addresses.
 
 See [Multi-Tenancy](Advanced-Multi-Tenancy) for detailed configuration.
 

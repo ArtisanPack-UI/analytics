@@ -61,15 +61,57 @@ The resolver list is now ecosystem-wide, so a resolver's trust assumptions apply
 to every package that scopes data by site, not only to analytics. Two of the
 shipped resolvers take the site from client-controlled input:
 
-- `HeaderResolver` believes whatever `X-Site-ID` the caller sends.
+- `HeaderResolver` reads `X-Site-ID`, which nothing authenticates. Gated — see
+  [Trusting the site header](#trusting-the-site-header) below.
 - `ApiKeyResolver` is authenticated, but `allow_query_api_key` moves the
   credential into the query string, where it lands in access logs.
 
-Both were only ever as trusted as the routes they ran on. Now they decide the
-site for every package, so list them only where that is what you want — typically
-on authenticated ingest and API routes — and prefer resolvers keyed on something
-the caller cannot choose (the domain, the authenticated user) for routes serving
-site-scoped data.
+Both were only ever as trusted as the routes they ran on. A resolver in the
+shared chain, though, runs on every route in the application, so "it is only
+mounted where the header is safe" is not something the configuration can
+express. Prefer resolvers keyed on something the caller cannot choose — the
+domain, the authenticated user — for anything serving site-scoped data.
+
+### Trusting the site header
+
+`HeaderResolver` answers nothing unless an operator has said the header may be
+believed. The condition is configuration rather than route placement:
+
+```php
+// config/artisanpack.php
+'analytics' => [
+    'multi_tenant' => [
+        // Off by default. Nothing resolves by header until this is on.
+        'trust_site_header' => true,
+
+        // Optional, and recommended: only these callers may name a site.
+        // Single addresses or CIDR ranges, IPv4 or IPv6. A comma-separated
+        // string is accepted, so ANALYTICS_TRUSTED_SITE_HEADER_IPS works too.
+        'trusted_site_header_ips' => [ '10.0.0.0/8' ],
+    ],
+],
+```
+
+An empty `trusted_site_header_ips` means any caller may send the header once
+`trust_site_header` is on. That is only appropriate where the application cannot
+be reached except through a gateway that strips the header from client requests
+— otherwise anyone able to set a header chooses which site every ArtisanPack UI
+package scopes its data by. A header arriving on a request not permitted to send
+one is ignored and logged once per request under the `notice` level.
+
+The allowlist matches the address the request *arrived from* (`REMOTE_ADDR`),
+not the client `Request::ip()` reports. Behind a proxy those differ: `ip()`
+follows `X-Forwarded-For` wherever `TrustProxies` is configured, so it would
+name the end user rather than your gateway — and an application trusting all
+proxies would let a caller forge that header and satisfy the allowlist with
+another header. So list the address your application sees the connection open
+from, which for a gateway deployment is the gateway. Where you need per-client
+granularity behind that gateway, decide it at the gateway and have it set or
+strip `X-Site-ID` accordingly.
+
+The tracking endpoints are unaffected: a beacon names its site with `site_id` in
+the payload or the separate `X-Analytics-Site-Id` header, which the ingest
+controllers read directly and which was never part of site resolution.
 
 ### Pinning per request
 

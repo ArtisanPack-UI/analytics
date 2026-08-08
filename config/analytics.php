@@ -842,6 +842,51 @@ return [
 
         /*
         |----------------------------------------------------------------------
+        | Trust the Site Header
+        |----------------------------------------------------------------------
+        |
+        | Whether HeaderResolver may believe the site header above. Nothing
+        | authenticates that header, and since 1.5.0 the site it names is the
+        | site every ArtisanPack UI package scopes its data by — so a caller
+        | able to set a header could otherwise choose which site a sibling
+        | package serves records from.
+        |
+        | Off by default. HeaderResolver resolves nothing until this is on,
+        | including when it reaches the shared chain through the deprecated
+        | analytics resolver list. Switch it on only where the header comes
+        | from something you control — a first-party tracker behind a gateway
+        | you operate — and pin that down with trusted_site_header_ips below.
+        |
+        */
+        'trust_site_header' => env( 'ANALYTICS_TRUST_SITE_HEADER', false ),
+
+        /*
+        |----------------------------------------------------------------------
+        | Trusted Site Header Addresses
+        |----------------------------------------------------------------------
+        |
+        | Addresses permitted to name a site by header, applied on top of
+        | trust_site_header. Single addresses or CIDR ranges, IPv4 or IPv6; a
+        | comma-separated string is accepted so the list can come from the
+        | environment.
+        |
+        | Matched against the address the request arrived from (REMOTE_ADDR),
+        | not the client reported by X-Forwarded-For — so list your gateway
+        | here, and note that a forwarded-for header cannot satisfy this.
+        |
+        | An empty list means any caller may send the header once
+        | trust_site_header is on, which is only appropriate where the
+        | application cannot be reached except through a gateway that strips
+        | the header from client requests.
+        |
+        */
+        'trusted_site_header_ips' => array_values( array_filter(
+            array_map( 'trim', explode( ',', (string) env( 'ANALYTICS_TRUSTED_SITE_HEADER_IPS', '' ) ) ),
+            static fn ( string $ip ): bool => '' !== $ip,
+        ) ),
+
+        /*
+        |----------------------------------------------------------------------
         | Allow API Key in Query String
         |----------------------------------------------------------------------
         |

@@ -313,6 +313,15 @@ class AnalyticsServiceProvider extends ServiceProvider
      * `X-Site-ID` header identifies the site a tracking request is *for*,
      * which is not always the site the request is *served from*.
      *
+     * What the bridge deliberately does not carry over is trust. It moves a
+     * list that used to steer analytics onto one that steers every package, so
+     * `HeaderResolver` arriving here would otherwise let an unauthenticated
+     * header choose the site a sibling package serves — ahead of
+     * `DomainResolver`, so ahead of the host as well. That resolver gates
+     * itself on `multi_tenant.trust_site_header`, which is off by default, so
+     * an upgrade that prepends it prepends something inert until an operator
+     * decides otherwise.
+     *
      * Applications that have migrated set the core keys and either switch the
      * analytics flag off or empty its resolver list; nothing is bridged then.
      *
