@@ -4,7 +4,6 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\Analytics\Resolvers;
 
-use ArtisanPackUI\Analytics\Contracts\SiteResolverInterface;
 use ArtisanPackUI\Analytics\Models\Site;
 use Illuminate\Http\Request;
 
@@ -20,7 +19,7 @@ use Illuminate\Http\Request;
  *
  * @package ArtisanPackUI\Analytics\Resolvers
  */
-class ApiKeyResolver implements SiteResolverInterface
+class ApiKeyResolver extends AbstractSiteResolver
 {
 	/**
 	 * Resolve the current site from the API key.

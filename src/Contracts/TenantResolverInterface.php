@@ -7,9 +7,21 @@ namespace ArtisanPackUI\Analytics\Contracts;
 /**
  * Interface for resolving the current tenant in multi-tenant deployments.
  *
- * Implement this interface to provide custom tenant resolution logic
- * for your multi-tenant application.
+ * This describes a *tenant*, not a site: it carries its own column name, so an
+ * application whose tenants are something other than analytics sites — an
+ * account, an organisation — can still identify one. That is why it survived
+ * the move to the ecosystem's shared site contract rather than being folded
+ * into it.
  *
+ * Where a tenant and a site are the same thing, which is the usual case,
+ * implement {@see \ArtisanPackUI\Core\Contracts\SiteResolver} and list it in
+ * `artisanpack.core.multi_tenant.resolvers` instead. Only that contract feeds
+ * the site context every package scopes its queries by; a resolver reachable
+ * only from here answers for the tenant middleware and nothing else, which is
+ * exactly the split-brain the shared contract exists to remove.
+ *
+ * @deprecated 1.5.0 Prefer {@see \ArtisanPackUI\Core\Contracts\SiteResolver}
+ *                   unless a tenant genuinely is not a site.
  * @since   1.0.0
  *
  * @package ArtisanPackUI\Analytics\Contracts

@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Site resolution now happens once for the whole ArtisanPack UI ecosystem, in `artisanpack-ui/core`.** `TenantManager` no longer owns a resolver chain: it reads `ArtisanPackUI\Core\MultiTenancy\SiteContext` and looks the `Site` model up from the identifier that contract hands back. Before this, every package that scoped data by site kept its own resolver shape and its own configuration — this package resolved a `Site` from a `Request`, `artisanpack-ui/bookings` resolved an `int` from a single configured class — so an application installing both configured tenancy twice, in shapes that could not share a source of truth, and one request could resolve to site 2 here while resolving to site 1 there, silently. A site pinned through `TenantManager` is now pinned for every package, and a site pinned by another package is seen here. ([#94](https://github.com/ArtisanPack-UI/analytics/issues/94))
+- Resolvers are configured at `artisanpack.core.multi_tenant.resolvers` and asked in the order they are listed. `priority()` no longer orders anything: a chain assembled from several packages' resolvers cannot be ordered by a number only one of those packages knows about.
+- `TenantManager::forSite()` accepts a bare site identifier as well as a `Site`, so a console command or job holding only an ID need not load the model to scope its work.
+- `TenantManager` is bound `scoped` rather than `singleton`, matching the context it wraps, so a site pinned by one queue job cannot scope the next job in the same worker.
+- The middleware, the `BelongsToSite` trait, and the `analyticsSite()` / `analyticsTenantId()` helpers all read the shared context. The trait's undocumented `artisanpack.analytics.multi_site.resolver` fallback is gone — it was a second resolver reachable only from that trait, able to disagree with the one every other query used.
+- Requires `artisanpack-ui/core` `^1.3`, which owns the shared contract.
+- **Resolvers now decide the site for every package, so their trust assumptions travel.** `HeaderResolver` believes whatever `X-Site-ID` the caller sends, and `ApiKeyResolver` with `allow_query_api_key` reads a credential from the query string; both previously only affected analytics. List them only where that is intended — authenticated ingest and API routes — and prefer resolvers keyed on something the caller cannot choose for routes serving site-scoped data. This applies to the deprecated analytics resolver list too, which the bridge carries onto the shared one.
+- Applying the `analytics.site` middleware matters more than it did. Scoped queries in a request that never runs it re-run the resolver chain per query, because resolvers are asked afresh by design; the middleware resolves once and pins the result. The upside of the same change: a request without that middleware is now scoped correctly rather than silently unscoped, which is what 1.4 did when nothing had called `resolve()`.
+
+### Fixed
+
+- `analyticsSite()` and `analyticsTenantId()` called `TenantManager::currentSite()` and `currentTenantId()`, neither of which has ever existed, so both helpers raised `BadMethodCallException` whenever multi-tenancy was enabled.
+- Site-scoped queries in a request that never ran the `analytics.site` middleware were not scoped at all: the global scope only applied when something had already called `TenantManager::resolve()`, so one site's dashboard could show another's rows. Scoping now follows the shared context whether or not the middleware ran.
+- A site identifier from another package that is not an analytics site ID (a slug, say) leaves analytics queries unscoped and logs once, rather than falling through to `default_site_id` and filing the work under the wrong site.
+- The site-scoping global scope no longer issues a `sites` lookup per query. `TenantManager` caches the loaded `Site` against the identifier it was loaded for, so the cache invalidates itself the moment the context's answer changes.
+- `multi_tenant.default_site_id` no longer stands in for an explicitly requested "no site": `withoutSite()`, `allSites()`, and `setCurrent( null )` mean no scoping, and a report meant to run across every site can no longer be quietly confined to one.
+
+### Deprecated
+
+- `artisanpack.analytics.multi_tenant.enabled` and `.resolvers`, in favour of `artisanpack.core.multi_tenant.enabled` and `.resolvers`. Both are still honoured: while the analytics flag is on, it switches the shared flag on and its resolver list is prepended to the shared one at boot, so an upgrade keeps resolving the site it always did rather than silently pooling every site's visits into one dashboard. A notice is logged when this happens. Removed in 2.0.
+- `Contracts\SiteResolverInterface`, which now extends `ArtisanPackUI\Core\Contracts\SiteResolver`, along with its `resolve( Request ): ?Site` and `priority()` methods. Extend the new `Resolvers\AbstractSiteResolver` to keep a request-shaped resolver working — it implements `currentSiteId()` in terms of `resolve()`. Removed in 2.0.
+- `Contracts\TenantResolverInterface` and `artisanpack.analytics.multi_tenant.resolver`. Kept because a tenant is not always a site — the interface carries its own column name — but it is consulted only by the `TenantResolver` middleware, and only when nothing has put a site in the shared context, so it cannot decide what queries are scoped to. Where a tenant is a site, implement core's `SiteResolver`.
+- `TenantManager::resolve( Request )`, now an alias for `current()` that ignores its argument. Resolvers read the request from the container themselves, because a resolver that requires one is unusable from the console commands and queue workers where per-site iteration happens.
+
+### Removed
+
+- `TenantManager::registerResolver()` and `registerResolversFromConfig()`. Registering a resolver only this package could see is what the shared context exists to prevent; list resolvers under `artisanpack.core.multi_tenant.resolvers` instead. `getResolvers()` remains and now reports the shared chain.
+
 ### Added
 
 - **Anonymous mode: page views from visitors who have not granted consent.** Off by default; enable with `privacy.anonymous_mode` (`ANALYTICS_ANONYMOUS_MODE`) plus `anonymousMode: true` in the client config. Previously a visitor who ignored the consent banner produced nothing at all, so on a site where most visitors ignore it most traffic was invisible. Anonymous hits are written to a new `analytics_anonymous_page_views` table holding path, title, referring host, device class and timestamp — and no visitor ID, session ID, fingerprint, IP or user agent. The table has no column able to hold an identifier, so two rows cannot be correlated to one person even by mistake. In the browser nothing is written either: the visitor, session and fingerprint setup is never called, so no cookie or `localStorage` key is created before consent. Granting consent mid-visit upgrades to normal tracking; rows already recorded stay anonymous and are never back-filled. An explicit `DNT: 1` / `Sec-GPC: 1` opt-out still suppresses everything, anonymous mode included. ([#87](https://github.com/ArtisanPack-UI/analytics/issues/87))

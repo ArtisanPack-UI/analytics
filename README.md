@@ -252,10 +252,23 @@ return [
         'aggregate_before_delete' => true,
     ],
 
-    // Multi-tenant settings
+    // Multi-tenant settings. Since 1.5.0, whether site scoping is on and
+    // which resolvers decide the site are configured once for every
+    // ArtisanPack UI package, in config/artisanpack.php:
+    //
+    //     'core' => [
+    //         'multi_tenant' => [
+    //             'enabled'   => env('ARTISANPACK_MULTI_TENANT_ENABLED', false),
+    //             'resolvers' => [
+    //                 ArtisanPackUI\Analytics\Resolvers\DomainResolver::class,
+    //             ],
+    //         ],
+    //     ],
+    //
+    // The keys below are deprecated compatibility settings, still honoured
+    // and carried onto the shared configuration at boot.
     'multi_tenant' => [
         'enabled' => false,
-        'resolver' => 'domain', // domain, subdomain, api_key, header
     ],
 
     // Dashboard settings
@@ -413,27 +426,48 @@ Analytics::extend('mixpanel', function ($app) {
 
 ### Custom Site Resolvers (Multi-Tenant)
 
-Create custom resolvers by implementing `SiteResolverInterface`:
+Which site a request is for is decided once for the whole ArtisanPack UI
+ecosystem, by `artisanpack-ui/core`. Implement its contract, which is keyed on
+the site identifier so packages need not share models:
 
 ```php
-use ArtisanPackUI\Analytics\Contracts\SiteResolverInterface;
+use ArtisanPackUI\Analytics\Models\Site;
+use ArtisanPackUI\Core\Contracts\SiteResolver;
 use Illuminate\Http\Request;
 
-class TeamResolver implements SiteResolverInterface
+class TeamResolver implements SiteResolver
 {
-    public function resolve(Request $request): ?Site
+    public function __construct(private Request $request)
     {
-        $teamId = $request->user()?->current_team_id;
-        return Site::where('team_id', $teamId)->first();
+    }
+
+    public function currentSiteId(): int|string|null
+    {
+        $teamId = $this->request->user()?->current_team_id;
+
+        // Return before querying. A null $teamId would become
+        // where team_id is null, which matches unassigned sites.
+        if ($teamId === null) {
+            return null;
+        }
+
+        return Site::where('team_id', $teamId)->value('id');
     }
 }
 
-// Register in config
-'multi_tenant' => [
-    'enabled' => true,
-    'resolver' => App\Analytics\TeamResolver::class,
+// Register in config/artisanpack.php
+'core' => [
+    'multi_tenant' => [
+        'enabled' => true,
+        'resolvers' => [
+            App\Analytics\TeamResolver::class,
+        ],
+    ],
 ],
 ```
+
+See [Multi-Tenancy](docs/advanced/multi-tenancy.md) for migrating a resolver
+written against the deprecated `SiteResolverInterface`.
 
 ### Filter Hooks
 

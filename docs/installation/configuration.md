@@ -286,11 +286,36 @@ Runtime whitelist entries can also be managed with the [`analytics:whitelist`](A
 
 ## Multi-Tenant Configuration
 
+Since 1.5.0, whether site scoping is on and which resolvers decide the site are
+configured once for every ArtisanPack UI package, under `artisanpack.core`:
+
+```php
+// config/artisanpack.php
+'core' => [
+    'multi_tenant' => [
+        'enabled' => env('ARTISANPACK_MULTI_TENANT_ENABLED', false),
+        'resolvers' => [
+            ArtisanPackUI\Analytics\Resolvers\ApiKeyResolver::class,
+            ArtisanPackUI\Analytics\Resolvers\HeaderResolver::class,
+            ArtisanPackUI\Analytics\Resolvers\SubdomainResolver::class,
+            ArtisanPackUI\Analytics\Resolvers\DomainResolver::class,
+        ],
+    ],
+],
+```
+
+The analytics block keeps the settings those resolvers read, plus the deprecated
+keys, which still work: `enabled` and `resolvers` are carried onto the shared
+configuration at boot so upgrades keep resolving the site they always did.
+
 ```php
 'multi_tenant' => [
+    // Deprecated 1.5.0 — use artisanpack.core.multi_tenant.enabled
     'enabled' => env('ANALYTICS_MULTI_TENANT', false),
     'tenant_column' => env('ANALYTICS_TENANT_COLUMN', 'tenant_id'),
+    // Deprecated 1.5.0 — only the TenantResolver middleware reads this
     'resolver' => env('ANALYTICS_TENANT_RESOLVER'),
+    // Deprecated 1.5.0 — use artisanpack.core.multi_tenant.resolvers
     'resolvers' => [
         ArtisanPackUI\Analytics\Resolvers\ApiKeyResolver::class,
         ArtisanPackUI\Analytics\Resolvers\HeaderResolver::class,

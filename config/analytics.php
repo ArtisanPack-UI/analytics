@@ -754,6 +754,11 @@ return [
         |
         | Enable multi-tenant support for analytics data isolation.
         |
+        | Deprecated since 1.5.0 in favour of
+        | artisanpack.core.multi_tenant.enabled, which switches site scoping on
+        | for every ArtisanPack UI package at once. Either flag enables it here;
+        | switching this one on also switches the shared one on.
+        |
         */
         'enabled' => env( 'ANALYTICS_MULTI_TENANT', false ),
 
@@ -775,7 +780,12 @@ return [
         | Class responsible for resolving the current tenant. Must implement
         | ArtisanPackUI\Analytics\Contracts\TenantResolverInterface.
         |
-        | Note: Consider using the 'resolvers' array below for more flexibility.
+        | Deprecated since 1.5.0. It is consulted only by the TenantResolver
+        | middleware, and only when nothing has put a site in the shared
+        | context — so it cannot decide what queries are scoped to. Unless your
+        | tenants are genuinely not sites, implement
+        | ArtisanPackUI\Core\Contracts\SiteResolver and list it under
+        | artisanpack.core.multi_tenant.resolvers instead.
         |
         */
         'resolver' => env( 'ANALYTICS_TENANT_RESOLVER' ),
@@ -785,14 +795,22 @@ return [
         | Site Resolvers
         |----------------------------------------------------------------------
         |
-        | Array of resolver classes to use for site resolution. Resolvers
-        | are tried in priority order (lower numbers first).
+        | Deprecated since 1.5.0. Site resolution is shared across every
+        | ArtisanPack UI package and configured at
+        | artisanpack.core.multi_tenant.resolvers; move this list there, where
+        | resolvers are asked in the order they are listed. Two packages
+        | keeping separate resolver lists is how one request came to be site 2
+        | for analytics and site 1 for another package.
         |
-        | Available resolvers:
-        | - ArtisanPackUI\Analytics\Resolvers\ApiKeyResolver (priority: 10)
-        | - ArtisanPackUI\Analytics\Resolvers\HeaderResolver (priority: 50)
-        | - ArtisanPackUI\Analytics\Resolvers\SubdomainResolver (priority: 90)
-        | - ArtisanPackUI\Analytics\Resolvers\DomainResolver (priority: 100)
+        | While 'enabled' above is on, this list is still honoured: it is
+        | prepended to the shared list at boot so upgrades keep resolving the
+        | site they always did. Empty it once you have migrated.
+        |
+        | Available resolvers, in their conventional order:
+        | - ArtisanPackUI\Analytics\Resolvers\ApiKeyResolver
+        | - ArtisanPackUI\Analytics\Resolvers\HeaderResolver
+        | - ArtisanPackUI\Analytics\Resolvers\SubdomainResolver
+        | - ArtisanPackUI\Analytics\Resolvers\DomainResolver
         |
         */
         'resolvers' => [
@@ -840,7 +858,10 @@ return [
         | Default Site ID
         |----------------------------------------------------------------------
         |
-        | Default site ID to use when no site can be resolved.
+        | Default site ID to use when no site can be resolved. Applies only when
+        | no resolver puts a site in context; code that asks explicitly for no
+        | site — withoutSite(), allSites() — still gets none. Ignored when the
+        | site does not exist or is not active.
         |
         */
         'default_site_id' => env( 'ANALYTICS_DEFAULT_SITE_ID' ),

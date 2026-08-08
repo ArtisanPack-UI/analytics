@@ -67,7 +67,8 @@ trait BelongsToSite
 	/**
 	 * Scope a query to filter by current site.
 	 *
-	 * Uses the TenantManager to determine the current site.
+	 * The site comes from the shared site context, so this scopes to the same
+	 * site every other ArtisanPack UI package is scoping to.
 	 *
 	 * @param Builder $query The query builder.
 	 *
@@ -164,7 +165,7 @@ trait BelongsToSite
 	public static function withoutSiteScopeCallback( callable $callback ): mixed
 	{
 		if ( app()->bound( TenantManager::class ) ) {
-			return app( TenantManager::class )->withoutSite( $callback );
+			return app( TenantManager::class )->withoutSite( fn () => $callback() );
 		}
 
 		return $callback();
@@ -177,27 +178,34 @@ trait BelongsToSite
 	 */
 	protected static function bootBelongsToSite(): void
 	{
-		// Add global scope for automatic site filtering when multi-tenant is enabled
-		if ( config( 'artisanpack.analytics.multi_tenant.enabled', false ) ) {
-			static::addGlobalScope( 'site', new class implements Scope {
-				/**
-				 * Apply the scope to a given Eloquent query builder.
-				 *
-				 * @param Builder $builder The query builder.
-				 * @param Model   $model   The model.
-				 *
-				 * @return void
-				 */
-				public function apply( Builder $builder, Model $model ): void
-				{
-					$tenantManager = app( TenantManager::class );
-
-					if ( $tenantManager->hasCurrent() ) {
-						$builder->where( $model->getTable() . '.site_id', $tenantManager->currentId() );
-					}
+		// The scope is registered unconditionally and decides at query time
+		// whether to apply. Booting a model happens once per class per
+		// process, and whether tenancy is on is only settled once every
+		// provider has booted — a model that booted first would otherwise
+		// carry no scope for the life of the process, and run unscoped in an
+		// installation whose configuration says it is multi-site.
+		static::addGlobalScope( 'site', new class implements Scope {
+			/**
+			 * Apply the scope to a given Eloquent query builder.
+			 *
+			 * @param Builder $builder The query builder.
+			 * @param Model   $model   The model.
+			 *
+			 * @return void
+			 */
+			public function apply( Builder $builder, Model $model ): void
+			{
+				if ( ! analyticsMultiTenancyEnabled() ) {
+					return;
 				}
-			} );
-		}
+
+				$siteId = app( TenantManager::class )->currentId();
+
+				if ( null !== $siteId ) {
+					$builder->where( $model->getTable() . '.site_id', $siteId );
+				}
+			}
+		} );
 
 		// Automatically set site_id when creating new records
 		static::creating( function ( $model ): void {
@@ -210,8 +218,12 @@ trait BelongsToSite
 	/**
 	 * Get the current site ID.
 	 *
-	 * Uses the TenantManager to determine the current site.
-	 * Falls back to configuration if no TenantManager context.
+	 * Reads the ecosystem's shared site context through the TenantManager,
+	 * which also applies the configured default site. The old
+	 * `artisanpack.analytics.multi_site.resolver` fallback is gone: a second
+	 * resolver reachable only from this trait could disagree with the one
+	 * every other query used, which is the divergence the shared context
+	 * exists to remove.
 	 *
 	 * @return int|null
 	 *
@@ -219,38 +231,10 @@ trait BelongsToSite
 	 */
 	protected static function getCurrentSiteId(): ?int
 	{
-		// First, check TenantManager
-		if ( app()->bound( TenantManager::class ) ) {
-			$tenantManager = app( TenantManager::class );
-
-			if ( $tenantManager->hasCurrent() ) {
-				return $tenantManager->currentId();
-			}
+		if ( ! app()->bound( TenantManager::class ) ) {
+			return null;
 		}
 
-		// Fall back to legacy resolver configuration
-		$resolver = config( 'artisanpack.analytics.multi_site.resolver' );
-
-		if ( null === $resolver ) {
-			$defaultSiteId = config( 'artisanpack.analytics.multi_site.default_site_id' );
-
-			return is_int( $defaultSiteId ) ? $defaultSiteId : null;
-		}
-
-		$result = null;
-
-		if ( is_callable( $resolver ) ) {
-			$result = $resolver();
-		} elseif ( is_string( $resolver ) && class_exists( $resolver ) ) {
-			$instance = app( $resolver );
-
-			if ( method_exists( $instance, 'resolve' ) ) {
-				$result = $instance->resolve();
-			} elseif ( method_exists( $instance, '__invoke' ) ) {
-				$result = $instance();
-			}
-		}
-
-		return is_int( $result ) ? $result : null;
+		return app( TenantManager::class )->currentId();
 	}
 }
