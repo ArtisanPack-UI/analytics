@@ -102,6 +102,12 @@ Route::middleware( config( 'artisanpack.analytics.dashboard_middleware', [ 'auth
 	Route::get( '/bots', [ AnalyticsQueryController::class, 'bots' ] )
 		->name( 'analytics.bots' );
 
+	Route::get( '/anonymous', [ AnalyticsQueryController::class, 'anonymous' ] )
+		->name( 'analytics.anonymous' );
+
+	Route::get( '/referrers', [ AnalyticsQueryController::class, 'referrers' ] )
+		->name( 'analytics.referrers' );
+
 	/*
 	|--------------------------------------------------------------------------
 	| AI Agent Endpoints (since 1.3.0)
@@ -191,6 +197,12 @@ Route::middleware( [ 'analytics.api-key' ] )->prefix( 'v1' )->group( function ()
 
 	Route::get( '/bots', [ AnalyticsQueryController::class, 'bots' ] )
 		->name( 'analytics.api.bots' );
+
+	Route::get( '/anonymous', [ AnalyticsQueryController::class, 'anonymous' ] )
+		->name( 'analytics.api.anonymous' );
+
+	Route::get( '/referrers', [ AnalyticsQueryController::class, 'referrers' ] )
+		->name( 'analytics.api.referrers' );
 
 	/*
 	|--------------------------------------------------------------------------

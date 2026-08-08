@@ -11,7 +11,7 @@
 import React from 'react';
 import { Stat, StatGroup } from '@artisanpack-ui/react';
 
-import type { StatsComparison } from '../../types';
+import type { AnonymousFilterMode, StatsComparison } from '../../types';
 
 export interface StatsCardsProps {
     /** Core statistics object from the API. */
@@ -23,6 +23,8 @@ export interface StatsCardsProps {
         avg_session_duration: number;
         pages_per_session?: number;
         realtime_visitors?: number;
+        anonymous_pageviews?: number;
+        anonymous_mode?: AnonymousFilterMode;
         comparison?: StatsComparison | null;
     };
     /** Optional CSS class name for the container. */
@@ -46,38 +48,45 @@ function formatDuration( seconds: number ): string {
 }
 
 export default function StatsCards( { stats, className = '' }: StatsCardsProps ): React.ReactElement {
+    // When anonymous page views are folded in, every card says which scope it
+    // covers. A combined page-view figure sitting unlabelled beside a
+    // consented-only visitor figure invites a ratio nobody should compute.
+    const combined = stats.anonymous_mode === 'include';
+    const withAnonymous = combined ? ' (incl. anonymous)' : '';
+    const consentedOnly = combined ? ' (consented only)' : '';
+
     return (
         <StatGroup className={className}>
             <Stat
-                title="Pageviews"
+                title={`Pageviews${withAnonymous}`}
                 value={new Intl.NumberFormat().format( stats.pageviews )}
                 color="primary"
                 change={stats.comparison?.pageviews?.change}
                 changeLabel="vs previous period"
             />
             <Stat
-                title="Visitors"
+                title={`Visitors${consentedOnly}`}
                 value={new Intl.NumberFormat().format( stats.visitors )}
                 color="secondary"
                 change={stats.comparison?.visitors?.change}
                 changeLabel="vs previous period"
             />
             <Stat
-                title="Sessions"
+                title={`Sessions${consentedOnly}`}
                 value={new Intl.NumberFormat().format( stats.sessions )}
                 color="accent"
                 change={stats.comparison?.sessions?.change}
                 changeLabel="vs previous period"
             />
             <Stat
-                title="Bounce Rate"
+                title={`Bounce Rate${consentedOnly}`}
                 value={`${stats.bounce_rate.toFixed( 1 )}%`}
                 color="warning"
                 change={stats.comparison?.bounce_rate?.change}
                 changeLabel="vs previous period"
             />
             <Stat
-                title="Avg. Session Duration"
+                title={`Avg. Session Duration${consentedOnly}`}
                 value={formatDuration( stats.avg_session_duration )}
                 color="info"
                 change={stats.comparison?.avg_session_duration?.change}

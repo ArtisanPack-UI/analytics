@@ -41,6 +41,7 @@ test( 'all react widget components exist in components directory', function ( st
 	'TopPages',
 	'TrafficSources',
 	'RealtimeVisitors',
+	'AnonymousTraffic',
 ] );
 
 test( 'all react consent components exist in components directory', function ( string $component ): void {
@@ -115,6 +116,7 @@ test( 'react barrel export references all components', function (): void {
 		->toContain( 'TopPages' )
 		->toContain( 'TrafficSources' )
 		->toContain( 'RealtimeVisitors' )
+		->toContain( 'AnonymousTraffic' )
 		->toContain( 'AnalyticsDashboard' )
 		->toContain( 'PageAnalytics' )
 		->toContain( 'SiteSelector' )

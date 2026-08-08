@@ -190,6 +190,73 @@ without consent, and it is why the rows live in their own table rather than in
 `analytics_page_views` — every visitor- and session-scoped query stays correct
 without needing to know this feature exists.
 
+### Seeing it in the dashboard
+
+Anonymous rows are excluded from every figure by default, so enabling
+collection does not silently move numbers that were already being reported.
+
+Once rows exist, the dashboard offers an **Include anonymous traffic** toggle
+and an **Anonymous** tab. Neither appears when the feature is off, or when it
+is on but nothing has been recorded for the selected range — an empty
+anonymous panel would read like a fault rather than an absence.
+
+With the toggle on, only page-view figures change:
+
+| Metric | Can include anonymous traffic | Why |
+|--------|-------------------------------|-----|
+| Page views | Yes | One anonymous row is one page view. |
+| Top pages | Yes | Grouped by path, which anonymous rows record. |
+| Referring hosts | Yes | Anonymous rows record the referring host. |
+| Page views over time | Yes | Anonymous rows carry a timestamp. |
+| Device split | Reported separately | Anonymous rows record a device class, but the identified breakdown counts sessions. Different units, so they are shown side by side rather than summed. |
+| Unique visitors | No | No visitor ID to count distinctly. |
+| Sessions | No | No session ID; a row is not part of a visit. |
+| Bounce rate | No | Derived from sessions. |
+| Session duration | No | Derived from sessions. |
+| Pages per session | No | A ratio of two session-scoped figures. |
+| Active now (realtime) | No | Counts active visitors, which anonymous rows are not. |
+| Traffic sources | No | Counted per session. Use referring hosts on the Anonymous tab instead. |
+
+Every metric in the second group is labelled in the interface while the toggle
+is on. That labelling is the point: a combined page-view figure sitting
+unlabelled beside a consented-only visitor figure invites a ratio nobody
+should compute.
+
+Programmatically the scope is a filter on `AnalyticsQuery`:
+
+```php
+use ArtisanPackUI\Analytics\Facades\AnalyticsQuery;
+
+// Consented visitors only — the default, unchanged from before anonymous mode.
+AnalyticsQuery::getPageViewCount( $range );
+
+// Consented plus anonymous page views.
+AnalyticsQuery::getPageViewCount( $range, [ 'anonymous' => 'include' ] );
+AnalyticsQuery::includeAnonymous()->getPageViewCount( $range );
+
+// Anonymous page views only.
+AnalyticsQuery::onlyAnonymous()->getPageViewCount( $range );
+
+// The whole anonymous summary in one call.
+AnalyticsQuery::getAnonymousStats( $range );
+```
+
+The same modes are available over HTTP as `?anonymous=include` (or `only`) on
+the analytics query endpoints, plus `GET /api/analytics/anonymous` for the
+summary and `GET /api/analytics/referrers` for referring hosts counted in page
+views.
+
+These methods live on the concrete `AnalyticsQuery` service rather than on
+`AnalyticsQueryInterface`. That interface is a published contract, and adding
+methods to it would break every implementor.
+
+### Retention changes historical figures
+
+Anonymous rows are swept on the same retention schedule as everything else, so
+a combined figure for an old period shrinks as those rows age out while the
+consented figures for the same period are still there. If you need a stable
+historical number, record the consented-only one.
+
 ### Granting consent mid-visit
 
 When a visitor accepts, the tracker upgrades to normal identified tracking for

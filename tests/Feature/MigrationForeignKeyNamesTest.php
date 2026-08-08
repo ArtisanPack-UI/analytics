@@ -2,7 +2,7 @@
 
 declare( strict_types=1 );
 
-use Illuminate\Support\Facades\DB;
+use Tests\Support\MigrationCompiler;
 
 /**
  * Regression coverage for issue #43.
@@ -18,69 +18,6 @@ use Illuminate\Support\Facades\DB;
  * the generated DDL instead of executing it, so the test needs no live
  * database server while still exercising the real MySQL grammar.
  */
-
-/**
- * Compile a migration's up() against the MySQL grammar and return its DDL.
- *
- * @return array<int, string> The SQL statements the migration generates.
- */
-function analyticsCompileMigration( string $migrationFile ): array
-{
-	$connection = new class( new PDO( 'sqlite::memory:' ) ) extends Illuminate\Database\MySqlConnection {
-		/**
-		 * @var array<int, string>
-		 */
-		public array $captured = [];
-
-		/**
-		 * Report a fixed MySQL version so the grammar compiles without a live server.
-		 */
-		public function getServerVersion(): string
-		{
-			return '8.0.30';
-		}
-
-		/**
-		 * Always compile as MySQL rather than MariaDB.
-		 */
-		public function isMaria(): bool
-		{
-			return false;
-		}
-
-		/**
-		 * Capture compiled DDL instead of executing it against a database.
-		 *
-		 * @param string               $query
-		 * @param array<string, mixed> $bindings
-		 */
-		public function statement( $query, $bindings = [] ): bool
-		{
-			$this->captured[] = $query;
-
-			return true;
-		}
-	};
-
-	$originalDefault    = config( 'database.default' );
-	$originalConnection = config( 'database.connections.mysql_fake' );
-
-	try {
-		config()->set( 'database.connections.mysql_fake', [ 'driver' => 'mysql', 'database' => 'test', 'prefix' => '' ] );
-		DB::extend( 'mysql_fake', fn (): Illuminate\Database\Connection => $connection );
-		DB::purge( 'mysql_fake' );
-		config()->set( 'database.default', 'mysql_fake' );
-
-		$migration = require $migrationFile;
-		$migration->up();
-
-		return $connection->captured;
-	} finally {
-		config()->set( 'database.default', $originalDefault );
-		config()->set( 'database.connections.mysql_fake', $originalConnection );
-		DB::purge( 'mysql_fake' );
-	}
-}
 
 /**
  * Extract the foreign key constraint names from compiled DDL.
@@ -111,7 +48,7 @@ if ( false === $migrationFiles || [] === $migrationFiles ) {
 }
 
 test( 'every analytics foreign key has an explicit, non-numeric name', function ( string $migrationFile ): void {
-	$statements = analyticsCompileMigration( $migrationFile );
+	$statements = MigrationCompiler::compile( $migrationFile );
 
 	expect( $statements )->not->toBeEmpty();
 
@@ -125,7 +62,7 @@ test( 'every analytics foreign key has an explicit, non-numeric name', function 
 } )->with( $migrationFiles );
 
 test( 'foreign key names are unique within each analytics table', function ( string $migrationFile ): void {
-	$names = analyticsForeignKeyNames( analyticsCompileMigration( $migrationFile ) );
+	$names = analyticsForeignKeyNames( MigrationCompiler::compile( $migrationFile ) );
 
 	expect( $names )->toEqual( array_values( array_unique( $names ) ) );
 } )->with( $migrationFiles );
@@ -133,7 +70,7 @@ test( 'foreign key names are unique within each analytics table', function ( str
 test( 'analytics_page_views declares the three named foreign keys from issue #43', function (): void {
 	$pageViews = dirname( __DIR__, 2 ) . '/database/migrations/2025_01_01_000004_create_analytics_page_views_table.php';
 
-	$names = analyticsForeignKeyNames( analyticsCompileMigration( $pageViews ) );
+	$names = analyticsForeignKeyNames( MigrationCompiler::compile( $pageViews ) );
 
 	expect( $names )->toContain(
 		'analytics_page_views_site_id_fk',

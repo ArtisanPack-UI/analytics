@@ -70,6 +70,11 @@
 										<td class="text-right font-mono">
 											{{ number_format( $page['views'] ) }}
 										</td>
+										@if ( $includeAnonymous )
+											<td class="text-right font-mono">
+												{{ number_format( $page['anonymous_views'] ?? 0 ) }}
+											</td>
+										@endif
 										<td class="text-right font-mono">
 											{{ number_format( $page['unique_views'] ) }}
 										</td>

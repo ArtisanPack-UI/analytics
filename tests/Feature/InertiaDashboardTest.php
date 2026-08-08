@@ -98,6 +98,21 @@ test( 'dashboard index returns inertia response with correct props', function ()
 			['source' => 'google', 'medium' => 'organic', 'sessions' => 30, 'visitors' => 25],
 		] ) );
 
+	// The dashboard also asks whether there is any anonymous traffic to
+	// offer a toggle for.
+	$this->analyticsQuery->shouldReceive( 'getAnonymousStats' )
+		->andReturn( [
+			'enabled'              => false,
+			'anonymous_pageviews'  => 0,
+			'identified_pageviews' => 0,
+			'total_pageviews'      => 0,
+			'anonymous_percentage' => 0.0,
+			'top_pages'            => [],
+			'referring_hosts'      => [],
+			'device_breakdown'     => [],
+			'trend'                => [],
+		] );
+
 	$this->get( '/analytics' )
 		->assertOk()
 		->assertInertia( fn ( AssertableInertia $page ) => $page
@@ -210,6 +225,21 @@ test( 'custom page component names from config are used', function (): void {
 	$this->analyticsQuery->shouldReceive( 'getTopPages' )->andReturn( collect() );
 	$this->analyticsQuery->shouldReceive( 'getTrafficSources' )->andReturn( collect() );
 
+	// The dashboard also asks whether there is any anonymous traffic to
+	// offer a toggle for.
+	$this->analyticsQuery->shouldReceive( 'getAnonymousStats' )
+		->andReturn( [
+			'enabled'              => false,
+			'anonymous_pageviews'  => 0,
+			'identified_pageviews' => 0,
+			'total_pageviews'      => 0,
+			'anonymous_percentage' => 0.0,
+			'top_pages'            => [],
+			'referring_hosts'      => [],
+			'device_breakdown'     => [],
+			'trend'                => [],
+		] );
+
 	$this->get( '/analytics' )
 		->assertOk()
 		->assertInertia( fn ( AssertableInertia $page ) => $page
@@ -223,6 +253,21 @@ test( 'date range filter is applied from query parameters', function (): void {
 	$this->analyticsQuery->shouldReceive( 'getTopPages' )->once()->andReturn( collect() );
 	$this->analyticsQuery->shouldReceive( 'getTrafficSources' )->once()->andReturn( collect() );
 
+	// The dashboard also asks whether there is any anonymous traffic to
+	// offer a toggle for.
+	$this->analyticsQuery->shouldReceive( 'getAnonymousStats' )
+		->andReturn( [
+			'enabled'              => false,
+			'anonymous_pageviews'  => 0,
+			'identified_pageviews' => 0,
+			'total_pageviews'      => 0,
+			'anonymous_percentage' => 0.0,
+			'top_pages'            => [],
+			'referring_hosts'      => [],
+			'device_breakdown'     => [],
+			'trend'                => [],
+		] );
+
 	$this->get( '/analytics?period=7d' )
 		->assertOk()
 		->assertInertia( fn ( AssertableInertia $page ) => $page
@@ -235,6 +280,21 @@ test( 'site_id filter is applied from query parameters', function (): void {
 	$this->analyticsQuery->shouldReceive( 'getPageViews' )->once()->andReturn( collect() );
 	$this->analyticsQuery->shouldReceive( 'getTopPages' )->once()->andReturn( collect() );
 	$this->analyticsQuery->shouldReceive( 'getTrafficSources' )->once()->andReturn( collect() );
+
+	// The dashboard also asks whether there is any anonymous traffic to
+	// offer a toggle for.
+	$this->analyticsQuery->shouldReceive( 'getAnonymousStats' )
+		->andReturn( [
+			'enabled'              => false,
+			'anonymous_pageviews'  => 0,
+			'identified_pageviews' => 0,
+			'total_pageviews'      => 0,
+			'anonymous_percentage' => 0.0,
+			'top_pages'            => [],
+			'referring_hosts'      => [],
+			'device_breakdown'     => [],
+			'trend'                => [],
+		] );
 
 	$this->get( '/analytics?site_id=5' )
 		->assertOk()

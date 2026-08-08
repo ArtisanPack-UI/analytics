@@ -122,7 +122,7 @@ class TopPages extends Component
 	 */
 	public function getColumns(): array
 	{
-		return [
+		$columns = [
 			'path' => [
 				'label'    => __( 'Page' ),
 				'sortable' => true,
@@ -131,11 +131,26 @@ class TopPages extends Component
 				'label'    => __( 'Views' ),
 				'sortable' => true,
 			],
-			'unique_views' => [
-				'label'    => __( 'Unique Views' ),
-				'sortable' => true,
-			],
 		];
+
+		// When anonymous page views are folded into Views, show the split
+		// rather than leaving it implicit: Unique Views cannot include them,
+		// and a reader comparing the two columns needs to see why.
+		if ( $this->includeAnonymous ) {
+			$columns['anonymous_views'] = [
+				'label'    => __( 'Anonymous Views' ),
+				'sortable' => true,
+			];
+		}
+
+		$columns['unique_views'] = [
+			'label'    => $this->includeAnonymous
+				? __( 'Unique Views (consented only)' )
+				: __( 'Unique Views' ),
+			'sortable' => true,
+		];
+
+		return $columns;
 	}
 
 	/**

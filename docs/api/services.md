@@ -198,6 +198,76 @@ $stats = $query->getBotStats($range, $agentLimit = 10, $granularity = 'day', $fi
 ]
 ```
 
+#### getAnonymousStats()
+
+> **Since 1.5.0**
+
+Get a summary of the page views collected before consent by
+[anonymous mode](../advanced/privacy-consent.md):
+
+```php
+$stats = $query->getAnonymousStats($range, $limit = 10, $granularity = 'day', $filters = []);
+
+// Returns:
+[
+    'enabled' => true,
+    'anonymous_pageviews' => 3120,
+    'identified_pageviews' => 8400,
+    'total_pageviews' => 11520,
+    'anonymous_percentage' => 27.1,
+    'top_pages' => [['path' => '/docs', 'title' => 'Docs', 'views' => 940], ...],
+    'referring_hosts' => [['host' => 'example.com', 'views' => 210], ...],
+    'device_breakdown' => [['device_type' => 'mobile', 'views' => 1800, 'percentage' => 57.7], ...],
+    'trend' => [['date' => '2026-05-01', 'pageviews' => 120], ...],
+]
+```
+
+Every figure here is a page-view count. Anonymous rows carry no visitor or
+session, so there is deliberately no visitor, session, bounce or duration
+metric — those numbers do not exist for this traffic.
+
+#### The `anonymous` filter
+
+> **Since 1.5.0**
+
+Anonymous page views are excluded from every query by default. The scope is set
+per call, or with a chainable modifier consumed by the next query:
+
+```php
+$query->getPageViewCount($range);                              // consented only (default)
+$query->getPageViewCount($range, ['anonymous' => 'include']);  // consented + anonymous
+$query->includeAnonymous()->getPageViewCount($range);          // same, chained
+$query->onlyAnonymous()->getPageViewCount($range);             // anonymous only
+```
+
+`getPageViewCount()`, `getStats()`, `getPageViews()`, `getTopPages()`,
+`getReferringHosts()` and `getDeviceBreakdown()` honour the mode. Visitor- and
+session-derived metrics never do, and `getStats()` reports
+`identified_only_metrics_available => false` in an anonymous-only view rather
+than presenting those metrics as zero.
+
+A mode requested while `privacy.anonymous_mode` is off collapses back to
+`exclude`, so a stale toggle cannot resurrect a switched-off feature.
+
+#### getReferringHosts()
+
+> **Since 1.5.0**
+
+Get the top referring hosts counted in page views, so anonymous traffic can be
+added to the identified figure honestly. This is a different metric from
+`getTrafficSources()`, which counts sessions and cannot include anonymous rows
+at all:
+
+```php
+$hosts = $query->getReferringHosts($range, $limit = 10, $filters = []);
+
+// Returns:
+[
+    ['host' => 'example.com', 'views' => 320, 'identified_views' => 280, 'anonymous_views' => 40],
+    // ...
+]
+```
+
 ---
 
 ## TrackingService

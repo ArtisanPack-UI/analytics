@@ -89,6 +89,10 @@ class InertiaDashboardController extends Controller
 			'dateRangePreset'  => $this->getDateRangePreset( $request ),
 			'dateRangePresets' => $this->getDateRangePresets(),
 			'filters'          => $filters,
+			// Drives whether the dashboard offers the anonymous toggle and tab
+			// at all; the component hides both when nothing was collected.
+			'anonymousStats'    => $this->analyticsQuery->getAnonymousStats( $range, 10, 'day', $filters ),
+			'includeAnonymous'  => 'exclude' !== ( $filters['anonymous'] ?? 'exclude' ),
 		] );
 	}
 
@@ -374,6 +378,13 @@ class InertiaDashboardController extends Controller
 		$category = $request->query( 'category' );
 		if ( is_string( $category ) && '' !== $category ) {
 			$filters['category'] = $category;
+		}
+
+		// Anonymous (pre-consent) traffic filter. Excluded by default; the
+		// dashboard toggle opts in via ?anonymous=include.
+		$anonymous = $request->query( 'anonymous' );
+		if ( is_string( $anonymous ) && in_array( $anonymous, [ 'exclude', 'include', 'only' ], true ) ) {
+			$filters['anonymous'] = $anonymous;
 		}
 
 		return $filters;

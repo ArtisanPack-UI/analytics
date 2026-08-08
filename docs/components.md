@@ -17,6 +17,7 @@ ArtisanPack UI Analytics provides pre-built Livewire components for displaying a
 | [Traffic Sources](Components-Traffic-Sources) | Breakdown of traffic sources |
 | [Realtime Visitors](Components-Realtime-Visitors) | Live visitor count widget |
 | [Bot Traffic](Components-Bot-Traffic) | Filtered bot traffic summary *(since 1.2.0)* |
+| [Anonymous Traffic](Components-Anonymous-Traffic) | Pre-consent page views collected by anonymous mode *(since 1.5.0)* |
 
 ## Quick Usage
 
@@ -46,6 +47,9 @@ ArtisanPack UI Analytics provides pre-built Livewire components for displaying a
 
 {{-- Bot traffic (since 1.2.0) --}}
 <livewire:artisanpack-analytics::widgets.bot-traffic />
+
+{{-- Anonymous traffic (since 1.5.0) --}}
+<livewire:artisanpack-analytics::widgets.anonymous-traffic />
 ```
 
 ## Common Properties
