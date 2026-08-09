@@ -49,6 +49,12 @@ Route::post( '/batch', [ AnalyticsController::class, 'batch' ] )
 Route::post( '/pageview/update', [ AnalyticsController::class, 'updatePageview' ] )
 	->name( 'analytics.pageview.update' );
 
+// Pre-consent tracking. Kept on its own path so the identifier-free payload
+// gets its own validation surface, and cannot be confused with an identified
+// beacon that merely forgot to send its visitor ID.
+Route::post( '/anonymous/pageview', [ AnalyticsController::class, 'anonymousPageview' ] )
+	->name( 'analytics.anonymous.pageview' );
+
 /*
 |--------------------------------------------------------------------------
 | Consent Routes
@@ -95,6 +101,12 @@ Route::middleware( config( 'artisanpack.analytics.dashboard_middleware', [ 'auth
 
 	Route::get( '/bots', [ AnalyticsQueryController::class, 'bots' ] )
 		->name( 'analytics.bots' );
+
+	Route::get( '/anonymous', [ AnalyticsQueryController::class, 'anonymous' ] )
+		->name( 'analytics.anonymous' );
+
+	Route::get( '/referrers', [ AnalyticsQueryController::class, 'referrers' ] )
+		->name( 'analytics.referrers' );
 
 	/*
 	|--------------------------------------------------------------------------
@@ -185,6 +197,12 @@ Route::middleware( [ 'analytics.api-key' ] )->prefix( 'v1' )->group( function ()
 
 	Route::get( '/bots', [ AnalyticsQueryController::class, 'bots' ] )
 		->name( 'analytics.api.bots' );
+
+	Route::get( '/anonymous', [ AnalyticsQueryController::class, 'anonymous' ] )
+		->name( 'analytics.api.anonymous' );
+
+	Route::get( '/referrers', [ AnalyticsQueryController::class, 'referrers' ] )
+		->name( 'analytics.api.referrers' );
 
 	/*
 	|--------------------------------------------------------------------------

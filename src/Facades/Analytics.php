@@ -29,6 +29,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static AnalyticsManager extend(string $name, callable $creator)
  * @method static AnalyticsProviderInterface provider(?string $name = null)
  * @method static Collection getActiveProviders()
+ * @method static list<string> trackerScripts()
  * @method static string getDefaultProvider()
  * @method static AnalyticsManager setDefaultProvider(string $name)
  * @method static array getProviderNames()

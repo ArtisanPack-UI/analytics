@@ -201,7 +201,12 @@ class VisitorsChart extends Component
 
 		if ( in_array( 'pageviews', $this->metrics, true ) ) {
 			$datasets[] = [
-				'label'           => __( 'Page Views' ),
+				// Named for the scope actually plotted: with anonymous rows
+				// folded in, this series and the Visitors series below no
+				// longer describe the same population.
+				'label'           => $this->includeAnonymous
+					? __( 'Page Views (incl. anonymous)' )
+					: __( 'Page Views' ),
 				'data'            => $pageviewsData,
 				'borderColor'     => 'rgb(59, 130, 246)',
 				'backgroundColor' => 'rgba(59, 130, 246, 0.1)',
@@ -212,7 +217,9 @@ class VisitorsChart extends Component
 
 		if ( in_array( 'visitors', $this->metrics, true ) ) {
 			$datasets[] = [
-				'label'           => __( 'Visitors' ),
+				'label'           => $this->includeAnonymous
+					? __( 'Visitors (consented only)' )
+					: __( 'Visitors' ),
 				'data'            => $visitorsData,
 				'borderColor'     => 'rgb(16, 185, 129)',
 				'backgroundColor' => 'rgba(16, 185, 129, 0.1)',

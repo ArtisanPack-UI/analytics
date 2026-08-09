@@ -9,7 +9,7 @@
  * @since 1.1.0
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Card, Tabs, Select, Grid } from '@artisanpack-ui/react';
 
 import type { TabItem } from '@artisanpack-ui/react';
@@ -18,8 +18,9 @@ import type {
     VisitorsChartProps,
 } from '../components/VisitorsChart';
 import type { StatsCardsProps } from '../components/StatsCards';
-import type { TopPageItem, TrafficSourceItem } from '../../types';
+import type { AnonymousStatsData, DateRangePreset, TopPageItem, TrafficSourceItem } from '../../types';
 
+import AnonymousTraffic from '../components/AnonymousTraffic';
 import StatsCards from '../components/StatsCards';
 import TopPages from '../components/TopPages';
 import TrafficSources from '../components/TrafficSources';
@@ -49,10 +50,24 @@ export interface AnalyticsDashboardProps {
     filters?: Record<string, unknown>;
     /** Whether bot traffic is included. Bots are excluded by default. */
     includeBots?: boolean;
+    /**
+     * Whether anonymous (pre-consent) page views are folded into the page-view
+     * figures. Excluded by default. Only page-view figures respond to this;
+     * visitors, sessions and bounce rate never can.
+     */
+    includeAnonymous?: boolean;
+    /**
+     * Anonymous traffic summary. When omitted, or when `enabled` is false, the
+     * anonymous toggle and tab are not offered at all — a site that does not
+     * collect this traffic is not shown a control that cannot do anything.
+     */
+    anonymousStats?: AnonymousStatsData;
     /** Callback when the date range preset changes. */
     onDateRangeChange?: ( preset: string ) => void;
     /** Callback when the include-bots toggle changes. */
     onIncludeBotsChange?: ( includeBots: boolean ) => void;
+    /** Callback when the include-anonymous toggle changes. */
+    onIncludeAnonymousChange?: ( includeAnonymous: boolean ) => void;
     /** Optional CSS class name for the container. */
     className?: string;
 }
@@ -78,11 +93,29 @@ export default function AnalyticsDashboard( {
     dateRangePreset = '30d',
     dateRangePresets = defaultPresets,
     includeBots = false,
+    includeAnonymous = false,
+    anonymousStats,
     onDateRangeChange,
     onIncludeBotsChange,
+    onIncludeAnonymousChange,
     className = '',
 }: AnalyticsDashboardProps ): React.ReactElement {
     const [ activeTab, setActiveTab ] = useState( 'overview' );
+
+    // Offered only once there is anonymous traffic to show, so the toggle and
+    // tab never appear on a dashboard where they would do nothing.
+    const hasAnonymousData = Boolean(
+        anonymousStats?.enabled && anonymousStats.anonymous_pageviews > 0,
+    );
+
+    // The Anonymous tab disappears the moment there is nothing to show, which
+    // a date-range change can do at any time. Anyone sitting on it would
+    // otherwise be left on a tab that no longer exists, with no panel rendered.
+    useEffect( () => {
+        if ( ! hasAnonymousData && activeTab === 'anonymous' ) {
+            setActiveTab( 'overview' );
+        }
+    }, [ hasAnonymousData, activeTab ] );
 
     const handlePresetChange = ( e: React.ChangeEvent<HTMLSelectElement> ): void => {
         onDateRangeChange?.( e.target.value );
@@ -92,6 +125,10 @@ export default function AnalyticsDashboard( {
         onIncludeBotsChange?.( e.target.checked );
     };
 
+    const handleIncludeAnonymousChange = ( e: React.ChangeEvent<HTMLInputElement> ): void => {
+        onIncludeAnonymousChange?.( e.target.checked );
+    };
+
     const presetOptions = useMemo( () => {
         return Object.entries( dateRangePresets ).map( ( [ id, name ] ) => ( {
             id,
@@ -99,7 +136,8 @@ export default function AnalyticsDashboard( {
         } ) );
     }, [ dateRangePresets ] );
 
-    const tabItems: TabItem[] = useMemo( () => [
+    const tabItems: TabItem[] = useMemo( () => {
+        const items: TabItem[] = [
         {
             name: 'overview',
             label: 'Overview',
@@ -142,7 +180,41 @@ export default function AnalyticsDashboard( {
                 </div>
             ),
         },
-    ], [ stats, chartData, topPages, trafficSources ] );
+        ];
+
+        if ( hasAnonymousData ) {
+            items.push( {
+                name: 'anonymous',
+                label: 'Anonymous',
+                content: (
+                    <div className="space-y-6 pt-4">
+                        <AnonymousTraffic
+                            period={dateRangePreset as DateRangePreset}
+                            initialData={anonymousStats}
+                            includeAnonymous={includeAnonymous}
+                            onIncludeAnonymousChange={
+                                onIncludeAnonymousChange
+                                    ? ( value: boolean ) => onIncludeAnonymousChange( value )
+                                    : undefined
+                            }
+                        />
+                    </div>
+                ),
+            } );
+        }
+
+        return items;
+    }, [
+        stats,
+        chartData,
+        topPages,
+        trafficSources,
+        hasAnonymousData,
+        anonymousStats,
+        includeAnonymous,
+        onIncludeAnonymousChange,
+        dateRangePreset,
+    ] );
 
     return (
         <div className={`space-y-6 ${className}`.trim()}>
@@ -162,6 +234,19 @@ export default function AnalyticsDashboard( {
                             />
                             <span>Include bot traffic</span>
                         </label>
+                        {hasAnonymousData && (
+                            <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                                <input
+                                    type="checkbox"
+                                    className="toggle toggle-sm"
+                                    checked={includeAnonymous}
+                                    onChange={handleIncludeAnonymousChange}
+                                    disabled={!onIncludeAnonymousChange}
+                                    aria-label="Include anonymous traffic in page-view figures"
+                                />
+                                <span>Include anonymous traffic</span>
+                            </label>
+                        )}
                         <div className="w-48">
                             <Select
                                 options={presetOptions}
@@ -172,6 +257,32 @@ export default function AnalyticsDashboard( {
                     </div>
                 </div>
             </Card>
+
+            {/* Announce the traffic scope so toggling does not leave a screen
+                reader user on stale figures with no signal they changed. */}
+            <div className="sr-only" role="status" aria-live="polite">
+                {hasAnonymousData
+                    ? includeAnonymous
+                        ? 'Showing page views from consented and anonymous visitors. Visitors, sessions, bounce rate and session duration still count consented visitors only.'
+                        : 'Showing consented visitors only.'
+                    : ''}
+            </div>
+
+            {/* Scope banner: name the metrics that cannot include anonymous
+                traffic rather than leaving it to be inferred from a ratio. */}
+            {includeAnonymous && hasAnonymousData && (
+                <div className="alert alert-info items-start">
+                    <div>
+                        <h3 className="font-semibold">Including anonymous traffic</h3>
+                        <p className="text-sm">
+                            Page views include visitors who have not granted consent.
+                            Visitors, sessions, bounce rate and session duration count
+                            consented visitors only — anonymous rows carry no visitor or
+                            session to count.
+                        </p>
+                    </div>
+                </div>
+            )}
 
             {/* Tabbed content */}
             <Tabs

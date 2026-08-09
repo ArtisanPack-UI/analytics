@@ -4,18 +4,27 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\Analytics\Services;
 
-use ArtisanPackUI\Analytics\Contracts\SiteResolverInterface;
 use ArtisanPackUI\Analytics\Models\Site;
+use ArtisanPackUI\Core\Contracts\SiteResolver;
+use ArtisanPackUI\Core\MultiTenancy\ChainSiteResolver;
+use ArtisanPackUI\Core\MultiTenancy\SiteContext;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Throwable;
 
 /**
  * Manages multi-tenant site resolution and context.
  *
- * Provides a centralized service for resolving the current site
- * from incoming requests using a chain of resolvers.
+ * Since 1.5.0 this is a thin analytics-shaped view over
+ * {@see SiteContext}, the ecosystem's single
+ * site context. It owns no resolver chain of its own: resolution happens once,
+ * in core, from one configuration, so a request cannot resolve to site 2 for
+ * analytics while resolving to site 1 for another package. What this class
+ * still adds is the `Site` model — core's contract is keyed on the identifier
+ * because it cannot depend on this package's model, so the lookup lives here.
+ *
+ * A site pinned here is pinned for every package, and a site pinned by another
+ * package is visible here.
  *
  * For Laravel Octane compatibility, call flush() after each request
  * to prevent state leakage between requests.
@@ -27,125 +36,110 @@ use Throwable;
 class TenantManager
 {
 	/**
-	 * Registered site resolvers.
+	 * The shared site context.
 	 *
-	 * @var array<SiteResolverInterface>
+	 * @var SiteContext
 	 */
-	protected array $resolvers = [];
+	protected SiteContext $context;
 
 	/**
-	 * The currently resolved site.
+	 * The most recently loaded site, cached against its identifier.
+	 *
+	 * The context is deliberately not memoised — it re-resolves on every call
+	 * so a worker looping over sites gets the right answer each time. Without
+	 * this cache, every global scope on every query would re-query the sites
+	 * table for the same record. The identifier is stored alongside the model
+	 * so the cache invalidates itself the moment the context's answer changes.
 	 *
 	 * @var Site|null
 	 */
-	protected ?Site $currentSite = null;
+	protected ?Site $cachedSite = null;
 
 	/**
-	 * Whether resolvers have been sorted.
+	 * The identifier the cached site was loaded for.
+	 *
+	 * @var int|string|null
+	 */
+	protected int|string|null $cachedSiteId = null;
+
+	/**
+	 * Whether an explicit "no site" is in force.
+	 *
+	 * Pinning "no site" is an instruction, not an absence of one, so the
+	 * configured default site must not quietly fill the gap — a report asked to
+	 * run across every site would otherwise silently run against one.
 	 *
 	 * @var bool
 	 */
-	protected bool $resolversSorted = false;
+	protected bool $defaultSuppressed = false;
 
 	/**
-	 * Register a site resolver.
+	 * How many nested `withoutSite()` calls are currently open.
 	 *
-	 * @param SiteResolverInterface $resolver The resolver to register.
-	 *
-	 * @return static
-	 *
-	 * @since 1.0.0
+	 * @var int
 	 */
-	public function registerResolver( SiteResolverInterface $resolver ): static
-	{
-		$this->resolvers[]     = $resolver;
-		$this->resolversSorted = false;
+	protected int $withoutSiteDepth = 0;
 
-		return $this;
+	/**
+	 * Whether an unusable site identifier has already been reported.
+	 *
+	 * @var bool
+	 */
+	protected bool $warnedAboutSiteId = false;
+
+	/**
+	 * The default site identifier the usability check was last run for.
+	 *
+	 * @var int|null
+	 */
+	protected ?int $checkedDefaultSiteId = null;
+
+	/**
+	 * Whether the checked default site exists and is active.
+	 *
+	 * @var bool
+	 */
+	protected bool $defaultSiteUsable = false;
+
+	/**
+	 * Create a new tenant manager.
+	 *
+	 * @param SiteContext $context The shared site context.
+	 */
+	public function __construct( SiteContext $context )
+	{
+		$this->context = $context;
 	}
 
 	/**
-	 * Register multiple resolvers from configuration.
+	 * Resolve the current site.
 	 *
-	 * @param array<class-string<SiteResolverInterface>> $resolverClasses Array of resolver class names.
-	 *
-	 * @return static
-	 *
-	 * @since 1.0.0
-	 */
-	public function registerResolversFromConfig( array $resolverClasses ): static
-	{
-		foreach ( $resolverClasses as $resolverClass ) {
-			if ( class_exists( $resolverClass ) ) {
-				$resolver = app( $resolverClass );
-
-				if ( $resolver instanceof SiteResolverInterface ) {
-					$this->registerResolver( $resolver );
-				}
-			}
-		}
-
-		return $this;
-	}
-
-	/**
-	 * Resolve the current site from the request.
-	 *
-	 * Iterates through registered resolvers in priority order
-	 * until one successfully resolves a site.
-	 *
-	 * @param Request $request The incoming HTTP request.
+	 * @param Request|null $request Unused. Retained so existing callers keep
+	 *                              working; resolvers read the request from the
+	 *                              container themselves.
 	 *
 	 * @return Site|null The resolved site, or null if not found.
 	 *
+	 * @deprecated 1.5.0 Call `current()`. Resolution no longer takes a request.
 	 * @since 1.0.0
 	 */
-	public function resolve( Request $request ): ?Site
+	public function resolve( ?Request $request = null ): ?Site
 	{
-		$this->sortResolvers();
-
-		foreach ( $this->resolvers as $resolver ) {
-			try {
-				$site = $resolver->resolve( $request );
-
-				if ( null !== $site ) {
-					$this->currentSite = $site;
-
-					Log::debug( __( '[Analytics] Site resolved via :resolver', [
-						'resolver' => get_class( $resolver ),
-					] ) );
-
-					return $site;
-				}
-			} catch ( Throwable $e ) {
-				Log::warning( __( '[Analytics] Resolver :resolver failed: :message', [
-					'resolver' => get_class( $resolver ),
-					'message'  => $e->getMessage(),
-				] ) );
-			}
-		}
-
-		// Fall back to default site if configured
-		$defaultSiteId = config( 'artisanpack.analytics.multi_tenant.default_site_id' );
-
-		if ( null !== $defaultSiteId ) {
-			// Only use default site if it exists and is active
-			$defaultSite = Site::where( 'id', $defaultSiteId )
-				->where( 'is_active', true )
-				->first();
-
-			if ( null !== $defaultSite ) {
-				$this->currentSite = $defaultSite;
-
-				return $this->currentSite;
-			}
-		}
-
-		return null;
+		return $this->current();
 	}
 
 	/**
 	 * Get the current site.
+	 *
+	 * A pinned site is served whether or not it is active. Every shipped
+	 * resolver, and `default_site_id`, require `is_active` — but those are
+	 * automatic answers, whereas a pin is an explicit instruction from calling
+	 * code, and deactivating a site must not silently redirect an
+	 * administrative or maintenance task to a different one. A caller that
+	 * needs the distinction should check `is_active` on what it gets back.
+	 *
+	 * Soft-deleted sites are the exception, and are never returned: the
+	 * query keeps Site's soft-delete scope deliberately.
 	 *
 	 * @return Site|null The current site, or null if not set.
 	 *
@@ -153,11 +147,36 @@ class TenantManager
 	 */
 	public function current(): ?Site
 	{
-		return $this->currentSite;
+		$siteId = $this->currentId();
+
+		if ( null === $siteId ) {
+			$this->cachedSite   = null;
+			$this->cachedSiteId = null;
+
+			return null;
+		}
+
+		if ( $this->cachedSiteId === $siteId && null !== $this->cachedSite ) {
+			return $this->cachedSite;
+		}
+
+		// Deliberately not withoutGlobalScopes(): Site carries the soft-delete
+		// scope, and a deleted site must not come back as the current one.
+		$site = Site::query()
+			->where( 'id', $siteId )
+			->first();
+
+		$this->cachedSite   = $site;
+		$this->cachedSiteId = null !== $site ? $siteId : null;
+
+		return $site;
 	}
 
 	/**
 	 * Set the current site.
+	 *
+	 * Pins the site in the shared context, so every package that scopes by
+	 * site sees it, not just this one.
 	 *
 	 * @param Site|null $site The site to set as current.
 	 *
@@ -167,7 +186,11 @@ class TenantManager
 	 */
 	public function setCurrent( ?Site $site ): static
 	{
-		$this->currentSite = $site;
+		$this->context->setSiteId( $site?->id );
+
+		$this->defaultSuppressed = null === $site;
+		$this->cachedSite        = $site;
+		$this->cachedSiteId      = $site?->id;
 
 		return $this;
 	}
@@ -175,13 +198,52 @@ class TenantManager
 	/**
 	 * Get the current site ID.
 	 *
+	 * Answers from the shared context, falling back to the configured default
+	 * site when nothing puts a site in context.
+	 *
 	 * @return int|null The current site ID, or null if not set.
 	 *
 	 * @since 1.0.0
 	 */
 	public function currentId(): ?int
 	{
-		return $this->currentSite?->id;
+		$siteId = $this->context->currentSiteId();
+
+		if ( null !== $siteId ) {
+			// Deliberately stricter than is_numeric(), which accepts "12.5",
+			// "1e3", " 12" and "-3" — each of which casts to an int that is
+			// either a different site or no site at all. "12.5" becoming site
+			// 12 would attribute this work to a real, wrong site. Anchored with
+			// \z rather than $, which in PCRE also matches before a trailing
+			// newline.
+			if ( is_int( $siteId ) || ( is_string( $siteId ) && 1 === preg_match( '/^\d+\z/', $siteId ) ) ) {
+				return (int) $siteId;
+			}
+
+			// Another package's resolver named a site this package cannot have
+			// a record for — analytics site IDs are integers. Leave queries
+			// unscoped, and do not reach for the default site: a site *is* in
+			// context, so attributing this work to a different one would file
+			// it under the wrong site rather than under none.
+			$this->warnAboutUnusableSiteId( $siteId );
+
+			return null;
+		}
+
+		if ( $this->defaultSuppressed || $this->withoutSiteDepth > 0 ) {
+			return null;
+		}
+
+		// A null answer from a context that has something pinned means "no
+		// site", deliberately — `withoutSite()` or `setSiteId( null )`, possibly
+		// called by a sibling package that knows nothing about this one.
+		// Substituting this package's default site there would scope work
+		// another package asked to leave unscoped.
+		if ( $this->context->isPinned() ) {
+			return null;
+		}
+
+		return $this->defaultSiteId();
 	}
 
 	/**
@@ -193,31 +255,47 @@ class TenantManager
 	 */
 	public function hasCurrent(): bool
 	{
-		return null !== $this->currentSite;
+		return null !== $this->currentId();
 	}
 
 	/**
 	 * Execute a callback in the context of a specific site.
 	 *
-	 * The site context is restored after the callback completes.
+	 * The site context is restored after the callback completes, including
+	 * when the callback throws, and the pinned site is visible to every
+	 * package for the duration.
 	 *
-	 * @param Site    $site     The site to use as context.
-	 * @param Closure $callback The callback to execute.
+	 * @param int|Site|string $site     The site, or site identifier, to use as context.
+	 * @param Closure         $callback The callback to execute.
 	 *
 	 * @return mixed The callback return value.
 	 *
 	 * @since 1.0.0
 	 */
-	public function forSite( Site $site, Closure $callback ): mixed
+	public function forSite( Site|int|string $site, Closure $callback ): mixed
 	{
-		$previousSite = $this->currentSite;
+		$siteId = $site instanceof Site ? $site->id : $site;
 
-		$this->currentSite = $site;
+		$previousSite         = $this->cachedSite;
+		$previousSiteId       = $this->cachedSiteId;
+		$previouslySuppressed = $this->defaultSuppressed;
+
+		$this->defaultSuppressed = false;
+
+		if ( $site instanceof Site ) {
+			$this->cachedSite   = $site;
+			$this->cachedSiteId = $site->id;
+		} else {
+			$this->cachedSite   = null;
+			$this->cachedSiteId = null;
+		}
 
 		try {
-			return $callback( $site );
+			return $this->context->forSite( $siteId, fn () => $callback( $site ) );
 		} finally {
-			$this->currentSite = $previousSite;
+			$this->cachedSite        = $previousSite;
+			$this->cachedSiteId      = $previousSiteId;
+			$this->defaultSuppressed = $previouslySuppressed;
 		}
 	}
 
@@ -234,19 +312,33 @@ class TenantManager
 	 */
 	public function withoutSite( Closure $callback ): mixed
 	{
-		$previousSite = $this->currentSite;
+		$previousSite         = $this->cachedSite;
+		$previousSiteId       = $this->cachedSiteId;
+		$previouslySuppressed = $this->defaultSuppressed;
 
-		$this->currentSite = null;
+		$this->cachedSite   = null;
+		$this->cachedSiteId = null;
+		++$this->withoutSiteDepth;
 
 		try {
-			return $callback();
+			return $this->context->withoutSite( fn () => $callback() );
 		} finally {
-			$this->currentSite = $previousSite;
+			--$this->withoutSiteDepth;
+			$this->cachedSite   = $previousSite;
+			$this->cachedSiteId = $previousSiteId;
+
+			// Restored like the rest: a `setCurrent( null )` inside the
+			// callback would otherwise outlive the scope and suppress the
+			// default site for every later query in the request.
+			$this->defaultSuppressed = $previouslySuppressed;
 		}
 	}
 
 	/**
 	 * Clear the current site context.
+	 *
+	 * Releases the pinned site for every package, handing resolution back to
+	 * the configured resolvers.
 	 *
 	 * @return static
 	 *
@@ -254,7 +346,9 @@ class TenantManager
 	 */
 	public function forget(): static
 	{
-		$this->currentSite = null;
+		$this->context->forget();
+
+		$this->resetCaches();
 
 		return $this;
 	}
@@ -272,40 +366,130 @@ class TenantManager
 	 */
 	public function flush(): static
 	{
-		$this->currentSite = null;
+		$this->context->flush();
+
+		$this->resetCaches();
 
 		return $this;
 	}
 
 	/**
-	 * Get all registered resolvers.
+	 * Get the shared site context this manager delegates to.
 	 *
-	 * @return array<SiteResolverInterface>
+	 * @return SiteContext The shared context.
+	 *
+	 * @since 1.5.0
+	 */
+	public function context(): SiteContext
+	{
+		return $this->context;
+	}
+
+	/**
+	 * Get the resolvers backing site resolution.
+	 *
+	 * These come from `artisanpack.core.multi_tenant.resolvers` and are shared
+	 * with every other package, so the list may contain resolvers this package
+	 * knows nothing about.
+	 *
+	 * @return array<int, SiteResolver> The resolvers, in the order they are asked.
 	 *
 	 * @since 1.0.0
 	 */
 	public function getResolvers(): array
 	{
-		$this->sortResolvers();
+		$resolver = $this->context->resolver();
 
-		return $this->resolvers;
+		return $resolver instanceof ChainSiteResolver ? $resolver->resolvers() : [ $resolver ];
 	}
 
 	/**
-	 * Sort resolvers by priority.
+	 * Log a site identifier this package cannot use, once per instance.
+	 *
+	 * Once, because this is reached from every scoped query: logging each time
+	 * would bury the fault it is reporting.
+	 *
+	 * @param int|string $siteId The identifier the shared context returned.
 	 *
 	 * @return void
 	 *
-	 * @since 1.0.0
+	 * @since 1.5.0
 	 */
-	protected function sortResolvers(): void
+	protected function warnAboutUnusableSiteId( int|string $siteId ): void
 	{
-		if ( $this->resolversSorted ) {
+		if ( $this->warnedAboutSiteId ) {
 			return;
 		}
 
-		usort( $this->resolvers, fn ( $a, $b ) => $a->priority() <=> $b->priority() );
+		$this->warnedAboutSiteId = true;
 
-		$this->resolversSorted = true;
+		// The identifier goes in the context array rather than the message: it
+		// can originate in a request header, and a value carrying newlines
+		// interpolated into a log line can forge log entries.
+		Log::warning(
+			__(
+				'[Analytics] The shared site context resolved to an identifier that is not an analytics site ID,'
+					. ' so analytics queries are not being scoped by site. Analytics sites are identified by'
+					. ' integer IDs; check the resolvers in "artisanpack.core.multi_tenant.resolvers".',
+			),
+			[ 'site_id' => $siteId ],
+		);
+	}
+
+	/**
+	 * Clear the locally cached site and default-site lookups.
+	 *
+	 * @return void
+	 *
+	 * @since 1.5.0
+	 */
+	protected function resetCaches(): void
+	{
+		$this->cachedSite           = null;
+		$this->cachedSiteId         = null;
+		$this->defaultSuppressed    = false;
+		$this->checkedDefaultSiteId = null;
+		$this->defaultSiteUsable    = false;
+	}
+
+	/**
+	 * Get the configured default site ID.
+	 *
+	 * Kept from before the move to the shared context: an application that
+	 * names a default site expects its analytics to land there when nothing
+	 * else identifies one. The site still has to exist and be active, so a
+	 * stale identifier leaves the context empty rather than silently attaching
+	 * every visit to a deleted site.
+	 *
+	 * @return int|null The default site ID, or null when none is usable.
+	 *
+	 * @since 1.5.0
+	 */
+	protected function defaultSiteId(): ?int
+	{
+		$defaultSiteId = config( 'artisanpack.analytics.multi_tenant.default_site_id' );
+
+		if ( null === $defaultSiteId || '' === $defaultSiteId || ! is_numeric( $defaultSiteId ) ) {
+			return null;
+		}
+
+		$defaultSiteId = (int) $defaultSiteId;
+
+		// The existence check is memoised because this runs from every model's
+		// global scope, on every query. Left unmemoised it would put a second
+		// query in front of each one. `forget()` and `flush()` clear it, which
+		// covers the case of the default site being created or deactivated
+		// within a single process.
+		if ( $this->checkedDefaultSiteId === $defaultSiteId ) {
+			return $this->defaultSiteUsable ? $defaultSiteId : null;
+		}
+
+		$this->checkedDefaultSiteId = $defaultSiteId;
+		$this->defaultSiteUsable    = Site::query()
+			->where( 'id', $defaultSiteId )
+			->where( 'is_active', true )
+			->exists();
+
+		return $this->defaultSiteUsable ? $defaultSiteId : null;
 	}
 }

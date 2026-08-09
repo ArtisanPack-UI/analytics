@@ -9,6 +9,7 @@ use ArtisanPackUI\Analytics\Data\PageViewData;
 use ArtisanPackUI\Analytics\Data\SessionData;
 use ArtisanPackUI\Analytics\Http\Requests\EndSessionRequest;
 use ArtisanPackUI\Analytics\Http\Requests\StartSessionRequest;
+use ArtisanPackUI\Analytics\Http\Requests\TrackAnonymousPageViewRequest;
 use ArtisanPackUI\Analytics\Http\Requests\TrackBatchRequest;
 use ArtisanPackUI\Analytics\Http\Requests\TrackEventRequest;
 use ArtisanPackUI\Analytics\Http\Requests\TrackPageViewRequest;
@@ -69,6 +70,41 @@ class AnalyticsController extends Controller
 			$this->trackingService->trackPageView( $data, $request, $this->getSiteId( $request ) );
 		} catch ( Throwable $e ) {
 			Log::error( 'Analytics pageview error', [
+				'error' => $e->getMessage(),
+				'path'  => $request->input( 'path' ),
+			] );
+		}
+
+		return $this->noContentResponse();
+	}
+
+	/**
+	 * Track a page view from a visitor who has not granted consent.
+	 *
+	 * POST /api/analytics/anonymous/pageview
+	 *
+	 * Accepts no identifiers by design — see
+	 * {@see TrackAnonymousPageViewRequest}. Returns 204 whether or not the row
+	 * was written, matching the other ingest endpoints: the browser has
+	 * nothing useful to do with the difference, and anonymous mode being
+	 * disabled is not an error worth reporting to it.
+	 *
+	 * @param TrackAnonymousPageViewRequest $request The validated request.
+	 *
+	 * @return Response
+	 *
+	 * @since 1.5.0
+	 */
+	public function anonymousPageview( TrackAnonymousPageViewRequest $request ): Response
+	{
+		try {
+			$this->trackingService->trackAnonymousPageView(
+				$request->validated(),
+				$request,
+				$this->getSiteId( $request ),
+			);
+		} catch ( Throwable $e ) {
+			Log::error( 'Analytics anonymous pageview error', [
 				'error' => $e->getMessage(),
 				'path'  => $request->input( 'path' ),
 			] );
@@ -337,10 +373,20 @@ class AnalyticsController extends Controller
 			return null;
 		}
 
-		// Validate that the value is numeric before casting
+		// Request input can be an array — `?site_id[]=1` — and casting one to a
+		// string is a warning and the literal "Array", so reject anything that
+		// is not scalar before going near a cast.
+		if ( ! is_scalar( $siteId ) ) {
+			return null;
+		}
+
+		// Deliberately stricter than is_numeric(), which accepts "12.5", "1e3"
+		// and " 12" — each of which casts to an int naming a different site, or
+		// none. Same guard as TenantManager::currentId(). Anchored with \z
+		// rather than $, which in PCRE also matches before a trailing newline.
 		$siteIdString = is_string( $siteId ) ? trim( $siteId ) : (string) $siteId;
 
-		if ( '' === $siteIdString || ! is_numeric( $siteIdString ) ) {
+		if ( 1 !== preg_match( '/^\d+\z/', $siteIdString ) ) {
 			return null;
 		}
 

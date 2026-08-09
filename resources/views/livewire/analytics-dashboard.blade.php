@@ -47,6 +47,20 @@
 				aria-pressed="{{ $includeBots ? 'true' : 'false' }}"
 			/>
 
+			{{-- Anonymous Traffic Toggle --}}
+			{{-- Only offered when anonymous mode is on and rows exist, so the
+			     control never appears as a switch that cannot change anything. --}}
+			@if ( $hasAnonymousData )
+				<x-artisanpack-button
+					wire:click="toggleAnonymous"
+					class="btn-sm {{ $includeAnonymous ? 'btn-primary' : 'btn-outline' }}"
+					icon="o-eye-slash"
+					:label="$includeAnonymous ? __( 'Exclude anonymous traffic' ) : __( 'Include anonymous traffic' )"
+					:tooltip="$includeAnonymous ? __( 'Page views include anonymous visitors. Visitors, sessions and bounce rate cannot. Click to exclude.' ) : __( 'Page views count consented visitors only. Click to include anonymous traffic.' )"
+					aria-pressed="{{ $includeAnonymous ? 'true' : 'false' }}"
+				/>
+			@endif
+
 			{{-- Refresh Button --}}
 			<x-artisanpack-button
 				wire:click="refreshData"
@@ -57,6 +71,27 @@
 			/>
 		</div>
 	</div>
+
+	{{-- Announce the traffic scope so toggling does not leave a screen reader
+	     user reading stale figures with no signal that they changed. --}}
+	<div class="sr-only" role="status" aria-live="polite">
+		{{ $this->getAnonymousAnnouncement() }}
+	</div>
+
+	{{-- Scope banner. Anonymous page views are visibly folded in, and the
+	     metrics that cannot include them are named rather than left to be
+	     inferred from a ratio nobody should compute. --}}
+	@if ( $includeAnonymous )
+		<div class="alert alert-info mb-6 items-start">
+			<x-artisanpack-icon name="o-eye-slash" class="w-5 h-5 shrink-0" />
+			<div>
+				<h2 class="font-semibold">{{ __( 'Including anonymous traffic' ) }}</h2>
+				<p class="text-sm">
+					{{ __( 'Page views include visitors who have not granted consent. Visitors, sessions, bounce rate and session duration count consented visitors only — anonymous rows carry no visitor or session to count.' ) }}
+				</p>
+			</div>
+		</div>
+	@endif
 
 	{{-- Tabs --}}
 	<div class="tabs tabs-boxed mb-6">
@@ -299,6 +334,17 @@
 		{{-- Bots Tab --}}
 		@if ( $activeTab === 'bots' )
 			<livewire:artisanpack-analytics::widgets.bot-traffic
+				:date-range-preset="$dateRangePreset"
+				:site-id="$siteId"
+				:limit="10"
+			/>
+		@endif
+
+		{{-- Anonymous Tab --}}
+		{{-- Guarded on the data as well as the tab: the tab is dropped the
+		     moment there is nothing to show, and the panel must not outlive it. --}}
+		@if ( $activeTab === 'anonymous' && $hasAnonymousData )
+			<livewire:artisanpack-analytics::widgets.anonymous-traffic
 				:date-range-preset="$dateRangePreset"
 				:site-id="$siteId"
 				:limit="10"

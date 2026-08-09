@@ -4,7 +4,6 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\Analytics\Resolvers;
 
-use ArtisanPackUI\Analytics\Contracts\SiteResolverInterface;
 use ArtisanPackUI\Analytics\Models\Site;
 use Illuminate\Http\Request;
 
@@ -18,7 +17,7 @@ use Illuminate\Http\Request;
  *
  * @package ArtisanPackUI\Analytics\Resolvers
  */
-class SubdomainResolver implements SiteResolverInterface
+class SubdomainResolver extends AbstractSiteResolver
 {
 	/**
 	 * The base domain to extract subdomain from.

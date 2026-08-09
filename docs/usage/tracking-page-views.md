@@ -48,17 +48,49 @@ The tracking script respects your configuration settings:
 
 ### SPA Support
 
-For single-page applications, enable hash change tracking:
+Single-page applications work out of the box. Since 1.5.0 the tracker watches
+`pushState`, `replaceState` and `popstate` — the History API that Inertia,
+React Router, Vue Router and `wire:navigate` all navigate through — and records
+a page view whenever the path or query string changes.
 
-```dotenv
-ANALYTICS_TRACK_HASH=true
+A navigation also closes out the previous page's engagement metrics, so time on
+page and scroll depth are attributed to the page they were measured on instead
+of accumulating across the session.
+
+Deliberately ignored, so numbers stay honest:
+
+- A `replaceState` that leaves the URL unchanged. Routers use it to sync state
+  without navigating.
+- Hash-only changes, which belong to `trackHashChanges` (default `false`) and
+  would otherwise be counted twice when both options are on.
+
+Turn it off if your app already bridges its router's navigation events itself,
+otherwise both will fire.
+
+Either set it server-side, which is what most applications want:
+
+```php
+// config/artisanpack/analytics.php
+'tracker' => [
+    'track_history_changes' => env( 'ANALYTICS_TRACK_HISTORY_CHANGES', true ),
+],
 ```
 
-Or manually track navigation:
+or override it for a single page. This global must be set *before* the tracker
+script loads; the served script merges its own config onto whatever is already
+there, so what the page set wins:
+
+```javascript
+window.__ARTISANPACK_ANALYTICS_CONFIG__ = {
+    trackHistoryChanges: false,
+};
+```
+
+You can still record a navigation by hand:
 
 ```javascript
 // After route change
-analytics.trackPageView(window.location.pathname, document.title);
+analytics.pageView();
 ```
 
 ## Manual Tracking

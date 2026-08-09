@@ -168,6 +168,29 @@ import { RealtimeVisitors } from '@/vendor/artisanpack-analytics/react';
 <RealtimeVisitors />
 ```
 
+### AnonymousTraffic
+
+Page views recorded before consent by [anonymous mode](Advanced-Privacy-Consent).
+Every figure is a page-view count: anonymous rows carry no visitor or session,
+so the component deliberately reports no visitor, session or bounce metric.
+
+Renders an explanatory panel rather than zeroes when anonymous mode is off, and
+a distinct one when it is on with nothing collected for the period.
+
+```tsx
+import { AnonymousTraffic } from '@/vendor/artisanpack-analytics/react';
+
+<AnonymousTraffic
+    period="30d"
+    includeAnonymous={includeAnonymous}
+    onIncludeAnonymousChange={setIncludeAnonymous}
+/>
+```
+
+Pass `anonymousStats` and `includeAnonymous` to `AnalyticsDashboard` to get the
+dashboard-level toggle and Anonymous tab; both are hidden unless the summary
+reports collected rows.
+
 ### SiteSelector
 
 Site picker dropdown for multi-tenant setups.

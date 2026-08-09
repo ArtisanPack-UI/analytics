@@ -52,6 +52,13 @@ class Site extends Model
 	use SoftDeletes;
 
 	/**
+	 * How stale the recorded API key usage must be before it is rewritten.
+	 *
+	 * @var int
+	 */
+	public const API_KEY_USAGE_INTERVAL = 60;
+
+	/**
 	 * The table associated with the model.
 	 *
 	 * @var string
@@ -358,12 +365,25 @@ class Site extends Model
 	/**
 	 * Record API key usage.
 	 *
+	 * The timestamp is only rewritten once the recorded one is older than
+	 * {@see self::API_KEY_USAGE_INTERVAL} seconds. Site resolution runs per call
+	 * by design, and the site scope resolves a site for every scoped query, so
+	 * writing unconditionally turned a single API-key request into one UPDATE on
+	 * `sites` for each SELECT it made. The column answers "is this key still in
+	 * use", which a minute's resolution answers just as well.
+	 *
 	 * @return void
 	 *
 	 * @since 1.0.0
 	 */
 	public function recordApiKeyUsage(): void
 	{
+		$lastUsed = $this->api_key_last_used_at;
+
+		if ( null !== $lastUsed && $lastUsed->gt( now()->subSeconds( self::API_KEY_USAGE_INTERVAL ) ) ) {
+			return;
+		}
+
 		$this->api_key_last_used_at = now();
 		$this->saveQuietly();
 	}

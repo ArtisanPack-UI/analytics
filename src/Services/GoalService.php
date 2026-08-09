@@ -112,7 +112,7 @@ class GoalService
 			} );
 		}
 
-		if ( null !== $tenantId && config( 'artisanpack.analytics.multi_tenant.enabled', false ) ) {
+		if ( null !== $tenantId && analyticsMultiTenancyEnabled() ) {
 			$query->where( function ( $q ) use ( $tenantId ): void {
 				$q->where( 'tenant_id', $tenantId )
 					->orWhereNull( 'tenant_id' );
@@ -148,7 +148,7 @@ class GoalService
 			} );
 		}
 
-		if ( null !== $tenantId && config( 'artisanpack.analytics.multi_tenant.enabled', false ) ) {
+		if ( null !== $tenantId && analyticsMultiTenancyEnabled() ) {
 			$query->where( function ( $q ) use ( $tenantId ): void {
 				$q->where( 'tenant_id', $tenantId )
 					->orWhereNull( 'tenant_id' );
@@ -194,7 +194,7 @@ class GoalService
 			} );
 		}
 
-		if ( null !== $tenantId && config( 'artisanpack.analytics.multi_tenant.enabled', false ) ) {
+		if ( null !== $tenantId && analyticsMultiTenancyEnabled() ) {
 			$query->where( function ( $q ) use ( $tenantId ): void {
 				$q->where( 'tenant_id', $tenantId )
 					->orWhereNull( 'tenant_id' );

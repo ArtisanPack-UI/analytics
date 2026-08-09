@@ -198,6 +198,76 @@ $stats = $query->getBotStats($range, $agentLimit = 10, $granularity = 'day', $fi
 ]
 ```
 
+#### getAnonymousStats()
+
+> **Since 1.5.0**
+
+Get a summary of the page views collected before consent by
+[anonymous mode](Advanced-Privacy-Consent):
+
+```php
+$stats = $query->getAnonymousStats($range, $limit = 10, $granularity = 'day', $filters = []);
+
+// Returns:
+[
+    'enabled' => true,
+    'anonymous_pageviews' => 3120,
+    'identified_pageviews' => 8400,
+    'total_pageviews' => 11520,
+    'anonymous_percentage' => 27.1,
+    'top_pages' => [['path' => '/docs', 'title' => 'Docs', 'views' => 940], ...],
+    'referring_hosts' => [['host' => 'example.com', 'views' => 210], ...],
+    'device_breakdown' => [['device_type' => 'mobile', 'views' => 1800, 'percentage' => 57.7], ...],
+    'trend' => [['date' => '2026-05-01', 'pageviews' => 120], ...],
+]
+```
+
+Every figure here is a page-view count. Anonymous rows carry no visitor or
+session, so there is deliberately no visitor, session, bounce or duration
+metric — those numbers do not exist for this traffic.
+
+#### The `anonymous` filter
+
+> **Since 1.5.0**
+
+Anonymous page views are excluded from every query by default. The scope is set
+per call, or with a chainable modifier consumed by the next query:
+
+```php
+$query->getPageViewCount($range);                              // consented only (default)
+$query->getPageViewCount($range, ['anonymous' => 'include']);  // consented + anonymous
+$query->includeAnonymous()->getPageViewCount($range);          // same, chained
+$query->onlyAnonymous()->getPageViewCount($range);             // anonymous only
+```
+
+`getPageViewCount()`, `getStats()`, `getPageViews()`, `getTopPages()`,
+`getReferringHosts()` and `getDeviceBreakdown()` honour the mode. Visitor- and
+session-derived metrics never do, and `getStats()` reports
+`identified_only_metrics_available => false` in an anonymous-only view rather
+than presenting those metrics as zero.
+
+A mode requested while `privacy.anonymous_mode` is off collapses back to
+`exclude`, so a stale toggle cannot resurrect a switched-off feature.
+
+#### getReferringHosts()
+
+> **Since 1.5.0**
+
+Get the top referring hosts counted in page views, so anonymous traffic can be
+added to the identified figure honestly. This is a different metric from
+`getTrafficSources()`, which counts sessions and cannot include anonymous rows
+at all:
+
+```php
+$hosts = $query->getReferringHosts($range, $limit = 10, $filters = []);
+
+// Returns:
+[
+    ['host' => 'example.com', 'views' => 320, 'identified_views' => 280, 'anonymous_views' => 40],
+    // ...
+]
+```
+
 ---
 
 ## TrackingService
@@ -354,7 +424,11 @@ $status = $consentService->getConsentStatus($fingerprint);
 
 ## TenantManager
 
-Manages multi-tenant site resolution.
+The analytics view onto the ecosystem's shared site context. Since 1.5.0 it
+resolves nothing itself: `ArtisanPackUI\Core\MultiTenancy\SiteContext` decides
+which site is in context, from one configuration every ArtisanPack UI package
+reads, and this class looks the `Site` model up from the identifier it returns.
+A site pinned here is pinned for every package, and vice versa.
 
 ### Usage
 
@@ -366,37 +440,87 @@ $tenantManager = app(TenantManager::class);
 
 ### Methods
 
-#### currentSite()
+#### current()
 
-Get the current site:
-
-```php
-$site = $tenantManager->currentSite();
-```
-
-#### currentTenantId()
-
-Get current tenant ID:
+Get the site in context. When the shared context has no answer, this returns the
+site configured as `artisanpack.analytics.multi_tenant.default_site_id` — unless
+that site is missing, inactive or deleted, or unless no site was asked for
+explicitly through `withoutSite()` or `setCurrent( null )`. `null` otherwise:
 
 ```php
-$tenantId = $tenantManager->currentTenantId();
+$site = $tenantManager->current();
 ```
 
-#### setSite()
+#### currentId()
 
-Set the current site:
+Get the current site ID, falling back to
+`artisanpack.analytics.multi_tenant.default_site_id` when nothing resolves:
 
 ```php
-$tenantManager->setSite($site);
+$siteId = $tenantManager->currentId();
 ```
 
-#### resolveSite()
+#### hasCurrent()
 
-Resolve site from request:
+Whether any site is in context:
 
 ```php
-$site = $tenantManager->resolveSite($request);
+if ($tenantManager->hasCurrent()) {
+    // ...
+}
 ```
+
+#### setCurrent()
+
+Pin a site for the rest of the process, for every package:
+
+```php
+$tenantManager->setCurrent($site);
+```
+
+#### forSite()
+
+Run a callback with a site in context, restoring whatever was there before —
+including when the callback throws. Accepts a `Site` or a bare identifier:
+
+```php
+$tenantManager->forSite($site, fn () => PageView::count());
+$tenantManager->forSite(42, fn () => PageView::count());
+```
+
+#### withoutSite()
+
+Run a callback with no site in context, so nothing is scoped:
+
+```php
+$total = $tenantManager->withoutSite(fn () => PageView::count());
+```
+
+The configured default site does not fill in here: asking for no site is an
+instruction, not an absence of one.
+
+#### forget() / flush()
+
+Release the pinned site. Register `flush()` against Octane's
+`RequestTerminated` event so a pinned site cannot leak between requests:
+
+```php
+$tenantManager->forget();
+```
+
+#### context()
+
+The shared `SiteContext` this manager delegates to, for code that wants the
+identifier without the model:
+
+```php
+$siteId = $tenantManager->context()->currentSiteId();
+```
+
+#### resolve()
+
+**Deprecated in 1.5.0.** An alias for `current()`; the `$request` argument is
+ignored, because resolvers now read the request from the container themselves.
 
 ---
 

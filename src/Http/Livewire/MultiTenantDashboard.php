@@ -51,7 +51,7 @@ class MultiTenantDashboard extends Component
 	 */
 	public function mount( ?string $dateRangePreset = null, ?int $siteId = null ): void
 	{
-		$this->multiTenantEnabled = config( 'artisanpack.analytics.multi_tenant.enabled', false );
+		$this->multiTenantEnabled = analyticsMultiTenancyEnabled();
 		$this->dateRangePreset    = $dateRangePreset ?? '30d';
 
 		$tenantManager = app( TenantManager::class );

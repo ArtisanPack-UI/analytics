@@ -669,7 +669,7 @@ class LocalAnalyticsProvider extends AbstractAnalyticsProvider
             $query->where( $table . '.site_id', $filters['site_id'] );
         }
 
-        if ( isset( $filters['tenant_id'] ) && config( 'artisanpack.analytics.multi_tenant.enabled', false ) ) {
+        if ( isset( $filters['tenant_id'] ) && analyticsMultiTenancyEnabled() ) {
             $query->where( $table . '.tenant_id', $filters['tenant_id'] );
         }
 

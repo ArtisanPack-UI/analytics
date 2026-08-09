@@ -271,6 +271,31 @@ return [
 
         /*
         |----------------------------------------------------------------------
+        | Anonymous Mode
+        |----------------------------------------------------------------------
+        |
+        | When enabled, visitors who have not granted analytics consent still
+        | contribute a page view — recorded to `analytics_anonymous_page_views`
+        | with no visitor ID, session ID, fingerprint, IP or user agent, and
+        | with no cookie or localStorage written in the browser. Without this,
+        | a visitor who ignores the consent banner produces nothing at all.
+        |
+        | The trade is that anonymous rows cannot be joined to anything: no
+        | sessions, no returning visitors, no per-visitor drill-down. They
+        | support counting and nothing else, which is what makes them safe to
+        | collect under legitimate interest.
+        |
+        | Off by default. Enabling it changes what you collect before consent,
+        | so review your consent banner copy and privacy policy alongside it.
+        |
+        | An explicit opt-out — Do Not Track or Global Privacy Control — still
+        | suppresses everything, including anonymous mode.
+        |
+        */
+        'anonymous_mode' => env( 'ANALYTICS_ANONYMOUS_MODE', false ),
+
+        /*
+        |----------------------------------------------------------------------
         | Consent Cookie Lifetime
         |----------------------------------------------------------------------
         |
@@ -729,6 +754,11 @@ return [
         |
         | Enable multi-tenant support for analytics data isolation.
         |
+        | Deprecated since 1.5.0 in favour of
+        | artisanpack.core.multi_tenant.enabled, which switches site scoping on
+        | for every ArtisanPack UI package at once. Either flag enables it here;
+        | switching this one on also switches the shared one on.
+        |
         */
         'enabled' => env( 'ANALYTICS_MULTI_TENANT', false ),
 
@@ -750,7 +780,12 @@ return [
         | Class responsible for resolving the current tenant. Must implement
         | ArtisanPackUI\Analytics\Contracts\TenantResolverInterface.
         |
-        | Note: Consider using the 'resolvers' array below for more flexibility.
+        | Deprecated since 1.5.0. It is consulted only by the TenantResolver
+        | middleware, and only when nothing has put a site in the shared
+        | context — so it cannot decide what queries are scoped to. Unless your
+        | tenants are genuinely not sites, implement
+        | ArtisanPackUI\Core\Contracts\SiteResolver and list it under
+        | artisanpack.core.multi_tenant.resolvers instead.
         |
         */
         'resolver' => env( 'ANALYTICS_TENANT_RESOLVER' ),
@@ -760,14 +795,22 @@ return [
         | Site Resolvers
         |----------------------------------------------------------------------
         |
-        | Array of resolver classes to use for site resolution. Resolvers
-        | are tried in priority order (lower numbers first).
+        | Deprecated since 1.5.0. Site resolution is shared across every
+        | ArtisanPack UI package and configured at
+        | artisanpack.core.multi_tenant.resolvers; move this list there, where
+        | resolvers are asked in the order they are listed. Two packages
+        | keeping separate resolver lists is how one request came to be site 2
+        | for analytics and site 1 for another package.
         |
-        | Available resolvers:
-        | - ArtisanPackUI\Analytics\Resolvers\ApiKeyResolver (priority: 10)
-        | - ArtisanPackUI\Analytics\Resolvers\HeaderResolver (priority: 50)
-        | - ArtisanPackUI\Analytics\Resolvers\SubdomainResolver (priority: 90)
-        | - ArtisanPackUI\Analytics\Resolvers\DomainResolver (priority: 100)
+        | While 'enabled' above is on, this list is still honoured: it is
+        | prepended to the shared list at boot so upgrades keep resolving the
+        | site they always did. Empty it once you have migrated.
+        |
+        | Available resolvers, in their conventional order:
+        | - ArtisanPackUI\Analytics\Resolvers\ApiKeyResolver
+        | - ArtisanPackUI\Analytics\Resolvers\HeaderResolver
+        | - ArtisanPackUI\Analytics\Resolvers\SubdomainResolver
+        | - ArtisanPackUI\Analytics\Resolvers\DomainResolver
         |
         */
         'resolvers' => [
@@ -799,6 +842,51 @@ return [
 
         /*
         |----------------------------------------------------------------------
+        | Trust the Site Header
+        |----------------------------------------------------------------------
+        |
+        | Whether HeaderResolver may believe the site header above. Nothing
+        | authenticates that header, and since 1.5.0 the site it names is the
+        | site every ArtisanPack UI package scopes its data by — so a caller
+        | able to set a header could otherwise choose which site a sibling
+        | package serves records from.
+        |
+        | Off by default. HeaderResolver resolves nothing until this is on,
+        | including when it reaches the shared chain through the deprecated
+        | analytics resolver list. Switch it on only where the header comes
+        | from something you control — a first-party tracker behind a gateway
+        | you operate — and pin that down with trusted_site_header_ips below.
+        |
+        */
+        'trust_site_header' => env( 'ANALYTICS_TRUST_SITE_HEADER', false ),
+
+        /*
+        |----------------------------------------------------------------------
+        | Trusted Site Header Addresses
+        |----------------------------------------------------------------------
+        |
+        | Addresses permitted to name a site by header, applied on top of
+        | trust_site_header. Single addresses or CIDR ranges, IPv4 or IPv6; a
+        | comma-separated string is accepted so the list can come from the
+        | environment.
+        |
+        | Matched against the address the request arrived from (REMOTE_ADDR),
+        | not the client reported by X-Forwarded-For — so list your gateway
+        | here, and note that a forwarded-for header cannot satisfy this.
+        |
+        | An empty list means any caller may send the header once
+        | trust_site_header is on, which is only appropriate where the
+        | application cannot be reached except through a gateway that strips
+        | the header from client requests.
+        |
+        */
+        'trusted_site_header_ips' => array_values( array_filter(
+            array_map( 'trim', explode( ',', (string) env( 'ANALYTICS_TRUSTED_SITE_HEADER_IPS', '' ) ) ),
+            static fn ( string $ip ): bool => '' !== $ip,
+        ) ),
+
+        /*
+        |----------------------------------------------------------------------
         | Allow API Key in Query String
         |----------------------------------------------------------------------
         |
@@ -815,7 +903,10 @@ return [
         | Default Site ID
         |----------------------------------------------------------------------
         |
-        | Default site ID to use when no site can be resolved.
+        | Default site ID to use when no site can be resolved. Applies only when
+        | no resolver puts a site in context; code that asks explicitly for no
+        | site — withoutSite(), allSites() — still gets none. Ignored when the
+        | site does not exist or is not active.
         |
         */
         'default_site_id' => env( 'ANALYTICS_DEFAULT_SITE_ID' ),
@@ -847,6 +938,7 @@ return [
         'privacy' => [
             'consent_required'        => false,
             'consent_cookie_lifetime' => 365,
+            'anonymous_mode'          => false,
             'excluded_paths'          => [],
             'excluded_ips'            => [],
         ],
@@ -1004,6 +1096,20 @@ return [
         |
         */
         'track_hash_changes' => env( 'ANALYTICS_TRACK_HASH', false ),
+
+        /*
+        |----------------------------------------------------------------------
+        | Track History Changes
+        |----------------------------------------------------------------------
+        |
+        | Automatically track History API navigation (pushState / replaceState
+        | / popstate) as page views, which is what makes SPA and wire:navigate
+        | routing show up without any wiring. Switch this off in applications
+        | that already report router navigation themselves, otherwise every
+        | client-side page view is counted twice.
+        |
+        */
+        'track_history_changes' => env( 'ANALYTICS_TRACK_HISTORY_CHANGES', true ),
 
         /*
         |----------------------------------------------------------------------

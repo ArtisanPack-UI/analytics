@@ -288,18 +288,30 @@ Schedule::command('analytics:cleanup')->daily();
 
 ```php
 use ArtisanPackUI\Analytics\Services\TenantManager;
+use ArtisanPackUI\Core\MultiTenancy\SiteContext;
 
 $manager = app(TenantManager::class);
-$site = $manager->resolveSite(request());
-dd($site);
+
+// What the shared context says, what analytics makes of it, and which
+// resolvers were asked.
+dd(
+    app(SiteContext::class)->currentSiteId(),
+    $manager->current(),
+    $manager->getResolvers(),
+);
 ```
 
 **Check:**
 
-1. Is multi-tenant enabled?
+1. Is multi-tenant enabled? Since 1.5.0 this lives under the shared key:
 ```php
-'multi_tenant' => ['enabled' => true],
+// config/artisanpack.php
+'core' => ['multi_tenant' => ['enabled' => true]],
 ```
+
+If only the deprecated `artisanpack.analytics.multi_tenant.enabled` is set, it
+is carried onto the shared key at boot — check the logs for the deprecation
+notice naming the bridge.
 
 2. Does the site exist?
 ```php

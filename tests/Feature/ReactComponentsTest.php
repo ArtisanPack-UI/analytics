@@ -41,6 +41,7 @@ test( 'all react widget components exist in components directory', function ( st
 	'TopPages',
 	'TrafficSources',
 	'RealtimeVisitors',
+	'AnonymousTraffic',
 ] );
 
 test( 'all react consent components exist in components directory', function ( string $component ): void {
@@ -115,6 +116,7 @@ test( 'react barrel export references all components', function (): void {
 		->toContain( 'TopPages' )
 		->toContain( 'TrafficSources' )
 		->toContain( 'RealtimeVisitors' )
+		->toContain( 'AnonymousTraffic' )
 		->toContain( 'AnalyticsDashboard' )
 		->toContain( 'PageAnalytics' )
 		->toContain( 'SiteSelector' )
@@ -134,4 +136,22 @@ test( 'react barrel export uses new directory structure', function (): void {
 		->toContain( './pages/' )
 		->toContain( './hooks/' )
 		->toContain( './types' );
+} );
+
+test( 'react anonymous traffic refetches when its query props change', function (): void {
+	// With initialData the hook skips its mount fetch, and so never fetches for
+	// a later param change either — an instance kept alive across a period
+	// switch (Inertia's preserveState) then shows the range it was mounted
+	// with. The Vue component watches the same props; this is the parity check.
+	$source = file_get_contents( __DIR__ . '/../../resources/js/react/components/AnonymousTraffic.tsx' );
+
+	expect( $source )
+		->toContain( 'refresh' )
+		->toMatch( '/useEffect\(.*\[\s*period,\s*siteId,\s*normalizedLimit,\s*refresh\s*\]/s' );
+} );
+
+test( 'vue anonymous traffic watches the same query props', function (): void {
+	$source = file_get_contents( __DIR__ . '/../../resources/js/vue/components/AnonymousTraffic.vue' );
+
+	expect( $source )->toMatch( '/watch\(\s*\(\)\s*=>\s*\[\s*props\.period,\s*props\.siteId,\s*props\.limit\s*\]/s' );
 } );

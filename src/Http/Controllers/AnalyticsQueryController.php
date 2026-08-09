@@ -244,6 +244,68 @@ class AnalyticsQueryController extends Controller
 	}
 
 	/**
+	 * Get anonymous (pre-consent) traffic statistics.
+	 *
+	 * GET /api/analytics/anonymous
+	 *
+	 * Every figure here is a page-view count. Anonymous rows carry no visitor
+	 * or session, so the response deliberately has no visitor, session or
+	 * bounce metric.
+	 *
+	 * @param Request $request The HTTP request.
+	 *
+	 * @return JsonResponse
+	 *
+	 * @since 1.5.0
+	 */
+	public function anonymous( Request $request ): JsonResponse
+	{
+		$range       = $this->getDateRange( $request );
+		$limit       = $this->getLimit( $request );
+		$granularity = $request->query( 'granularity', 'day' );
+		$granularity = in_array( $granularity, [ 'hour', 'day', 'week', 'month' ], true ) ? $granularity : 'day';
+		$filters     = $this->getFilters( $request );
+
+		$stats = $this->analyticsQuery->getAnonymousStats( $range, $limit, $granularity, $filters );
+
+		return response()->json( [
+			'success' => true,
+			'data'    => $stats,
+			'range'   => $range->toArray(),
+		] );
+	}
+
+	/**
+	 * Get the top referring hosts by page views.
+	 *
+	 * GET /api/analytics/referrers
+	 *
+	 * Counted in page views for both sources, so anonymous traffic can be
+	 * added to the identified figure honestly. This is not the same metric as
+	 * /sources, which counts sessions.
+	 *
+	 * @param Request $request The HTTP request.
+	 *
+	 * @return JsonResponse
+	 *
+	 * @since 1.5.0
+	 */
+	public function referrers( Request $request ): JsonResponse
+	{
+		$range   = $this->getDateRange( $request );
+		$limit   = $this->getLimit( $request );
+		$filters = $this->getFilters( $request );
+
+		$hosts = $this->analyticsQuery->getReferringHosts( $range, $limit, $filters );
+
+		return response()->json( [
+			'success' => true,
+			'data'    => $hosts,
+			'range'   => $range->toArray(),
+		] );
+	}
+
+	/**
 	 * Get visitor data (API-key authenticated).
 	 *
 	 * GET /api/analytics/v1/visitors
@@ -367,6 +429,13 @@ class AnalyticsQueryController extends Controller
 		$bots = $request->query( 'bots' );
 		if ( is_string( $bots ) && in_array( $bots, [ 'exclude', 'include', 'only' ], true ) ) {
 			$filters['bots'] = $bots;
+		}
+
+		// Anonymous (pre-consent) traffic filter. Excluded by default; the
+		// dashboard toggle opts in via ?anonymous=include (or ?anonymous=only).
+		$anonymous = $request->query( 'anonymous' );
+		if ( is_string( $anonymous ) && in_array( $anonymous, [ 'exclude', 'include', 'only' ], true ) ) {
+			$filters['anonymous'] = $anonymous;
 		}
 
 		return $filters;

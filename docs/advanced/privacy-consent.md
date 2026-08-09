@@ -141,6 +141,157 @@ analytics.revokeConsent(['marketing']);
 const status = analytics.getConsentStatus();
 ```
 
+## Anonymous Mode
+
+By default a visitor who never answers the consent banner produces nothing at
+all. On a site where most visitors ignore the banner, that means most of your
+traffic is invisible.
+
+Anonymous mode records a page view for those visitors without identifying
+them:
+
+```php
+// config/artisanpack/analytics.php
+'privacy' => [
+    'anonymous_mode' => env( 'ANALYTICS_ANONYMOUS_MODE', false ),
+],
+```
+
+The server config is enough on its own — the served tracker script carries
+`anonymousMode` in the config it injects. Where a single page needs to differ
+from the server setting, pass it through the tracker-script component:
+
+```blade
+<x-artisanpack-analytics::tracker-script :config="[ 'anonymousMode' => true ]" />
+```
+
+or set the global before the tracker loads. The served script merges its own
+config onto whatever the page already set, so a value set here wins:
+
+```html
+<script>
+    window.__ARTISANPACK_ANALYTICS_CONFIG__ = { anonymousMode: true };
+</script>
+<script src="{{ route( 'analytics.tracker.script' ) }}" async></script>
+```
+
+### What is and is not collected
+
+Recorded to `analytics_anonymous_page_views`: path, page title, referring
+**host**, device class (`desktop` / `mobile` / `tablet`) and a timestamp.
+
+Never recorded: visitor ID, session ID, fingerprint, IP address, user agent
+string, or the full referring URL — a referrer query string can carry search
+terms or share identifiers, so the server reduces it to a host regardless of
+what the client sent.
+
+Nothing is written in the browser either. Anonymous mode never calls the
+visitor, session or fingerprint setup, so no cookie and no `localStorage` key
+is created before consent.
+
+The table has no column capable of holding an identifier, which is deliberate:
+two anonymous rows cannot be correlated to one person even by mistake, because
+the columns that would let you do it do not exist.
+
+### The trade
+
+Anonymous rows support counting and nothing else. There are no sessions, no
+returning-visitor detection and no per-visitor drill-down for this traffic,
+because there is no identifier to group by. That is the cost of collecting it
+without consent, and it is why the rows live in their own table rather than in
+`analytics_page_views` — every visitor- and session-scoped query stays correct
+without needing to know this feature exists.
+
+### Seeing it in the dashboard
+
+Anonymous rows are excluded from every figure by default, so enabling
+collection does not silently move numbers that were already being reported.
+
+Once rows exist, the dashboard offers an **Include anonymous traffic** toggle
+and an **Anonymous** tab. Neither appears when the feature is off, or when it
+is on but nothing has been recorded for the selected range — an empty
+anonymous panel would read like a fault rather than an absence.
+
+With the toggle on, only page-view figures change:
+
+| Metric | Can include anonymous traffic | Why |
+|--------|-------------------------------|-----|
+| Page views | Yes | One anonymous row is one page view. |
+| Top pages | Yes | Grouped by path, which anonymous rows record. |
+| Referring hosts | Yes | Anonymous rows record the referring host. |
+| Page views over time | Yes | Anonymous rows carry a timestamp. |
+| Device split | Reported separately | Anonymous rows record a device class, but the identified breakdown counts sessions. Different units, so they are shown side by side rather than summed. |
+| Unique visitors | No | No visitor ID to count distinctly. |
+| Sessions | No | No session ID; a row is not part of a visit. |
+| Bounce rate | No | Derived from sessions. |
+| Session duration | No | Derived from sessions. |
+| Pages per session | No | A ratio of two session-scoped figures. |
+| Active now (realtime) | No | Counts active visitors, which anonymous rows are not. |
+| Traffic sources | No | Counted per session. Use referring hosts on the Anonymous tab instead. |
+
+Every metric in the second group is labelled in the interface while the toggle
+is on. That labelling is the point: a combined page-view figure sitting
+unlabelled beside a consented-only visitor figure invites a ratio nobody
+should compute.
+
+Programmatically the scope is a filter on `AnalyticsQuery`:
+
+```php
+use ArtisanPackUI\Analytics\Facades\AnalyticsQuery;
+
+// Consented visitors only — the default, unchanged from before anonymous mode.
+AnalyticsQuery::getPageViewCount( $range );
+
+// Consented plus anonymous page views.
+AnalyticsQuery::getPageViewCount( $range, [ 'anonymous' => 'include' ] );
+AnalyticsQuery::includeAnonymous()->getPageViewCount( $range );
+
+// Anonymous page views only.
+AnalyticsQuery::onlyAnonymous()->getPageViewCount( $range );
+
+// The whole anonymous summary in one call.
+AnalyticsQuery::getAnonymousStats( $range );
+```
+
+The same modes are available over HTTP as `?anonymous=include` (or `only`) on
+the analytics query endpoints, plus `GET /api/analytics/anonymous` for the
+summary and `GET /api/analytics/referrers` for referring hosts counted in page
+views.
+
+These methods live on the concrete `AnalyticsQuery` service rather than on
+`AnalyticsQueryInterface`. That interface is a published contract, and adding
+methods to it would break every implementor.
+
+### Retention changes historical figures
+
+Anonymous rows are swept on the same retention schedule as everything else, so
+a combined figure for an old period shrinks as those rows age out while the
+consented figures for the same period are still there. If you need a stable
+historical number, record the consented-only one.
+
+### Granting consent mid-visit
+
+When a visitor accepts, the tracker upgrades to normal identified tracking for
+the rest of the visit. Rows already written stay anonymous and are never
+back-filled with an identity: they were collected under a promise, and
+retroactively attaching a visitor to them would break it.
+
+### Do Not Track still wins
+
+An explicit opt-out — `DNT: 1` or `Sec-GPC: 1` — suppresses everything,
+anonymous mode included, both in the browser and at the ingest endpoint.
+Anonymous mode is an argument about identifiability, not a way around someone
+saying no.
+
+### Before you enable it
+
+Enabling this changes what you collect before consent. Review your consent
+banner copy and privacy policy alongside it — wording along the lines of "we
+don't collect anything until you accept" stops being true, and the usual basis
+for this collection is legitimate interest rather than consent. That is a
+decision for you and your legal advice, not a default this package can make
+for you, which is why it ships off.
+
 ## Do Not Track
 
 When enabled, the DNT browser header is respected:
@@ -203,6 +354,15 @@ ANALYTICS_EXCLUDED_IPS=192.168.1.1,10.0.0.0/8
     ],
 ],
 ```
+
+Patterns are matched against the path of the **page being tracked**, never against
+the URI of the ingest endpoint the beacon was posted to. That distinction matters
+because the ingest routes themselves live under `/api`, which the default list
+excludes — matching on the ingest route would drop every beacon.
+
+Exclusion is evaluated once per tracked page view or event, so a batched beacon
+carrying several paths records the ones that are not excluded and drops only
+those that are. Query strings and fragments are ignored when matching.
 
 ## Data Retention
 

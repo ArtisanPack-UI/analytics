@@ -91,8 +91,8 @@ ArtisanPackUI\Analytics\
 ├── AnalyticsServiceProvider     # Service provider
 ├── Contracts\                   # Interfaces
 │   ├── AnalyticsProviderInterface
-│   ├── SiteResolverInterface
-│   └── TenantResolverInterface
+│   ├── SiteResolverInterface    # Deprecated; use core's SiteResolver instead
+│   └── TenantResolverInterface  # Deprecated
 ├── Data\                        # DTOs
 │   ├── DateRange
 │   ├── DeviceInfo
@@ -213,21 +213,17 @@ class CustomProvider implements AnalyticsProviderInterface
 
 ### Custom Site Resolver
 
+Site resolution is shared across every ArtisanPack UI package; implement core's
+contract and list the class under `artisanpack.core.multi_tenant.resolvers`.
+
 ```php
-use ArtisanPackUI\Analytics\Contracts\SiteResolverInterface;
-use ArtisanPackUI\Analytics\Models\Site;
-use Illuminate\Http\Request;
+use ArtisanPackUI\Core\Contracts\SiteResolver;
 
-class CustomResolver implements SiteResolverInterface
+class CustomResolver implements SiteResolver
 {
-    public function resolve(Request $request): ?Site
+    public function currentSiteId(): int|string|null
     {
-        // Custom resolution logic
-    }
-
-    public function getPriority(): int
-    {
-        return 50;
+        // Custom resolution logic, returning a site identifier or null
     }
 }
 ```

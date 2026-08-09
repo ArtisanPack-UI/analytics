@@ -7,6 +7,7 @@ namespace ArtisanPackUI\Analytics;
 use ArtisanPackUI\Analytics\Contracts\AnalyticsProviderInterface;
 use ArtisanPackUI\Analytics\Contracts\AnalyticsQueryInterface;
 use ArtisanPackUI\Analytics\Contracts\AnalyticsServiceInterface;
+use ArtisanPackUI\Analytics\Contracts\ProvidesTrackerScript;
 use ArtisanPackUI\Analytics\Data\DateRange;
 use ArtisanPackUI\Analytics\Data\EventData;
 use ArtisanPackUI\Analytics\Data\PageViewData;
@@ -18,6 +19,7 @@ use ArtisanPackUI\Analytics\Models\Visitor;
 use ArtisanPackUI\Analytics\Providers\AbstractAnalyticsProvider;
 use BadMethodCallException;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
@@ -291,6 +293,57 @@ class Analytics implements AnalyticsQueryInterface, AnalyticsServiceInterface
         }
 
         return $providers;
+    }
+
+    /**
+     * Collect the client-side snippets of every active provider.
+     *
+     * Providers whose tracking half runs in the browser expose it through
+     * {@see ProvidesTrackerScript}. Without this, such a provider could be
+     * registered and listed in `active_providers` and still contribute
+     * nothing at all — its server-side track methods are no-ops by design,
+     * and nothing rendered its snippet, so it failed silently in both
+     * directions.
+     *
+     * Providers that expose a `trackerScript()` method without implementing
+     * the interface are also honoured. `artisanpack-ui/analytics-google` 1.0
+     * shipped before the contract existed, and requiring a matching release
+     * of every sibling package before any snippet renders would defeat the
+     * point of fixing this.
+     *
+     * A provider that throws is skipped rather than allowed to take down the
+     * page it was being rendered into.
+     *
+     * @return list<string> The non-empty snippets, in active-provider order.
+     *
+     * @since 1.5.0
+     */
+    public function trackerScripts(): array
+    {
+        $scripts = [];
+
+        foreach ( $this->getActiveProviders() as $provider ) {
+            if ( ! $provider instanceof ProvidesTrackerScript && ! method_exists( $provider, 'trackerScript' ) ) {
+                continue;
+            }
+
+            try {
+                $script = (string) $provider->trackerScript();
+            } catch ( Throwable $e ) {
+                Log::error( 'Analytics provider tracker script failed', [
+                    'provider' => $provider->getName(),
+                    'error'    => $e->getMessage(),
+                ] );
+
+                continue;
+            }
+
+            if ( '' !== trim( $script ) ) {
+                $scripts[] = $script;
+            }
+        }
+
+        return $scripts;
     }
 
     /**

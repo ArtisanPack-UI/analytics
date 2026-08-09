@@ -11,8 +11,11 @@ use ArtisanPackUI\Analytics\Data\VisitorData;
 use ArtisanPackUI\Analytics\Jobs\ProcessBatchTracking;
 use ArtisanPackUI\Analytics\Jobs\ProcessEvent;
 use ArtisanPackUI\Analytics\Jobs\ProcessPageView;
+use ArtisanPackUI\Analytics\Models\AnonymousPageView;
 use ArtisanPackUI\Analytics\Models\Session;
+use ArtisanPackUI\Analytics\Models\Site;
 use ArtisanPackUI\Analytics\Models\Visitor;
+use ArtisanPackUI\Core\MultiTenancy\SiteContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -29,6 +32,13 @@ use Throwable;
  */
 class TrackingService
 {
+	/**
+	 * Longest path stored on an anonymous page view.
+	 *
+	 * @var int
+	 */
+	protected const MAX_ANONYMOUS_PATH_LENGTH = 512;
+
 	/**
 	 * Create a new TrackingService instance.
 	 *
@@ -59,6 +69,14 @@ class TrackingService
 	public function trackPageView( PageViewData $data, Request $request, ?int $siteId = null ): void
 	{
 		try {
+			// Excluded-path filtering happens here rather than in PrivacyFilter
+			// so the decision is made once per tracked page view. A batch beacon
+			// carries many paths in one HTTP request, so the middleware has no
+			// single path it can evaluate on the request's behalf.
+			if ( $this->isExcludedPath( $data->path ) ) {
+				return;
+			}
+
 			// Enrich data with device info
 			$enrichedData = $this->enrichPageViewData( $data, $request );
 
@@ -186,6 +204,11 @@ class TrackingService
 	public function trackEvent( EventData $data, Request $request, ?int $siteId = null ): void
 	{
 		try {
+			// See trackPageView() — one exclusion decision per tracked item.
+			if ( $this->isExcludedPath( $data->path ) ) {
+				return;
+			}
+
 			// Resolve or create visitor from request
 			$visitorData = $this->createVisitorDataFromRequest( $request, $data->toArray() );
 			$visitor     = $this->visitorResolver->resolve( $visitorData, $siteId );
@@ -296,6 +319,72 @@ class TrackingService
 	}
 
 	/**
+	 * Record a page view from a visitor who has not granted consent.
+	 *
+	 * Writes to `analytics_anonymous_page_views`, which has no columns capable
+	 * of identifying anyone. Nothing here resolves a visitor or touches a
+	 * session, so no cookie is set and no fingerprint is computed — the row is
+	 * a count, not a person.
+	 *
+	 * Deliberately still honours `canTrack()` (Do Not Track / Global Privacy
+	 * Control, excluded IPs, excluded user agents, bot detection) and the
+	 * excluded-path list. Anonymous mode is a lawful-basis argument about
+	 * *identifiability*, not a licence to ignore an explicit opt-out.
+	 *
+	 * @param array{path: string, title?: string|null, referrer_host?: string|null} $data    Validated payload.
+	 * @param Request                                                               $request The HTTP request.
+	 * @param int|null                                                              $siteId  The site ID.
+	 *
+	 * @since 1.5.0
+	 */
+	public function trackAnonymousPageView( array $data, Request $request, ?int $siteId = null ): void
+	{
+		try {
+			if ( ! $this->isAnonymousModeEnabled() ) {
+				return;
+			}
+
+			if ( ! $this->canTrack( $request ) ) {
+				return;
+			}
+
+			$path = (string) ( $data['path'] ?? '' );
+
+			if ( '' === $path || $this->isExcludedPath( $path ) ) {
+				return;
+			}
+
+			AnonymousPageView::create( [
+				'site_id'       => $siteId,
+				'path'          => $this->normalizeAnonymousPath( $path ),
+				'title'         => $data['title'] ?? null,
+				'referrer_host' => $this->normalizeReferrerHost( $data['referrer_host'] ?? null ),
+				// Device *class* only — 'desktop' / 'mobile' / 'tablet'. The
+				// user agent string itself is never stored here; it is a
+				// meaningful component of a browser fingerprint.
+				'device_type'   => $this->deviceDetector->getDeviceType( $request->userAgent() ),
+				'tenant_id'     => $this->getTenantId( $request ),
+				'created_at'    => now(),
+			] );
+		} catch ( Throwable $e ) {
+			Log::error( 'Analytics tracking error (anonymous pageview)', [
+				'error' => $e->getMessage(),
+				'path'  => $data['path'] ?? null,
+			] );
+		}
+	}
+
+	/**
+	 * Whether pre-consent anonymous tracking is enabled.
+	 *
+	 * @since 1.5.0
+	 */
+	public function isAnonymousModeEnabled(): bool
+	{
+		return (bool) config( 'artisanpack.analytics.privacy.anonymous_mode', false );
+	}
+
+	/**
 	 * Start a new session.
 	 *
 	 * @param SessionData $data    The session data.
@@ -383,11 +472,11 @@ class TrackingService
 			return false;
 		}
 
-		// Check DNT header
+		// Check DNT and GPC headers. Independently: a browser sending `DNT: 0`
+		// alongside `Sec-GPC: 1` is not withdrawing its GPC signal, and GPC is
+		// the one carrying legal weight under CCPA.
 		if ( config( 'artisanpack.analytics.privacy.respect_dnt', true ) ) {
-			$dnt = $request->header( 'DNT' ) ?? $request->header( 'Sec-GPC' );
-
-			if ( '1' === $dnt ) {
+			if ( '1' === $request->header( 'DNT' ) || '1' === $request->header( 'Sec-GPC' ) ) {
 				return false;
 			}
 		}
@@ -415,6 +504,147 @@ class TrackingService
 		}
 
 		return true;
+	}
+
+	/**
+	 * Check whether a tracked path is excluded from tracking.
+	 *
+	 * Takes the path of the page being tracked — never the URI of the
+	 * ingest endpoint the beacon was posted to. Those are different
+	 * things, and conflating them is what made every batched beacon
+	 * match the `/api/*` exclusion that ships in the default config.
+	 *
+	 * A null or empty path is not treated as excluded; there is nothing
+	 * to match against, and silently dropping such an item would repeat
+	 * the same class of invisible data loss.
+	 *
+	 * @param string|null $path The path of the tracked page.
+	 *
+	 * @return bool
+	 *
+	 * @since 1.5.0
+	 */
+	public function isExcludedPath( ?string $path ): bool
+	{
+		if ( null === $path || '' === $path ) {
+			return false;
+		}
+
+		$excludedPaths = config( 'artisanpack.analytics.privacy.excluded_paths', [] );
+
+		if ( empty( $excludedPaths ) ) {
+			return false;
+		}
+
+		foreach ( $excludedPaths as $excludedPath ) {
+			if ( $this->pathMatches( $path, (string) $excludedPath ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Reduce a path to the part that identifies the page.
+	 *
+	 * The anonymous table has no column meant to hold an identifier, but `path`
+	 * is free text, and a mis-wired client posting `/reset?token=…` would store
+	 * that token verbatim — in the one dataset whose whole promise is that it
+	 * carries nothing identifying. The query string and fragment are dropped
+	 * server-side, so the promise does not depend on the client behaving; this
+	 * is also what `pathMatches()` already compares exclusions against.
+	 *
+	 * The result is capped well inside the column so a hostile beacon cannot
+	 * make the INSERT itself fail against a Postgres btree index, whose tuples
+	 * cap out around 2704 bytes — reachable with 2048 multi-byte characters.
+	 *
+	 * @param string $path The path as posted by the client.
+	 *
+	 * @return string The path, without query string or fragment.
+	 *
+	 * @since 1.5.0
+	 */
+	protected function normalizeAnonymousPath( string $path ): string
+	{
+		$normalized = parse_url( $path, PHP_URL_PATH );
+
+		if ( ! is_string( $normalized ) || '' === $normalized ) {
+			// parse_url() returns false for a seriously malformed path and null
+			// for one that is only a query or fragment. Neither names a page.
+			$normalized = '/';
+		}
+
+		return mb_substr( $normalized, 0, self::MAX_ANONYMOUS_PATH_LENGTH );
+	}
+
+	/**
+	 * Reduce a referrer to its host.
+	 *
+	 * Clients are asked to send a host, but a full URL arriving here would
+	 * otherwise be stored verbatim along with whatever its query string
+	 * carries — search terms, share identifiers. Reducing it server-side means
+	 * the guarantee does not depend on the client behaving.
+	 *
+	 * @since 1.5.0
+	 */
+	protected function normalizeReferrerHost( ?string $referrer ): ?string
+	{
+		if ( null === $referrer || '' === trim( $referrer ) ) {
+			return null;
+		}
+
+		$referrer = trim( $referrer );
+		$host     = parse_url( $referrer, PHP_URL_HOST );
+
+		if ( is_string( $host ) && '' !== $host ) {
+			return $host;
+		}
+
+		// Not a URL. Accept a bare host, but never anything with a path,
+		// query or fragment hanging off it.
+		if ( 1 === preg_match( '/^[A-Za-z0-9.\-]+$/', $referrer ) ) {
+			return $referrer;
+		}
+
+		return null;
+	}
+
+	/**
+	 * Check if a path matches an exclusion pattern (supports wildcards).
+	 *
+	 * @param string $path    The path to check.
+	 * @param string $pattern The exclusion pattern.
+	 *
+	 * @return bool
+	 *
+	 * @since 1.5.0
+	 */
+	protected function pathMatches( string $path, string $pattern ): bool
+	{
+		// Compare path only — a tracked path may arrive with a query string
+		// or fragment attached, and neither should affect exclusion.
+		$path = (string) parse_url( $path, PHP_URL_PATH );
+
+		// Normalize paths
+		$path    = '/' . ltrim( $path, '/' );
+		$pattern = '/' . ltrim( $pattern, '/' );
+
+		// Exact match
+		if ( $path === $pattern ) {
+			return true;
+		}
+
+		// Wildcard match
+		if ( str_contains( $pattern, '*' ) ) {
+			// Escape regex metacharacters first, then convert escaped wildcards to regex
+			$escaped = preg_quote( $pattern, '/' );
+			$regex   = '/^' . str_replace( '\\*', '.*', $escaped ) . '$/';
+
+			return 1 === preg_match( $regex, $path );
+		}
+
+		return false;
 	}
 
 	/**
@@ -567,6 +797,11 @@ class TrackingService
 	/**
 	 * Get the tenant ID from the request.
 	 *
+	 * The shared site context answers first, mirroring the `TenantResolver`
+	 * middleware, so a request that resolved a site for every other package
+	 * writes that same site here. The deprecated single-resolver setting is
+	 * only consulted when nothing is in context.
+	 *
 	 * @param Request $request The HTTP request.
 	 *
 	 * @return int|string|null
@@ -575,17 +810,42 @@ class TrackingService
 	 */
 	protected function getTenantId( Request $request ): string|int|null
 	{
-		if ( ! config( 'artisanpack.analytics.multi_tenant.enabled', false ) ) {
+		if ( ! analyticsMultiTenancyEnabled() ) {
 			return null;
+		}
+
+		$siteId = app( SiteContext::class )->currentSiteId();
+
+		if ( null !== $siteId ) {
+			return $siteId;
 		}
 
 		// Check if a resolver is set
 		$resolver = config( 'artisanpack.analytics.multi_tenant.resolver' );
 
-		if ( null !== $resolver && class_exists( $resolver ) ) {
-			return app( $resolver )->resolve( $request );
+		if ( null === $resolver || ! is_string( $resolver ) || ! class_exists( $resolver ) ) {
+			return null;
 		}
 
-		return null;
+		$resolved = app( $resolver )->resolve( $request );
+
+		// The deprecated setting predates the contract, so what comes back may
+		// be a Site model rather than an identifier. Both are usable; anything
+		// else would be a TypeError swallowed by the caller's try/catch, losing
+		// the tenant on every single page view while only logging noise.
+		if ( $resolved instanceof Site ) {
+			return $resolved->id;
+		}
+
+		if ( null !== $resolved && ! is_string( $resolved ) && ! is_int( $resolved ) ) {
+			Log::warning( '[Analytics] The deprecated "multi_tenant.resolver" returned an unusable value.', [
+				'resolver' => $resolver,
+				'returned' => get_debug_type( $resolved ),
+			] );
+
+			return null;
+		}
+
+		return $resolved;
 	}
 }

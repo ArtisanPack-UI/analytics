@@ -105,78 +105,97 @@ Then enable in config:
 
 ---
 
-## SiteResolverInterface
+## SiteResolver (core)
 
-Interface for resolving the current site in multi-tenant setups.
+Since 1.5.0 site resolution is a single ecosystem-wide contract owned by
+`artisanpack-ui/core`, so analytics and every sibling package resolve one site
+from one configuration.
 
 ### Definition
 
 ```php
-namespace ArtisanPackUI\Analytics\Contracts;
+namespace ArtisanPackUI\Core\Contracts;
 
-use ArtisanPackUI\Analytics\Models\Site;
-use Illuminate\Http\Request;
-
-interface SiteResolverInterface
+interface SiteResolver
 {
     /**
-     * Resolve the site from the request.
+     * The identifier of the site currently in context, or null for none.
      */
-    public function resolve(Request $request): ?Site;
-
-    /**
-     * Get the resolver priority (lower runs first).
-     */
-    public function getPriority(): int;
+    public function currentSiteId(): int|string|null;
 }
 ```
 
+It is keyed on the identifier rather than a model, because core cannot depend on
+any package's `Site`; and it takes no `Request`, because a resolver that
+requires one is unusable from the console commands and queue workers where
+per-site iteration happens. A resolver that wants the request injects it.
+
 ### Built-in Resolvers
 
-| Resolver | Priority | Resolution Method |
-|----------|----------|-------------------|
-| `ApiKeyResolver` | 10 | API key in header or query |
-| `HeaderResolver` | 50 | Custom header (X-Site-ID) |
-| `SubdomainResolver` | 90 | Subdomain extraction |
-| `DomainResolver` | 100 | Full domain matching |
+Asked in the order they are listed in configuration; the first non-null answer
+wins.
+
+| Resolver | Resolution Method |
+|----------|-------------------|
+| `ApiKeyResolver` | API key in header or query |
+| `HeaderResolver` | Custom header (X-Site-ID), only where `multi_tenant.trust_site_header` permits it |
+| `SubdomainResolver` | Subdomain extraction |
+| `DomainResolver` | Full domain matching |
 
 ### Implementation Example
 
 ```php
-use ArtisanPackUI\Analytics\Contracts\SiteResolverInterface;
+use ArtisanPackUI\Core\Contracts\SiteResolver;
 use ArtisanPackUI\Analytics\Models\Site;
 use Illuminate\Http\Request;
 
-class TenantIdResolver implements SiteResolverInterface
+class TenantIdResolver implements SiteResolver
 {
-    public function resolve(Request $request): ?Site
+    public function __construct(private Request $request)
     {
-        // Get tenant from authenticated user
-        $user = $request->user();
+    }
+
+    public function currentSiteId(): int|string|null
+    {
+        $user = $this->request->user();
 
         if (!$user || !$user->tenant_id) {
             return null;
         }
 
-        return Site::where('tenant_id', $user->tenant_id)->first();
-    }
-
-    public function getPriority(): int
-    {
-        return 20; // Run early, after API key
+        return Site::where('tenant_id', $user->tenant_id)->value('id');
     }
 }
 ```
 
+### SiteResolverInterface (deprecated)
+
+`ArtisanPackUI\Analytics\Contracts\SiteResolverInterface` keeps exactly the
+shape it had in 1.4 — `resolve(Request): ?Site` and `priority()` — and
+deliberately does **not** extend the core contract. Extending it would add
+`currentSiteId()` to the interface's requirements, and a class implementing only
+the old shape would then be a fatal error the moment PHP loaded it.
+
+Core calls only `currentSiteId()`. `resolve()` is called by
+`ArtisanPackUI\Analytics\Resolvers\AbstractSiteResolver`, whose
+`currentSiteId()` delegates to it — extend that class to keep a request-shaped
+resolver working. A resolver left exactly as it was keeps resolving too: the
+deprecated-configuration bridge wraps it in
+`ArtisanPackUI\Analytics\Resolvers\LegacySiteResolverAdapter` and logs a
+notice naming the class. `priority()` is called by nothing. All of it is removed
+in 2.0.
+
 ### Registering Custom Resolvers
 
 ```php
-// config/artisanpack/analytics.php
-'multi_tenant' => [
-    'resolvers' => [
-        \ArtisanPackUI\Analytics\Resolvers\ApiKeyResolver::class,
-        \App\Analytics\TenantIdResolver::class, // Your custom resolver
-        \ArtisanPackUI\Analytics\Resolvers\DomainResolver::class,
+// config/artisanpack.php
+'core' => [
+    'multi_tenant' => [
+        'resolvers' => [
+            \ArtisanPackUI\Analytics\Resolvers\ApiKeyResolver::class,
+            \App\Analytics\TenantIdResolver::class, // Your custom resolver
+            \ArtisanPackUI\Analytics\Resolvers\DomainResolver::class,
+        ],
     ],
 ],
 ```
@@ -185,7 +204,13 @@ class TenantIdResolver implements SiteResolverInterface
 
 ## TenantResolverInterface
 
-Legacy interface for tenant resolution.
+Legacy interface for tenant resolution. **Deprecated in 1.5.0.** It describes a
+*tenant*, which is not always a site — it carries its own column name — so it
+survived the move to the shared contract rather than being folded into it. It is
+consulted only by the `TenantResolver` middleware, and only when nothing has put
+a site in the shared context, so it cannot decide what queries are scoped to.
+Where a tenant is a site, implement `ArtisanPackUI\Core\Contracts\SiteResolver`
+instead.
 
 ### Definition
 
@@ -297,7 +322,7 @@ class MyService
 {
     public function __construct(
         private AnalyticsProviderInterface $provider,
-        private SiteResolverInterface $resolver,
+        private SiteContext $siteContext,
     ) {}
 
     public function doSomething(): void
