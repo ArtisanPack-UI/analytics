@@ -373,10 +373,12 @@ class AnalyticsController extends Controller
 			return null;
 		}
 
-		// Validate that the value is numeric before casting
+		// Deliberately stricter than is_numeric(), which accepts "12.5", "1e3"
+		// and " 12" — each of which casts to an int naming a different site, or
+		// none. Same guard as TenantManager::currentId().
 		$siteIdString = is_string( $siteId ) ? trim( $siteId ) : (string) $siteId;
 
-		if ( '' === $siteIdString || ! is_numeric( $siteIdString ) ) {
+		if ( 1 !== preg_match( '/^\d+$/', $siteIdString ) ) {
 			return null;
 		}
 

@@ -249,7 +249,7 @@ class FunnelAnalyzer
         }
 
         // Apply tenant filter
-        if ( null !== $this->tenantId && config( 'artisanpack.analytics.multi_tenant.enabled', false ) ) {
+        if ( null !== $this->tenantId && analyticsMultiTenancyEnabled() ) {
             $query->where( function ( $q ): void {
                 $q->where( 'tenant_id', $this->tenantId )
                     ->orWhereNull( 'tenant_id' );
@@ -304,7 +304,7 @@ class FunnelAnalyzer
         }
 
         // Apply tenant filter
-        if ( null !== $this->tenantId && config( 'artisanpack.analytics.multi_tenant.enabled', false ) ) {
+        if ( null !== $this->tenantId && analyticsMultiTenancyEnabled() ) {
             $query->where( function ( $q ): void {
                 $q->where( 'tenant_id', $this->tenantId )
                     ->orWhereNull( 'tenant_id' );

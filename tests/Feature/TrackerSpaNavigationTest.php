@@ -153,3 +153,35 @@ test( 'setting trackHistoryChanges to false restores the previous behaviour', fu
 			->toBe( [], "Step '{$step['label']}' should record nothing when trackHistoryChanges is off" );
 	}
 } );
+
+test( 'a page view is on the wire before the engagement update that refers to it', function (): void {
+	// Page views sit in the batch queue; engagement updates go out immediately.
+	// Run at the production batch interval rather than the harness's short one,
+	// which is fast enough to hide the race entirely.
+	$report = runTrackerHarness( [ 'batchInterval' => 5000 ] );
+
+	$seenPages = [];
+
+	foreach ( $report['timeline'] as $beacon ) {
+		if ( 'pageview' === $beacon['kind'] ) {
+			foreach ( $beacon['paths'] as $path ) {
+				$seenPages[ $path ] = true;
+			}
+
+			continue;
+		}
+
+		if ( 'update' !== $beacon['kind'] ) {
+			continue;
+		}
+
+		foreach ( $beacon['paths'] as $path ) {
+			// updatePageView() matches the row by path, so an update that
+			// arrives first lands on nothing at all.
+			expect( $seenPages )->toHaveKey(
+				$path,
+				"An engagement update for '{$path}' was sent before that page's own page view",
+			);
+		}
+	}
+} );

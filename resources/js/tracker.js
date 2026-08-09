@@ -533,7 +533,9 @@
                 }
             });
 
-            // Send engagement data on page leave
+            // Send engagement data on page leave. _sendEngagementData()
+            // flushes the batch queue first, so a page view still sitting in it
+            // leaves with the page rather than being dropped with it.
             window.addEventListener('beforeunload', function() {
                 self._sendEngagementData();
             });
@@ -656,6 +658,13 @@
 
         _sendEngagementData: function() {
             if (!Consent.check()) return;
+
+            // Page views sit in a batch queue for up to batchInterval, while
+            // this update goes out immediately. Arriving first, it finds no row
+            // to update and updatePageView() silently no-ops — losing the
+            // engagement for every quickly-left page. Flushing here puts the
+            // page view on the wire ahead of its own update.
+            Transport._flush();
 
             var data = {
                 session_id: Session.getId(),
@@ -900,6 +909,9 @@
         _anonymous: false,
         // History wrapping is installed once per page, not once per init().
         _historyTracked: false,
+        // Set while init() re-runs to upgrade an anonymous session, so the page
+        // already recorded anonymously is not recorded a second time.
+        _upgrading: false,
 
         init: function(userConfig) {
             if (this._initialized) {
@@ -945,10 +957,19 @@
             OutboundLinks.init();
             Downloads.init();
 
-            // Auto-track page view
-            if (config.trackPageViews) {
+            // Auto-track page view.
+            //
+            // Skipped on the consent-upgrade path: this page was already
+            // recorded anonymously, so recording it again identified would have
+            // one physical page view counted twice by the dashboard's "include
+            // anonymous" toggle. Everything else above still runs — the visitor,
+            // session and engagement tracking is exactly what the upgrade is
+            // for.
+            if (config.trackPageViews && !this._upgrading) {
                 this._trackInitialPageView();
             }
+
+            this._upgrading = false;
 
             // Track hash changes for SPAs
             if (config.trackHashChanges) {
@@ -1044,6 +1065,7 @@
 
             this._anonymous = false;
             this._initialized = false;
+            this._upgrading = true;
 
             // Re-run init now that consent passes, which brings up the
             // visitor, session, engagement and link tracking that the

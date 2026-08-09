@@ -131,6 +131,16 @@ class TenantManager
 	/**
 	 * Get the current site.
 	 *
+	 * A pinned site is served whether or not it is active. Every shipped
+	 * resolver, and `default_site_id`, require `is_active` — but those are
+	 * automatic answers, whereas a pin is an explicit instruction from calling
+	 * code, and deactivating a site must not silently redirect an
+	 * administrative or maintenance task to a different one. A caller that
+	 * needs the distinction should check `is_active` on what it gets back.
+	 *
+	 * Soft-deleted sites are the exception, and are never returned: the
+	 * query keeps Site's soft-delete scope deliberately.
+	 *
 	 * @return Site|null The current site, or null if not set.
 	 *
 	 * @since 1.0.0
@@ -219,6 +229,15 @@ class TenantManager
 		}
 
 		if ( $this->defaultSuppressed || $this->withoutSiteDepth > 0 ) {
+			return null;
+		}
+
+		// A null answer from a context that has something pinned means "no
+		// site", deliberately — `withoutSite()` or `setSiteId( null )`, possibly
+		// called by a sibling package that knows nothing about this one.
+		// Substituting this package's default site there would scope work
+		// another package asked to leave unscoped.
+		if ( $this->context->isPinned() ) {
 			return null;
 		}
 

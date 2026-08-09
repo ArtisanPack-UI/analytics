@@ -25,6 +25,8 @@ class TrackAnonymousPageViewRequest extends FormRequest
 	 * Determine if the user is authorized to make this request.
 	 *
 	 * @return bool
+	 *
+	 * @since 1.5.0
 	 */
 	public function authorize(): bool
 	{
@@ -35,6 +37,8 @@ class TrackAnonymousPageViewRequest extends FormRequest
 	 * Get the validation rules that apply to the request.
 	 *
 	 * @return array<string, mixed>
+	 *
+	 * @since 1.5.0
 	 */
 	public function rules(): array
 	{
@@ -53,6 +57,8 @@ class TrackAnonymousPageViewRequest extends FormRequest
 	 * Get custom messages for validator errors.
 	 *
 	 * @return array<string, string>
+	 *
+	 * @since 1.5.0
 	 */
 	public function messages(): array
 	{

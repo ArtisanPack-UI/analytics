@@ -13,6 +13,8 @@ use ArtisanPackUI\Analytics\Providers\LocalAnalyticsProvider;
 use ArtisanPackUI\Analytics\Services\AnalyticsQuery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 uses( RefreshDatabase::class );
 
@@ -449,4 +451,120 @@ test( 'the stats endpoint rejects an unknown anonymous mode', function (): void 
 
     expect( $payload['data']['pageviews'] )->toBe( 1 );
     expect( $payload['data']['anonymous_mode'] )->toBe( 'exclude' );
+} );
+
+test( 'tenant filtering applies to anonymous queries on a core-flag-only install', function (): void {
+    // The deprecation tells applications to move to the core flag, and the
+    // bridge only runs the other way. Every gate that reads the legacy flag raw
+    // silently drops its tenant filter for an application that followed that
+    // advice — while BelongsToSite keeps scoping, so half the query is filtered
+    // and half is not.
+    config()->set( 'artisanpack.analytics.multi_tenant.enabled', false );
+    config()->set( 'artisanpack.core.multi_tenant.enabled', true );
+
+    AnonymousPageView::create( [
+        'site_id'    => null,
+        'tenant_id'  => 1,
+        'path'       => '/a',
+        'created_at' => now(),
+    ] );
+    AnonymousPageView::create( [
+        'site_id'    => null,
+        'tenant_id'  => 2,
+        'path'       => '/b',
+        'created_at' => now(),
+    ] );
+
+    $query = anonymousQueryService();
+
+    expect( $query->getAnonymousPageViewCount( DateRange::today(), [ 'tenant_id' => 1 ] ) )->toBe( 1 );
+} );
+
+test( 'tenant filtering applies to referring hosts on a core-flag-only install', function (): void {
+    config()->set( 'artisanpack.analytics.multi_tenant.enabled', false );
+    config()->set( 'artisanpack.core.multi_tenant.enabled', true );
+
+    AnonymousPageView::create( [
+        'site_id'       => null,
+        'tenant_id'     => 1,
+        'path'          => '/a',
+        'referrer_host' => 'one.test',
+        'created_at'    => now(),
+    ] );
+    AnonymousPageView::create( [
+        'site_id'       => null,
+        'tenant_id'     => 2,
+        'path'          => '/b',
+        'referrer_host' => 'two.test',
+        'created_at'    => now(),
+    ] );
+
+    $hosts = anonymousQueryService()
+        ->getAnonymousReferringHosts( DateRange::today(), 10, [ 'tenant_id' => 1 ] )
+        ->pluck( 'host' )
+        ->all();
+
+    expect( $hosts )->toBe( [ 'one.test' ] );
+} );
+
+test( 'the anonymous time series buckets rows on the current database driver', function (): void {
+    // DATE_FORMAT() is MySQL-only, so on SQLite and Postgres this whole series
+    // came back empty through the failure fallback while the totals stayed
+    // right — and the test suite runs on SQLite, so nothing caught it.
+    anonymousPageView( '/a' );
+    anonymousPageView( '/b' );
+
+    $series = anonymousQueryService()->getAnonymousPageViewsOverTime( DateRange::today(), 'day' );
+
+    expect( $series )->toHaveCount( 1 )
+        ->and( $series->first()['pageviews'] )->toBe( 2 )
+        ->and( $series->first()['date'] )->toBe( now()->format( 'Y-m-d' ) );
+} );
+
+test( 'a failing anonymous query is not cached as an empty result', function (): void {
+    $query = ( new AnalyticsQuery( new LocalAnalyticsProvider ) )->setCacheEnabled( true );
+
+    Schema::drop( 'analytics_anonymous_page_views' );
+
+    // The fallback keeps one panel from taking the dashboard down. Caching it
+    // would keep showing zeroes for the whole cache_duration after the database
+    // recovered.
+    expect( $query->getAnonymousPageViewCount( DateRange::today() ) )->toBe( 0 );
+
+    Schema::create( 'analytics_anonymous_page_views', function ( $table ): void {
+        $table->id();
+        $table->unsignedBigInteger( 'site_id' )->nullable();
+        $table->string( 'path', 2048 );
+        $table->string( 'title', 500 )->nullable();
+        $table->string( 'referrer_host', 255 )->nullable();
+        $table->string( 'device_type', 20 )->nullable();
+        $table->string( 'tenant_id' )->nullable();
+        $table->timestamp( 'created_at' )->useCurrent();
+    } );
+
+    anonymousPageView( '/a' );
+
+    expect( $query->getAnonymousPageViewCount( DateRange::today() ) )->toBe( 1 );
+} );
+
+test( 'anonymous stats do not query the anonymous table when the feature is off', function (): void {
+    config()->set( 'artisanpack.analytics.privacy.anonymous_mode', false );
+
+    anonymousPageView( '/a' );
+    identifiedPageView( '/a' );
+
+    $queries = 0;
+    DB::listen( function ( $query ) use ( &$queries ): void {
+        if ( str_contains( $query->sql, 'analytics_anonymous_page_views' ) ) {
+            $queries++;
+        }
+    } );
+
+    $stats = anonymousQueryService()->getAnonymousStats( DateRange::today() );
+
+    expect( $queries )->toBe( 0 )
+        ->and( $stats['enabled'] )->toBeFalse()
+        ->and( $stats['anonymous_pageviews'] )->toBe( 0 )
+        // The identified figure is what the surrounding dashboard still needs.
+        ->and( $stats['identified_pageviews'] )->toBe( 1 );
 } );

@@ -157,10 +157,22 @@ them:
 ],
 ```
 
-```javascript
-window.__ARTISANPACK_ANALYTICS_CONFIG__ = {
-    anonymousMode: true,
-};
+The server config is enough on its own — the served tracker script carries
+`anonymousMode` in the config it injects. Where a single page needs to differ
+from the server setting, pass it through the tracker-script component:
+
+```blade
+<x-artisanpack-analytics::tracker-script :config="[ 'anonymousMode' => true ]" />
+```
+
+or set the global before the tracker loads. The served script merges its own
+config onto whatever the page already set, so a value set here wins:
+
+```html
+<script>
+    window.__ARTISANPACK_ANALYTICS_CONFIG__ = { anonymousMode: true };
+</script>
+<script src="/js/analytics.js" async></script>
 ```
 
 ### What is and is not collected

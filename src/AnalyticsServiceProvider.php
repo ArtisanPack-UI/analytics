@@ -23,12 +23,14 @@ use ArtisanPackUI\Analytics\Console\Commands\SitesListCommand;
 use ArtisanPackUI\Analytics\Console\Commands\StatsCommand;
 use ArtisanPackUI\Analytics\Console\Commands\WhitelistCommand;
 use ArtisanPackUI\Analytics\Contracts\AnalyticsServiceInterface;
+use ArtisanPackUI\Analytics\Contracts\SiteResolverInterface;
 use ArtisanPackUI\Analytics\Http\Middleware\AnalyticsThrottle;
 use ArtisanPackUI\Analytics\Http\Middleware\AuthenticateWithApiKey;
 use ArtisanPackUI\Analytics\Http\Middleware\PrivacyFilter;
 use ArtisanPackUI\Analytics\Http\Middleware\ResolveSite;
 use ArtisanPackUI\Analytics\Http\Middleware\TenantResolver;
 use ArtisanPackUI\Analytics\Jobs\AnalyzeBotTraffic;
+use ArtisanPackUI\Analytics\Resolvers\LegacySiteResolverAdapter;
 use ArtisanPackUI\Analytics\Services\AnalyticsQuery;
 use ArtisanPackUI\Analytics\Services\BotDetector;
 use ArtisanPackUI\Analytics\Services\ConsentService;
@@ -44,6 +46,7 @@ use ArtisanPackUI\Analytics\Services\IpAnonymizer;
 use ArtisanPackUI\Analytics\Services\PrivacyIntegration;
 use ArtisanPackUI\Analytics\Services\SiteSettingsService;
 use ArtisanPackUI\Analytics\Services\TenantManager;
+use ArtisanPackUI\Core\Contracts\SiteResolver;
 use ArtisanPackUI\Core\MultiTenancy\SiteContext;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Routing\Router;
@@ -171,8 +174,13 @@ class AnalyticsServiceProvider extends ServiceProvider
             );
         } );
 
-        // Register SiteSettingsService
-        $this->app->singleton( SiteSettingsService::class, function ( $app ) {
+        // Register SiteSettingsService.
+        //
+        // Scoped rather than singleton, to match the TenantManager it holds. A
+        // singleton captures the first job's scoped TenantManager and keeps
+        // consulting it after the container has forgotten it, so a site pinned
+        // by one queue job decides the settings the next job reads.
+        $this->app->scoped( SiteSettingsService::class, function ( $app ) {
             return new SiteSettingsService(
                 $app->make( TenantManager::class ),
             );
@@ -204,6 +212,13 @@ class AnalyticsServiceProvider extends ServiceProvider
         Support\HookAliases::register();
 
         $this->mergeConfiguration();
+
+        // The bridge runs here rather than in register() because it reads the
+        // merged configuration. A provider that resolves SiteContext during its
+        // own boot() before this one boots therefore gets the un-bridged chain,
+        // and because the binding is scoped it keeps it for the rest of the
+        // request. Nothing in this package does that, but an application whose
+        // provider does should list this one earlier in bootstrap/providers.php.
         $this->bridgeLegacyMultiTenantConfig();
         $this->publishConfiguration();
         $this->publishMigrations();
@@ -324,6 +339,10 @@ class AnalyticsServiceProvider extends ServiceProvider
      *
      * Applications that have migrated set the core keys and either switch the
      * analytics flag off or empty its resolver list; nothing is bridged then.
+     * A shared list that is already populated counts as migrated too: prepending
+     * onto it would silently reorder resolution for every package in the
+     * installation, putting analytics' shipped defaults in front of resolvers
+     * the application chose deliberately.
      *
      * @return void
      *
@@ -351,16 +370,22 @@ class AnalyticsServiceProvider extends ServiceProvider
             return;
         }
 
-        $merged = array_values( array_unique( array_merge(
-            array_values( $legacyResolvers ),
-            array_values( $sharedResolvers ),
-        ) ) );
+        // A populated shared list is positive evidence the application migrated,
+        // so leave the order it chose alone and say why nothing was carried over.
+        if ( [] !== array_values( $sharedResolvers ) ) {
+            Log::warning( __(
+                '[Analytics] Ignoring the deprecated "artisanpack.analytics.multi_tenant.resolvers" list because'
+                    . ' "artisanpack.core.multi_tenant.resolvers" is already configured. Prepending onto it would'
+                    . ' reorder site resolution for every ArtisanPack UI package. Move any resolver you still need'
+                    . ' to the core list and remove the deprecated one.',
+            ) );
 
-        if ( $merged === array_values( $sharedResolvers ) ) {
             return;
         }
 
-        $config->set( 'artisanpack.core.multi_tenant.resolvers', $merged );
+        $merged = $this->adaptLegacySiteResolvers( array_values( $legacyResolvers ) );
+
+        $config->set( 'artisanpack.core.multi_tenant.resolvers', array_values( array_unique( $merged ) ) );
 
         Log::notice( __(
             '[Analytics] Bridging the deprecated "artisanpack.analytics.multi_tenant" settings onto'
@@ -368,6 +393,55 @@ class AnalyticsServiceProvider extends ServiceProvider
                 . ' Move your resolvers to the core key and switch tenancy on there; support for the analytics'
                 . ' key will be removed in 2.0.',
         ) );
+    }
+
+    /**
+     * Make sure every bridged resolver can actually go into the shared chain.
+     *
+     * Core builds the chain with `$container->make( $class )` and rejects
+     * anything that is not a `SiteResolver`. A resolver written against the 1.4
+     * shape — `resolve()` and `priority()`, nothing more — is not one, so an
+     * application that upgrades with a custom resolver in its list would have
+     * every scoped query throw. Binding the adapter against the legacy class
+     * name means core makes an adapter where it asked for the legacy class, and
+     * the resolver keeps resolving through its existing `resolve()`.
+     *
+     * @param array<int, mixed> $resolvers The configured legacy resolver list.
+     *
+     * @return array<int, mixed> The same list, with legacy classes now resolvable.
+     *
+     * @since 1.5.0
+     */
+    protected function adaptLegacySiteResolvers( array $resolvers ): array
+    {
+        foreach ( $resolvers as $resolverClass ) {
+            if ( ! is_string( $resolverClass ) || ! class_exists( $resolverClass ) ) {
+                continue;
+            }
+
+            if ( is_a( $resolverClass, SiteResolver::class, true ) ) {
+                continue;
+            }
+
+            if ( ! is_a( $resolverClass, SiteResolverInterface::class, true )
+                && ! method_exists( $resolverClass, 'resolve' ) ) {
+                continue;
+            }
+
+            $this->app->bind(
+                $resolverClass,
+                fn (): LegacySiteResolverAdapter => new LegacySiteResolverAdapter( $resolverClass ),
+            );
+
+            Log::notice( __(
+                '[Analytics] Adapting the deprecated site resolver ":resolver" onto the shared site-resolution'
+                    . ' contract. Implement ArtisanPackUI\\Core\\Contracts\\SiteResolver, or extend'
+                    . ' ArtisanPackUI\\Analytics\\Resolvers\\AbstractSiteResolver; this adapter goes away in 2.0.',
+                [ 'resolver' => $resolverClass ],
+            ) );
+        }
+
+        return $resolvers;
     }
 
     /**
@@ -631,13 +705,14 @@ class AnalyticsServiceProvider extends ServiceProvider
             ->middleware( $routeMiddleware )
             ->group( __DIR__ . '/../routes/api.php' );
 
-        // Register web routes for tracker script (always available)
-        $dashboardRoute = config( 'artisanpack.analytics.dashboard_route' );
-
-        if ( $dashboardRoute ) {
-            Route::middleware( config( 'artisanpack.analytics.dashboard_middleware', ['web', 'auth'] ) )
-                ->group( __DIR__ . '/../routes/web.php' );
-        }
+        // Register web routes for the tracker script. These carry no
+        // middleware and no dashboard gate: the script is a public static
+        // asset every visitor's browser fetches, so putting it behind the
+        // dashboard's `auth` middleware redirected anonymous visitors to the
+        // login page and left them untracked, and gating it on
+        // `dashboard_route` meant an application that switched the dashboard
+        // off lost tracking with it.
+        Route::group( [], __DIR__ . '/../routes/web.php' );
 
         // Register dashboard routes based on the configured driver
         $this->registerDashboardRoutes();
@@ -847,7 +922,12 @@ class AnalyticsServiceProvider extends ServiceProvider
      */
     protected function registerBladeDirectives(): void
     {
-        // @analyticsScripts - Output tracker script
+        // @analyticsScripts - Output tracker script.
+        //
+        // Any array passed to the directive reaches the component's `config`
+        // prop, which emits it as a page-level override ahead of the tracker.
+        // Until 1.5.0 the expression was accepted and then dropped on the floor,
+        // because the component had no prop to receive it.
         Blade::directive( 'analyticsScripts', function ( $expression ): string {
             $config = $expression ?: '[]';
 
@@ -992,12 +1072,17 @@ class AnalyticsServiceProvider extends ServiceProvider
             ];
 
             // Include current site info if multi-tenant is enabled
-            if ( config( 'artisanpack.analytics.multi_tenant.enabled', false ) ) {
+            if ( analyticsMultiTenancyEnabled() ) {
                 $tenantManager = $this->app->make( TenantManager::class );
 
-                if ( $tenantManager->hasCurrent() ) {
-                    $site            = $tenantManager->current();
-                    $shared['site']  = [
+                // current() rather than hasCurrent(): the latter only says an
+                // identifier is in context, and a sibling package can pin one
+                // that has no row in `sites`. Reading ->id off that null threw
+                // on every Inertia render.
+                $site = $tenantManager->current();
+
+                if ( null !== $site ) {
+                    $shared['site'] = [
                         'id'     => $site->id,
                         'name'   => $site->name,
                         'domain' => $site->domain,

@@ -246,9 +246,10 @@ class ConsentService
 	 */
 	protected function isDntEnabled(): bool
 	{
-		$dnt = request()->header( 'DNT' ) ?? request()->header( 'Sec-GPC' );
-
-		return '1' === $dnt;
+		// Checked independently rather than one falling back to the other: a
+		// browser sending `DNT: 0` alongside `Sec-GPC: 1` is not withdrawing
+		// its GPC signal, and GPC is the one carrying legal weight under CCPA.
+		return '1' === request()->header( 'DNT' ) || '1' === request()->header( 'Sec-GPC' );
 	}
 
 	/**
@@ -282,7 +283,7 @@ class ConsentService
 	 */
 	protected function getSiteId(): ?int
 	{
-		if ( ! config( 'artisanpack.analytics.multi_tenant.enabled', false ) ) {
+		if ( ! analyticsMultiTenancyEnabled() ) {
 			return null;
 		}
 
@@ -298,7 +299,7 @@ class ConsentService
 	 */
 	protected function getTenantId(): int|string|null
 	{
-		if ( ! config( 'artisanpack.analytics.multi_tenant.enabled', false ) ) {
+		if ( ! analyticsMultiTenancyEnabled() ) {
 			return null;
 		}
 

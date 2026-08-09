@@ -55,6 +55,12 @@ class TrackerController extends Controller
 	/**
 	 * Get the tracker script content.
 	 *
+	 * The package ships no `tracker.min.js`, so a request for the minified
+	 * script falls back to the full `tracker.js` before the inline stub. The
+	 * stub carries none of the tracker's real features — anonymous mode,
+	 * History API tracking, the engagement reset — and the component defaults
+	 * to the minified route, so serving unminified beats serving feature-less.
+	 *
 	 * @param bool $minified Whether to get the minified version.
 	 *
 	 * @return string
@@ -63,20 +69,22 @@ class TrackerController extends Controller
 	 */
 	protected function getTrackerScript( bool $minified = false ): string
 	{
-		$filename = $minified ? 'tracker.min.js' : 'tracker.js';
+		$filenames = $minified ? [ 'tracker.min.js', 'tracker.js' ] : [ 'tracker.js' ];
 
-		// Try package resources first
-		$paths = [
-			__DIR__ . '/../../../resources/js/' . $filename,
-			resource_path( 'vendor/analytics/js/' . $filename ),
-			public_path( 'vendor/analytics/js/' . $filename ),
-		];
+		foreach ( $filenames as $filename ) {
+			// Try package resources first
+			$paths = [
+				__DIR__ . '/../../../resources/js/' . $filename,
+				resource_path( 'vendor/analytics/js/' . $filename ),
+				public_path( 'vendor/analytics/js/' . $filename ),
+			];
 
-		foreach ( $paths as $path ) {
-			if ( File::exists( $path ) ) {
-				$script = File::get( $path );
+			foreach ( $paths as $path ) {
+				if ( File::exists( $path ) ) {
+					$script = File::get( $path );
 
-				return $this->injectConfig( $script );
+					return $this->injectConfig( $script );
+				}
 			}
 		}
 
@@ -109,7 +117,10 @@ class TrackerController extends Controller
 			$configJson = '{}';
 		}
 
-		$configScript = "window.__ARTISANPACK_ANALYTICS_CONFIG__ = {$configJson};";
+		// Merge rather than assign: an application may set the global inline
+		// before this script loads to override individual keys, which a plain
+		// assignment here would silently clobber. Anything the page set wins.
+		$configScript = "window.__ARTISANPACK_ANALYTICS_CONFIG__ = Object.assign({$configJson}, window.__ARTISANPACK_ANALYTICS_CONFIG__ || {});";
 
 		return $configScript . "\n" . $script;
 	}
@@ -126,18 +137,20 @@ class TrackerController extends Controller
 		$routePrefix = config( 'artisanpack.analytics.route_prefix', 'api/analytics' );
 
 		return [
-			'endpoint'           => url( $routePrefix ),
-			'sessionTimeout'     => config( 'artisanpack.analytics.session.timeout', 30 ) * 60 * 1000,
-			'respectDNT'         => config( 'artisanpack.analytics.privacy.respect_dnt', true ),
-			'consentRequired'    => config( 'artisanpack.analytics.privacy.consent_required', false ),
-			'trackPageViews'     => true,
-			'trackPerformance'   => true,
-			'trackScrollDepth'   => true,
-			'trackEngagement'    => true,
-			'trackHashChanges'   => config( 'artisanpack.analytics.tracker.track_hash_changes', false ),
-			'trackOutboundLinks' => config( 'artisanpack.analytics.tracker.track_outbound_links', true ),
-			'trackFileDownloads' => config( 'artisanpack.analytics.tracker.track_file_downloads', true ),
-			'downloadExtensions' => config( 'artisanpack.analytics.tracker.download_extensions', [
+			'endpoint'            => url( $routePrefix ),
+			'sessionTimeout'      => config( 'artisanpack.analytics.session.timeout', 30 ) * 60 * 1000,
+			'respectDNT'          => config( 'artisanpack.analytics.privacy.respect_dnt', true ),
+			'consentRequired'     => config( 'artisanpack.analytics.privacy.consent_required', false ),
+			'trackPageViews'      => true,
+			'trackPerformance'    => true,
+			'trackScrollDepth'    => true,
+			'trackEngagement'     => true,
+			'trackHashChanges'    => config( 'artisanpack.analytics.tracker.track_hash_changes', false ),
+			'trackHistoryChanges' => (bool) config( 'artisanpack.analytics.tracker.track_history_changes', true ),
+			'anonymousMode'       => (bool) config( 'artisanpack.analytics.privacy.anonymous_mode', false ),
+			'trackOutboundLinks'  => config( 'artisanpack.analytics.tracker.track_outbound_links', true ),
+			'trackFileDownloads'  => config( 'artisanpack.analytics.tracker.track_file_downloads', true ),
+			'downloadExtensions'  => config( 'artisanpack.analytics.tracker.download_extensions', [
 				'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
 				'zip', 'rar', 'gz', 'tar', '7z',
 				'exe', 'dmg', 'pkg', 'deb', 'rpm',

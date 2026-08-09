@@ -22,6 +22,13 @@ use Illuminate\Http\Request;
 class ApiKeyResolver extends AbstractSiteResolver
 {
 	/**
+	 * Request attribute marking usage as already recorded this request.
+	 *
+	 * @var string
+	 */
+	protected const RECORDED_ATTRIBUTE = 'artisanpack.analytics.api_key_usage_recorded';
+
+	/**
 	 * Resolve the current site from the API key.
 	 *
 	 * @param Request $request The incoming HTTP request.
@@ -41,7 +48,7 @@ class ApiKeyResolver extends AbstractSiteResolver
 		$site = Site::findByApiKey( $apiKey );
 
 		if ( null !== $site ) {
-			$site->recordApiKeyUsage();
+			$this->recordUsageOncePerRequest( $request, $site );
 		}
 
 		return $site;
@@ -59,6 +66,31 @@ class ApiKeyResolver extends AbstractSiteResolver
 	public function priority(): int
 	{
 		return 10;
+	}
+
+	/**
+	 * Record this key's usage at most once for the request being handled.
+	 *
+	 * The shared contract re-resolves on every call, and the site scope resolves
+	 * for every scoped query, so an API-key request that skips the pinning
+	 * middleware would otherwise write to `sites` once per SELECT it makes.
+	 *
+	 * @param Request $request The incoming HTTP request.
+	 * @param Site    $site    The site the key resolved to.
+	 *
+	 * @return void
+	 *
+	 * @since 1.5.0
+	 */
+	protected function recordUsageOncePerRequest( Request $request, Site $site ): void
+	{
+		if ( true === $request->attributes->get( self::RECORDED_ATTRIBUTE, false ) ) {
+			return;
+		}
+
+		$request->attributes->set( self::RECORDED_ATTRIBUTE, true );
+
+		$site->recordApiKeyUsage();
 	}
 
 	/**

@@ -8,6 +8,7 @@ use ArtisanPackUI\Analytics\Data\DateRange;
 use ArtisanPackUI\Analytics\Models\AnonymousPageView;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -140,10 +141,11 @@ trait QueriesAnonymousTraffic
     {
         $cacheKey = $this->buildCacheKey( 'anonymous_pageview_count', $range, $this->anonymousCacheScope( $filters ) );
 
-        return $this->cached( $cacheKey, fn () => $this->safeAnonymousQuery(
+        return $this->cachedAnonymousQuery(
+            $cacheKey,
             fn () => $this->anonymousQuery( $range, $filters )->count(),
             0,
-        ) );
+        );
     }
 
     /**
@@ -161,7 +163,8 @@ trait QueriesAnonymousTraffic
     {
         $cacheKey = $this->buildCacheKey( 'anonymous_top_pages', $range, $this->anonymousCacheScope( $filters ), $limit );
 
-        return $this->cached( $cacheKey, fn () => $this->safeAnonymousQuery(
+        return $this->cachedAnonymousQuery(
+            $cacheKey,
             fn () => $this->anonymousQuery( $range, $filters )
                 ->select( [
                     'path',
@@ -178,7 +181,7 @@ trait QueriesAnonymousTraffic
                     'views' => (int) $row->views,
                 ] ),
             collect(),
-        ) );
+        );
     }
 
     /**
@@ -199,7 +202,8 @@ trait QueriesAnonymousTraffic
     {
         $cacheKey = $this->buildCacheKey( 'anonymous_referring_hosts', $range, $this->anonymousCacheScope( $filters ), $limit );
 
-        return $this->cached( $cacheKey, fn () => $this->safeAnonymousQuery(
+        return $this->cachedAnonymousQuery(
+            $cacheKey,
             fn () => $this->anonymousQuery( $range, $filters )
                 ->select( [
                     'referrer_host',
@@ -216,7 +220,7 @@ trait QueriesAnonymousTraffic
                     'views' => (int) $row->views,
                 ] ),
             collect(),
-        ) );
+        );
     }
 
     /**
@@ -233,7 +237,8 @@ trait QueriesAnonymousTraffic
     {
         $cacheKey = $this->buildCacheKey( 'anonymous_device_breakdown', $range, $this->anonymousCacheScope( $filters ) );
 
-        return $this->cached( $cacheKey, fn () => $this->safeAnonymousQuery(
+        return $this->cachedAnonymousQuery(
+            $cacheKey,
             function () use ( $range, $filters ): Collection {
                 $results = $this->anonymousQuery( $range, $filters )
                     ->select( [
@@ -253,7 +258,7 @@ trait QueriesAnonymousTraffic
                 ] );
             },
             collect(),
-        ) );
+        );
     }
 
     /**
@@ -274,13 +279,12 @@ trait QueriesAnonymousTraffic
     {
         $cacheKey = $this->buildCacheKey( 'anonymous_pageviews_over_time', $range, $this->anonymousCacheScope( $filters ), $granularity );
 
-        return $this->cached( $cacheKey, fn () => $this->safeAnonymousQuery(
+        return $this->cachedAnonymousQuery(
+            $cacheKey,
             function () use ( $range, $granularity, $filters ): Collection {
-                $dateFormat = $this->anonymousDateFormat( $granularity );
-
                 return $this->anonymousQuery( $range, $filters )
                     ->select( [
-                        DB::raw( "DATE_FORMAT(created_at, '{$dateFormat}') as date" ),
+                        DB::raw( $this->anonymousDateExpression( $granularity ) . ' as date' ),
                         DB::raw( 'COUNT(*) as pageviews' ),
                     ] )
                     ->groupBy( 'date' )
@@ -292,7 +296,7 @@ trait QueriesAnonymousTraffic
                     ] );
             },
             collect(),
-        ) );
+        );
     }
 
     /**
@@ -326,6 +330,27 @@ trait QueriesAnonymousTraffic
         // This method controls anonymous scoping itself, so discard any caller
         // mode rather than letting it skew the split.
         unset( $filters['anonymous'] );
+
+        // Every dashboard render calls this, including on sites that never
+        // switched anonymous mode on — five queries each against a table they
+        // have no rows in. Every surface keys off `enabled` and renders the
+        // feature-off message, so the figures behind it are never read.
+        if ( ! $this->isAnonymousModeEnabled() ) {
+            return [
+                'enabled'              => false,
+                'anonymous_pageviews'  => 0,
+                'identified_pageviews' => $this->getPageViewCount(
+                    $range,
+                    array_merge( $filters, [ 'anonymous' => 'exclude' ] ),
+                ),
+                'total_pageviews'      => 0,
+                'anonymous_percentage' => 0.0,
+                'top_pages'            => [],
+                'referring_hosts'      => [],
+                'device_breakdown'     => [],
+                'trend'                => [],
+            ];
+        }
 
         $anonymous  = $this->getAnonymousPageViewCount( $range, $filters );
         $identified = $this->getPageViewCount( $range, array_merge( $filters, [ 'anonymous' => 'exclude' ] ) );
@@ -402,7 +427,7 @@ trait QueriesAnonymousTraffic
             $query->where( 'site_id', $filters['site_id'] );
         }
 
-        if ( isset( $filters['tenant_id'] ) && config( 'artisanpack.analytics.multi_tenant.enabled', false ) ) {
+        if ( isset( $filters['tenant_id'] ) && analyticsMultiTenancyEnabled() ) {
             $query->where( 'tenant_id', $filters['tenant_id'] );
         }
 
@@ -431,13 +456,18 @@ trait QueriesAnonymousTraffic
     }
 
     /**
-     * Run an anonymous query, falling back to a default on failure.
+     * Cache an anonymous query's result, but never cache its failure.
      *
-     * The anonymous table is created by a 1.5.0 migration, and the time-series
-     * query uses MySQL date formatting. Neither should take a dashboard down.
+     * The fallback exists so that a table a 1.5.0 migration has not created
+     * yet, or a SQL function this driver lacks, degrades one panel instead of
+     * taking the dashboard down. Caching the fallback, though, turns a
+     * momentary database blip into zeroes shown for the whole
+     * `cache_duration` — long after the database recovered. So a failed query
+     * drops its key again and the next caller retries.
      *
      * @template TDefault
      *
+     * @param  string  $cacheKey  The cache key for this query.
      * @param  callable  $callback  The query callback.
      * @param  TDefault  $default  The value to return when the query fails.
      *
@@ -445,13 +475,47 @@ trait QueriesAnonymousTraffic
      *
      * @since 1.5.0
      */
-    protected function safeAnonymousQuery( callable $callback, mixed $default ): mixed
+    protected function cachedAnonymousQuery( string $cacheKey, callable $callback, mixed $default ): mixed
     {
-        try {
-            return $callback();
-        } catch ( Throwable ) {
-            return $default;
+        $failed = false;
+
+        $result = $this->cached( $cacheKey, function () use ( $callback, $default, &$failed ): mixed {
+            try {
+                return $callback();
+            } catch ( Throwable ) {
+                $failed = true;
+
+                return $default;
+            }
+        } );
+
+        if ( $failed ) {
+            $this->forgetCachedAnonymousQuery( $cacheKey );
         }
+
+        return $result;
+    }
+
+    /**
+     * Drop a single cached anonymous query result.
+     *
+     * @param  string  $cacheKey  The cache key to forget.
+     *
+     * @return void
+     *
+     * @since 1.5.0
+     */
+    protected function forgetCachedAnonymousQuery( string $cacheKey ): void
+    {
+        $store = Cache::getStore();
+
+        if ( method_exists( $store, 'tags' ) ) {
+            Cache::tags( $this->cacheTag )->forget( $cacheKey );
+
+            return;
+        }
+
+        Cache::forget( $cacheKey );
     }
 
     /**
@@ -472,6 +536,75 @@ trait QueriesAnonymousTraffic
             'week'  => '%Y-%W',
             'month' => '%Y-%m',
             default => '%Y-%m-%d',
+        };
+    }
+
+    /**
+     * Build the SQL expression that buckets `created_at` for this driver.
+     *
+     * `DATE_FORMAT()` is MySQL-only, so on SQLite or Postgres the whole
+     * time series came back empty through the failure fallback — while totals
+     * stayed correct, which is the worst shape for a bug to have. Worse, the
+     * test suite runs on SQLite, so the merge this feeds had no real coverage
+     * at all.
+     *
+     * @param  string  $granularity  The time granularity.
+     *
+     * @return string The SQL expression producing the bucket label.
+     *
+     * @since 1.5.0
+     */
+    protected function anonymousDateExpression( string $granularity ): string
+    {
+        $driver = AnonymousPageView::query()->getConnection()->getDriverName();
+        $format = $this->anonymousDateFormat( $granularity );
+
+        return match ( $driver ) {
+            'sqlite' => sprintf( "strftime('%s', created_at)", $this->sqliteDateFormat( $granularity ) ),
+            'pgsql'  => sprintf( "to_char(created_at, '%s')", $this->postgresDateFormat( $granularity ) ),
+            default  => sprintf( "DATE_FORMAT(created_at, '%s')", $format ),
+        };
+    }
+
+    /**
+     * Get the SQLite strftime format for a granularity.
+     *
+     * Buckets have to be labelled identically across drivers, because
+     * mergeAnonymousTimeSeries() joins the identified and anonymous series on
+     * the label. `%W` is MySQL's week-of-year, which SQLite spells `%W` too.
+     *
+     * @param  string  $granularity  The time granularity.
+     *
+     * @return string The strftime format string.
+     *
+     * @since 1.5.0
+     */
+    protected function sqliteDateFormat( string $granularity ): string
+    {
+        return match ( $granularity ) {
+            'hour'  => '%Y-%m-%d %H:00',
+            'week'  => '%Y-%W',
+            'month' => '%Y-%m',
+            default => '%Y-%m-%d',
+        };
+    }
+
+    /**
+     * Get the Postgres to_char format for a granularity.
+     *
+     * @param  string  $granularity  The time granularity.
+     *
+     * @return string The to_char format string.
+     *
+     * @since 1.5.0
+     */
+    protected function postgresDateFormat( string $granularity ): string
+    {
+        return match ( $granularity ) {
+            'hour'  => 'YYYY-MM-DD HH24:00',
+            'week'  => 'YYYY-WW',
+            'month' => 'YYYY-MM',
+            default => 'YYYY-MM-DD',
         };
     }
 }

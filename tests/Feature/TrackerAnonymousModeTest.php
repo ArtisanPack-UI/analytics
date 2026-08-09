@@ -153,3 +153,23 @@ test( 'an explicit opt-out signal suppresses anonymous mode entirely', function 
 			->and( $report['afterLoad']['cookieWrites'] )->toBe( [] );
 	}
 } );
+
+test( 'the consent upgrade does not re-record the page already counted anonymously', function (): void {
+	$report = runAnonymousHarness( [ 'anonymousMode' => true ] );
+
+	$granted = anonymousStep( $report, 'consent granted mid-visit' );
+
+	$pageViews = array_values( array_filter(
+		$granted['beacons'],
+		fn ( array $b ): bool => str_ends_with( $b['url'], '/pageview' ),
+	) );
+
+	// This page was already recorded anonymously. Recording it again as an
+	// identified view means the dashboard's "include anonymous" toggle counts
+	// one physical page view twice.
+	expect( $pageViews )->toBe( [], 'The upgrade must not re-track the consent page' );
+
+	// The upgrade still has to happen: visitor and session come up now.
+	expect( implode( ' ', $granted['cookieWrites'] ) )->toContain( '_ap_vid' )
+		->and( implode( ' ', $granted['cookieWrites'] ) )->toContain( '_ap_sid' );
+} );

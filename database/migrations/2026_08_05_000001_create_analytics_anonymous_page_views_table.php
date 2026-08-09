@@ -44,9 +44,9 @@ return new class extends Migration
 			// carry search terms or identifiers in its query string.
 			$table->string( 'referrer_host', 255 )->nullable();
 
-			// Coarse, non-identifying context.
+			// Coarse, non-identifying context. Device *class* only — never the
+			// user agent, which is a meaningful fingerprint component.
 			$table->string( 'device_type', 20 )->nullable();
-			$table->string( 'country', 2 )->nullable();
 
 			$table->string( 'tenant_id' )->nullable()->index();
 

@@ -29,7 +29,6 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $title
  * @property string|null $referrer_host
  * @property string|null $device_type
- * @property string|null $country
  * @property string|null $tenant_id
  * @property Carbon      $created_at
  *
@@ -68,7 +67,6 @@ class AnonymousPageView extends Model
 		'title',
 		'referrer_host',
 		'device_type',
-		'country',
 		'tenant_id',
 		'created_at',
 	];

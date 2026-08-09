@@ -1099,6 +1099,20 @@ return [
 
         /*
         |----------------------------------------------------------------------
+        | Track History Changes
+        |----------------------------------------------------------------------
+        |
+        | Automatically track History API navigation (pushState / replaceState
+        | / popstate) as page views, which is what makes SPA and wire:navigate
+        | routing show up without any wiring. Switch this off in applications
+        | that already report router navigation themselves, otherwise every
+        | client-side page view is counted twice.
+        |
+        */
+        'track_history_changes' => env( 'ANALYTICS_TRACK_HISTORY_CHANGES', true ),
+
+        /*
+        |----------------------------------------------------------------------
         | Track Outbound Links
         |----------------------------------------------------------------------
         |
