@@ -172,7 +172,7 @@ config onto whatever the page already set, so a value set here wins:
 <script>
     window.__ARTISANPACK_ANALYTICS_CONFIG__ = { anonymousMode: true };
 </script>
-<script src="/js/analytics.js" async></script>
+<script src="{{ route( 'analytics.tracker.script' ) }}" async></script>
 ```
 
 ### What is and is not collected

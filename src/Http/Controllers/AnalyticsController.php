@@ -373,12 +373,20 @@ class AnalyticsController extends Controller
 			return null;
 		}
 
+		// Request input can be an array — `?site_id[]=1` — and casting one to a
+		// string is a warning and the literal "Array", so reject anything that
+		// is not scalar before going near a cast.
+		if ( ! is_scalar( $siteId ) ) {
+			return null;
+		}
+
 		// Deliberately stricter than is_numeric(), which accepts "12.5", "1e3"
 		// and " 12" — each of which casts to an int naming a different site, or
-		// none. Same guard as TenantManager::currentId().
+		// none. Same guard as TenantManager::currentId(). Anchored with \z
+		// rather than $, which in PCRE also matches before a trailing newline.
 		$siteIdString = is_string( $siteId ) ? trim( $siteId ) : (string) $siteId;
 
-		if ( 1 !== preg_match( '/^\d+$/', $siteIdString ) ) {
+		if ( 1 !== preg_match( '/^\d+\z/', $siteIdString ) ) {
 			return null;
 		}
 

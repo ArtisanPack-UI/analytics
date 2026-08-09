@@ -90,7 +90,9 @@ class HeaderResolver extends AbstractSiteResolver
 		// and " 12" — each of which casts to an int naming a different site, or
 		// none. TenantManager::currentId() guards its identifiers the same way;
 		// accepting looser ones here only moves the mis-attribution earlier.
-		if ( 1 === preg_match( '/^\d+$/', $siteIdentifier ) ) {
+		// Anchored with \z rather than $, which in PCRE also matches before a
+		// trailing newline, so "12\n" would otherwise resolve site 12.
+		if ( 1 === preg_match( '/^\d+\z/', $siteIdentifier ) ) {
 			return Site::query()
 				->where( 'id', (int) $siteIdentifier )
 				->where( 'is_active', true )

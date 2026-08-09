@@ -662,9 +662,13 @@
             // Page views sit in a batch queue for up to batchInterval, while
             // this update goes out immediately. Arriving first, it finds no row
             // to update and updatePageView() silently no-ops — losing the
-            // engagement for every quickly-left page. Flushing here puts the
-            // page view on the wire ahead of its own update.
-            Transport._flush();
+            // engagement for every quickly-left page. Draining the queue here
+            // puts the page view on the wire ahead of its own update.
+            //
+            // Looped because _flush() sends at most batchSize items per call
+            // and re-arms the timer for the rest, which would leave this page's
+            // view queued behind a backlog.
+            Transport._drain();
 
             var data = {
                 session_id: Session.getId(),
@@ -866,6 +870,25 @@
             this._batchTimer = setTimeout(function() {
                 self._flush();
             }, config.batchInterval);
+        },
+
+        /**
+         * Send everything queued, right now.
+         *
+         * _flush() deliberately sends one batch at a time so a large backlog
+         * does not become one enormous request. Callers that need the queue
+         * actually empty — an engagement update that must not overtake its own
+         * page view, or the page going away — need every batch gone.
+         */
+        _drain: function() {
+            while (this._queue.length > 0) {
+                this._flush();
+            }
+
+            if (this._batchTimer) {
+                clearTimeout(this._batchTimer);
+                this._batchTimer = null;
+            }
         },
 
         _flush: function() {

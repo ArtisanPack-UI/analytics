@@ -19,7 +19,7 @@ declare( strict_types=1 );
  *
  * @param array<string, mixed> $configOverrides Tracker config overrides.
  *
- * @return array{initialPageViews: list<string>, steps: list<array{label: string, pageViewPaths: list<string>, engagementUpdates: list<array{path: string|null, scroll_depth: int|null}>}>}
+ * @return array{initialPageViews: list<string>, steps: list<array{label: string, beaconOrder: list<string>, pageViewPaths: list<string>, engagementUpdates: list<array{path: string|null, scroll_depth: int|null}>}>, timeline: list<array{url: string, kind: string, paths: list<string>}>}
  */
 function runTrackerHarness( array $configOverrides = [] ): array
 {

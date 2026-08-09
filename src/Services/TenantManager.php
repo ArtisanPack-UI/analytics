@@ -213,8 +213,10 @@ class TenantManager
 			// Deliberately stricter than is_numeric(), which accepts "12.5",
 			// "1e3", " 12" and "-3" — each of which casts to an int that is
 			// either a different site or no site at all. "12.5" becoming site
-			// 12 would attribute this work to a real, wrong site.
-			if ( is_int( $siteId ) || ( is_string( $siteId ) && 1 === preg_match( '/^\d+$/', $siteId ) ) ) {
+			// 12 would attribute this work to a real, wrong site. Anchored with
+			// \z rather than $, which in PCRE also matches before a trailing
+			// newline.
+			if ( is_int( $siteId ) || ( is_string( $siteId ) && 1 === preg_match( '/^\d+\z/', $siteId ) ) ) {
 				return (int) $siteId;
 			}
 
