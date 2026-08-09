@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-08-09
+
 ### Security
 
 - **`HeaderResolver` no longer believes `X-Site-ID` by default.** Nothing authenticates that header, and since the resolver chain moved into `artisanpack-ui/core` the site it names is the site *every* ArtisanPack UI package scopes its data by — not only analytics. A request carrying `X-Site-ID: 2` could put site 2 in context for a sibling package, and a package entitled to assume the site it was handed was not chosen by the caller would then serve that site's records to whoever asked for them. The resolver now answers only where `multi_tenant.trust_site_header` (`ANALYTICS_TRUST_SITE_HEADER`) is on and, where `multi_tenant.trusted_site_header_ips` (`ANALYTICS_TRUSTED_SITE_HEADER_IPS`) is set, only for requests from those addresses — single addresses or CIDR ranges, IPv4 or IPv6. Both are off by default, so the trust condition is stated in configuration rather than implied by which routes a resolver was thought to run on; a resolver in the shared chain runs on all of them. An ignored header is logged once per request. ([#97](https://github.com/ArtisanPack-UI/analytics/issues/97))
