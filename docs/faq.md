@@ -132,7 +132,20 @@ hash-only changes are left to `trackHashChanges` so the two options cannot
 double count.
 
 If your app already bridges its router's navigation events by hand, turn the
-built-in detection off or you will count every page view twice:
+built-in detection off or you will count every page view twice.
+
+Either set it server-side, which is what most applications want:
+
+```php
+// config/artisanpack/analytics.php
+'tracker' => [
+    'track_history_changes' => env( 'ANALYTICS_TRACK_HISTORY_CHANGES', true ),
+],
+```
+
+or override it for a single page. This global must be set *before* the tracker
+script loads; the served script merges its own config onto whatever is already
+there, so what the page set wins:
 
 ```js
 window.__ARTISANPACK_ANALYTICS_CONFIG__ = {

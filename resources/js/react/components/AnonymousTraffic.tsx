@@ -69,12 +69,29 @@ export default function AnonymousTraffic( {
         ? Math.min( 100, Math.max( 1, Math.floor( limit ) ) )
         : 10;
 
-    const { data, loading, error } = useAnalyticsApi<AnonymousStatsData>( {
+    const { data, loading, error, refresh } = useAnalyticsApi<AnonymousStatsData>( {
         endpoint: 'anonymous',
         params: { period, site_id: siteId, limit: normalizedLimit },
         initialData,
         fetchOnMount: ! initialData,
     } );
+
+    // With initialData the hook does not fetch on mount, and so never fetches
+    // for a later param change either. An instance that survives a prop change
+    // — Inertia's preserveState, or a client-side period switch — would go on
+    // showing figures for the range it was mounted with. The Vue component
+    // watches these same three props; this keeps the two at parity.
+    const isFirstRenderRef = React.useRef( true );
+
+    React.useEffect( () => {
+        if ( isFirstRenderRef.current ) {
+            isFirstRenderRef.current = false;
+
+            return;
+        }
+
+        refresh();
+    }, [ period, siteId, normalizedLimit, refresh ] );
 
     const stats = data ?? initialData;
     const trend = stats?.trend ?? [];

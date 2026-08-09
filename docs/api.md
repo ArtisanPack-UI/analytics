@@ -91,7 +91,7 @@ ArtisanPackUI\Analytics\
 ├── AnalyticsServiceProvider     # Service provider
 ├── Contracts\                   # Interfaces
 │   ├── AnalyticsProviderInterface
-│   ├── SiteResolverInterface    # Deprecated; extends core's SiteResolver
+│   ├── SiteResolverInterface    # Deprecated; use core's SiteResolver instead
 │   └── TenantResolverInterface  # Deprecated
 ├── Data\                        # DTOs
 │   ├── DateRange

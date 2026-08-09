@@ -5,6 +5,7 @@ declare( strict_types=1 );
 namespace ArtisanPackUI\Analytics\Resolvers;
 
 use ArtisanPackUI\Analytics\Contracts\SiteResolverInterface;
+use ArtisanPackUI\Core\Contracts\SiteResolver;
 use Illuminate\Http\Request;
 
 /**
@@ -23,7 +24,7 @@ use Illuminate\Http\Request;
  *
  * @package ArtisanPackUI\Analytics\Resolvers
  */
-abstract class AbstractSiteResolver implements SiteResolverInterface
+abstract class AbstractSiteResolver implements SiteResolver, SiteResolverInterface
 {
 	/**
 	 * Get the identifier of the site currently in context.
@@ -68,9 +69,16 @@ abstract class AbstractSiteResolver implements SiteResolverInterface
 	 * `localhost`, so console contexts resolve to null and leave a site pinned
 	 * with `SiteContext::forSite()` as the only answer there.
 	 *
-	 * Tests are the exception: they run in console while exercising requests,
-	 * and a resolver that always returns null under test is a resolver nothing
-	 * can prove works.
+	 * That console request is told apart by the `argv` it was built from rather
+	 * than by the SAPI, because Octane, RoadRunner, and Swoole workers all run
+	 * under `PHP_SAPI === 'cli'` while serving perfectly real HTTP requests. A
+	 * SAPI check turns every request-driven resolver inert on those deployments
+	 * and silently pools every site's traffic into one.
+	 *
+	 * Discriminating on the request also removes the blanket test exemption the
+	 * SAPI check needed: a test that binds a request of its own gets a real one
+	 * with no argv, and the console path stays testable rather than being
+	 * short-circuited by `runningUnitTests()`.
 	 *
 	 * @return Request|null The current request, or null outside an HTTP context.
 	 *
@@ -80,16 +88,20 @@ abstract class AbstractSiteResolver implements SiteResolverInterface
 	{
 		$app = app();
 
-		if ( $app->runningInConsole() && ! $app->runningUnitTests() ) {
-			return null;
-		}
-
 		if ( ! $app->bound( 'request' ) ) {
 			return null;
 		}
 
 		$request = $app->make( 'request' );
 
-		return $request instanceof Request ? $request : null;
+		if ( ! $request instanceof Request ) {
+			return null;
+		}
+
+		if ( null !== $request->server( 'argv' ) ) {
+			return null;
+		}
+
+		return $request;
 	}
 }

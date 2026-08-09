@@ -235,7 +235,7 @@ Two things to know:
   breaking the page it was rendering into.
 
 The snippets are only emitted where `@analyticsScripts` (or
-`<x-analytics::tracker-script />`) appears, and only for providers listed in
+`<x-artisanpack-analytics::tracker-script />`) appears, and only for providers listed in
 `active_providers`. To render them yourself, call
 `Analytics::trackerScripts()`, which returns them as an array.
 

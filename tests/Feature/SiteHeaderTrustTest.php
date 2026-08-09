@@ -7,7 +7,6 @@ use ArtisanPackUI\Analytics\Models\Site;
 use ArtisanPackUI\Analytics\Resolvers\HeaderResolver;
 use ArtisanPackUI\Analytics\Services\TenantManager;
 use ArtisanPackUI\Core\Contracts\SiteResolver;
-use ArtisanPackUI\Core\MultiTenancy\HookSiteResolver;
 use ArtisanPackUI\Core\MultiTenancy\SiteContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
@@ -185,7 +184,9 @@ it( 'does not widen the trust boundary when the legacy bridge runs on upgrade', 
 	config()->set( 'artisanpack.analytics.multi_tenant.enabled', true );
 	config()->set( 'artisanpack.analytics.multi_tenant.resolvers', [ HeaderResolver::class ] );
 	config()->set( 'artisanpack.core.multi_tenant.enabled', false );
-	config()->set( 'artisanpack.core.multi_tenant.resolvers', [ HookSiteResolver::class ] );
+	// An empty shared list is the upgrade the bridge is for; a populated one is
+	// an application that already migrated, and the bridge leaves that alone.
+	config()->set( 'artisanpack.core.multi_tenant.resolvers', [] );
 
 	$provider = new class( app() ) extends AnalyticsServiceProvider {
 		public function bridge(): void
@@ -202,11 +203,11 @@ it( 'does not widen the trust boundary when the legacy bridge runs on upgrade', 
 
 	app()->instance( 'request', headerTrustRequest( $site->id ) );
 
-	// The header resolver is bridged ahead of the shared list, exactly as
-	// before — and answers nothing, because the bridge carries a resolver
-	// list, not a decision to trust the caller.
+	// The header resolver is bridged onto the shared list — and answers
+	// nothing, because the bridge carries a resolver list, not a decision to
+	// trust the caller.
 	expect( config( 'artisanpack.core.multi_tenant.resolvers' ) )
-		->toBe( [ HeaderResolver::class, HookSiteResolver::class ] )
+		->toBe( [ HeaderResolver::class ] )
 		->and( app( SiteContext::class )->currentSiteId() )->toBeNull();
 
 	// Opting in is what turns it back on.

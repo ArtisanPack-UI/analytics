@@ -6,6 +6,8 @@ use ArtisanPackUI\Analytics\AnalyticsServiceProvider;
 use ArtisanPackUI\Analytics\Http\Middleware\ResolveSite;
 use ArtisanPackUI\Analytics\Models\Goal;
 use ArtisanPackUI\Analytics\Models\Site;
+use ArtisanPackUI\Analytics\Resolvers\ApiKeyResolver;
+use ArtisanPackUI\Analytics\Resolvers\DomainResolver;
 use ArtisanPackUI\Analytics\Resolvers\HeaderResolver;
 use ArtisanPackUI\Analytics\Services\TenantManager;
 use ArtisanPackUI\Core\Contracts\SiteResolver;
@@ -15,6 +17,7 @@ use ArtisanPackUI\Core\MultiTenancy\SiteContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\View;
 
 uses( RefreshDatabase::class );
@@ -35,6 +38,42 @@ final class SiblingPackageSiteConsumer
 	public function currentSiteId(): int|string|null
 	{
 		return $this->context->currentSiteId();
+	}
+}
+
+/**
+ * A site resolver exactly as an application would have written it against 1.4:
+ * the two methods the deprecated interface asked for, and nothing else. The
+ * whole point is that it does not implement core's contract.
+ */
+final class LegacyShapeResolver
+{
+	public function resolve( Request $request ): ?Site
+	{
+		return Site::query()->where( 'domain', $request->getHost() )->first();
+	}
+
+	public function priority(): int
+	{
+		return 50;
+	}
+}
+
+/**
+ * Application code that predates the shared contract and is entitled to fail
+ * in its own way. Analytics must not turn that into a failure of whatever
+ * unrelated query happened to trigger resolution.
+ */
+final class ThrowingLegacyResolver
+{
+	public function resolve( Request $request ): ?Site
+	{
+		throw new RuntimeException( 'legacy resolver exploded' );
+	}
+
+	public function priority(): int
+	{
+		return 50;
 	}
 }
 
@@ -285,15 +324,31 @@ it( 'bridges a pre-1.5 analytics tenancy configuration onto the shared one', fun
 	config()->set( 'artisanpack.analytics.multi_tenant.enabled', true );
 	config()->set( 'artisanpack.analytics.multi_tenant.resolvers', [ HeaderResolver::class ] );
 	config()->set( 'artisanpack.core.multi_tenant.enabled', false );
-	config()->set( 'artisanpack.core.multi_tenant.resolvers', [ HookSiteResolver::class ] );
+	config()->set( 'artisanpack.core.multi_tenant.resolvers', [] );
 
 	bridgeLegacyAnalyticsTenancy();
 
 	expect( config( 'artisanpack.core.multi_tenant.enabled' ) )->toBeTrue()
-		// The legacy list goes first, so a request that resolved by header
-		// before the upgrade still resolves by header after it.
 		->and( config( 'artisanpack.core.multi_tenant.resolvers' ) )
-		->toBe( [ HeaderResolver::class, HookSiteResolver::class ] );
+		->toBe( [ HeaderResolver::class ] );
+} );
+
+it( 'refuses to reorder a shared resolver list the application configured', function (): void {
+	// A populated shared list is an application that migrated. Prepending onto
+	// it puts analytics' shipped defaults in front of resolvers the application
+	// chose, silently changing which site *every* package resolves.
+	config()->set( 'artisanpack.analytics.multi_tenant.enabled', true );
+	config()->set( 'artisanpack.analytics.multi_tenant.resolvers', [ HeaderResolver::class ] );
+	config()->set( 'artisanpack.core.multi_tenant.enabled', false );
+	config()->set( 'artisanpack.core.multi_tenant.resolvers', [ HookSiteResolver::class ] );
+
+	bridgeLegacyAnalyticsTenancy();
+
+	expect( config( 'artisanpack.core.multi_tenant.resolvers' ) )
+		->toBe( [ HookSiteResolver::class ] )
+		// The flag still bridges: an upgrade that leaves tenancy switched off
+		// entirely is the failure the bridge exists to prevent.
+		->and( config( 'artisanpack.core.multi_tenant.enabled' ) )->toBeTrue();
 } );
 
 it( 'leaves a migrated configuration alone', function (): void {
@@ -486,4 +541,173 @@ it( 'does not publish the analytics default site into the shared context', funct
 		// ...but a sibling package must not be scoped to a default it never
 		// configured.
 		->and( app( SiteContext::class )->currentSiteId() )->toBeNull();
+} );
+
+it( 'resolves for a real request while the process reports it is in console', function (): void {
+	$site = sharedResolutionSite( 'Octane', 'octane.test' );
+
+	useSharedResolvers( [ DomainResolver::class ] );
+
+	// An Octane, RoadRunner, or Swoole worker runs under the CLI SAPI, so
+	// `runningInConsole()` is true for every HTTP request it serves. Keying the
+	// console guard on the SAPI left every request-driven resolver inert there
+	// and pooled every site's traffic into whatever `default_site_id` said.
+	expect( app()->runningInConsole() )->toBeTrue();
+
+	app()->instance( 'request', Request::create( 'https://octane.test/pricing', 'GET' ) );
+
+	expect( app( TenantManager::class )->currentId() )->toBe( $site->id )
+		->and( app( SiteContext::class )->currentSiteId() )->toBe( $site->id );
+} );
+
+it( 'stays out of the way of the request a console command synthesises', function (): void {
+	sharedResolutionSite( 'Console', 'localhost' );
+
+	useSharedResolvers( [ DomainResolver::class ] );
+
+	// What Laravel binds in console: built from argv, carrying whatever host
+	// the machine reports. Attaching a scheduled command's work to whichever
+	// site happens to match is the mis-attribution the guard exists to stop.
+	$console = Request::create( 'http://localhost', 'GET', [], [], [], [
+		'argv' => [ 'artisan', 'analytics:cleanup' ],
+	] );
+	app()->instance( 'request', $console );
+
+	expect( app( SiteContext::class )->currentSiteId() )->toBeNull();
+} );
+
+it( 'keeps a resolver written against the 1.4 shape resolving', function (): void {
+	$site = sharedResolutionSite( 'Legacy', 'legacy.test' );
+
+	config()->set( 'artisanpack.analytics.multi_tenant.enabled', true );
+	config()->set( 'artisanpack.analytics.multi_tenant.resolvers', [ LegacyShapeResolver::class ] );
+	config()->set( 'artisanpack.core.multi_tenant.resolvers', [] );
+
+	bridgeLegacyAnalyticsTenancy();
+
+	config()->set( 'artisanpack.core.multi_tenant.enabled', true );
+	app()->forgetInstance( SiteResolver::class );
+	app()->forgetInstance( SiteContext::class );
+	app()->forgetInstance( TenantManager::class );
+
+	app()->instance( 'request', Request::create( 'https://legacy.test/', 'GET' ) );
+
+	// Core builds the chain with `make()` and rejects anything that is not a
+	// SiteResolver, so without the adapter this is a hard failure on the first
+	// scoped query of an upgraded application.
+	expect( app( SiteContext::class )->currentSiteId() )->toBe( $site->id )
+		->and( app( TenantManager::class )->currentId() )->toBe( $site->id );
+} );
+
+it( 'answers no site rather than throwing when a legacy resolver blows up', function (): void {
+	config()->set( 'artisanpack.analytics.multi_tenant.enabled', true );
+	config()->set( 'artisanpack.analytics.multi_tenant.resolvers', [ ThrowingLegacyResolver::class ] );
+	config()->set( 'artisanpack.core.multi_tenant.resolvers', [] );
+
+	bridgeLegacyAnalyticsTenancy();
+
+	config()->set( 'artisanpack.core.multi_tenant.enabled', true );
+	app()->forgetInstance( SiteResolver::class );
+	app()->forgetInstance( SiteContext::class );
+
+	app()->instance( 'request', Request::create( 'https://legacy.test/', 'GET' ) );
+
+	expect( app( SiteContext::class )->currentSiteId() )->toBeNull();
+} );
+
+it( 'writes api key usage once per request however often it resolves', function (): void {
+	$site   = sharedResolutionSite( 'Api key' );
+	$apiKey = $site->generateApiKey();
+	$site->save();
+
+	useSharedResolvers( [ ApiKeyResolver::class ] );
+
+	$request = Request::create( '/', 'GET', [], [], [], [
+		'HTTP_AUTHORIZATION' => 'Bearer ' . $apiKey,
+	] );
+	app()->instance( 'request', $request );
+
+	$writes = 0;
+	DB::listen( function ( $query ) use ( &$writes ): void {
+		if ( str_starts_with( strtolower( ltrim( $query->sql ) ), 'update "analytics_sites"' ) ) {
+			$writes++;
+		}
+	} );
+
+	// The shared contract re-resolves on every call by design, and the site
+	// scope resolves once per scoped query — so an unthrottled write here is an
+	// UPDATE per SELECT for the whole request.
+	$context = app( SiteContext::class );
+
+	expect( $context->currentSiteId() )->toBe( $site->id )
+		->and( $context->currentSiteId() )->toBe( $site->id )
+		->and( $context->currentSiteId() )->toBe( $site->id )
+		->and( $writes )->toBe( 1 );
+} );
+
+it( 'leaves a freshly recorded api key usage alone', function (): void {
+	$site = sharedResolutionSite( 'Recently used' );
+	$site->generateApiKey();
+	$site->recordApiKeyUsage();
+
+	$firstRecordedAt = $site->fresh()->api_key_last_used_at;
+
+	$site->fresh()->recordApiKeyUsage();
+
+	expect( $site->fresh()->api_key_last_used_at->eq( $firstRecordedAt ) )->toBeTrue();
+} );
+
+it( 'records api key usage again once the recorded time is stale', function (): void {
+	$site = sharedResolutionSite( 'Stale' );
+	$site->generateApiKey();
+	$site->api_key_last_used_at = now()->subSeconds( Site::API_KEY_USAGE_INTERVAL + 1 );
+	$site->save();
+
+	$site->fresh()->recordApiKeyUsage();
+
+	expect( $site->fresh()->api_key_last_used_at->gt( now()->subSeconds( 5 ) ) )->toBeTrue();
+} );
+
+it( 'respects a sibling package pinning no site over the analytics default', function (): void {
+	$default = sharedResolutionSite( 'Default' );
+
+	useSharedResolvers( [] );
+	config()->set( 'artisanpack.analytics.multi_tenant.default_site_id', $default->id );
+
+	sharedResolutionGoal( 'Default site goal', $default->id );
+	sharedResolutionGoal( 'Other site goal', $default->id + 100 );
+
+	// A pin made straight on the shared context, by a package that knows
+	// nothing about analytics. "No site" is an instruction, not an absence, so
+	// the analytics default must not quietly take its place.
+	app( SiteContext::class )->setSiteId( null );
+
+	expect( app( TenantManager::class )->currentId() )->toBeNull()
+		->and( Goal::query()->pluck( 'name' )->all() )
+		->toBe( [ 'Default site goal', 'Other site goal' ] );
+} );
+
+it( 'still falls back to the analytics default when nothing is pinned', function (): void {
+	$default = sharedResolutionSite( 'Default' );
+
+	useSharedResolvers( [] );
+	config()->set( 'artisanpack.analytics.multi_tenant.default_site_id', $default->id );
+
+	expect( app( TenantManager::class )->currentId() )->toBe( $default->id );
+} );
+
+it( 'returns to the analytics default once a null pin is released', function (): void {
+	$default = sharedResolutionSite( 'Default' );
+
+	useSharedResolvers( [] );
+	config()->set( 'artisanpack.analytics.multi_tenant.default_site_id', $default->id );
+
+	$context = app( SiteContext::class );
+	$context->setSiteId( null );
+
+	expect( app( TenantManager::class )->currentId() )->toBeNull();
+
+	$context->forget();
+
+	expect( app( TenantManager::class )->currentId() )->toBe( $default->id );
 } );

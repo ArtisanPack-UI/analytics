@@ -170,13 +170,20 @@ class TenantIdResolver implements SiteResolver
 
 ### SiteResolverInterface (deprecated)
 
-`ArtisanPackUI\Analytics\Contracts\SiteResolverInterface` now extends the core
-contract and keeps its `resolve(Request): ?Site` and `priority()` methods for
-existing implementations. Core calls only `currentSiteId()`; `resolve()` is
-called by the compatibility adapter,
+`ArtisanPackUI\Analytics\Contracts\SiteResolverInterface` keeps exactly the
+shape it had in 1.4 — `resolve(Request): ?Site` and `priority()` — and
+deliberately does **not** extend the core contract. Extending it would add
+`currentSiteId()` to the interface's requirements, and a class implementing only
+the old shape would then be a fatal error the moment PHP loaded it.
+
+Core calls only `currentSiteId()`. `resolve()` is called by
 `ArtisanPackUI\Analytics\Resolvers\AbstractSiteResolver`, whose
 `currentSiteId()` delegates to it — extend that class to keep a request-shaped
-resolver working. `priority()` is called by nothing. Both are removed in 2.0.
+resolver working. A resolver left exactly as it was keeps resolving too: the
+deprecated-configuration bridge wraps it in
+`ArtisanPackUI\Analytics\Resolvers\LegacySiteResolverAdapter` and logs a
+notice naming the class. `priority()` is called by nothing. All of it is removed
+in 2.0.
 
 ### Registering Custom Resolvers
 

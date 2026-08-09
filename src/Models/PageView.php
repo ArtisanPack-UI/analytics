@@ -148,7 +148,7 @@ class PageView extends Model
 	 */
 	public function scopeForTenant( Builder $query, string|int $tenantId ): Builder
 	{
-		if ( config( 'artisanpack.analytics.multi_tenant.enabled', false ) ) {
+		if ( analyticsMultiTenancyEnabled() ) {
 			return $query->where( 'tenant_id', $tenantId );
 		}
 

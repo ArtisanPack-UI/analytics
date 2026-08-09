@@ -19,7 +19,7 @@ declare( strict_types=1 );
  *
  * @param array<string, mixed> $configOverrides Tracker config overrides.
  *
- * @return array{initialPageViews: list<string>, steps: list<array{label: string, pageViewPaths: list<string>, engagementUpdates: list<array{path: string|null, scroll_depth: int|null}>}>}
+ * @return array{initialPageViews: list<string>, steps: list<array{label: string, beaconOrder: list<string>, pageViewPaths: list<string>, engagementUpdates: list<array{path: string|null, scroll_depth: int|null}>}>, timeline: list<array{url: string, kind: string, paths: list<string>}>}
  */
 function runTrackerHarness( array $configOverrides = [] ): array
 {
@@ -151,5 +151,37 @@ test( 'setting trackHistoryChanges to false restores the previous behaviour', fu
 	foreach ( $report['steps'] as $step ) {
 		expect( $step['pageViewPaths'] )
 			->toBe( [], "Step '{$step['label']}' should record nothing when trackHistoryChanges is off" );
+	}
+} );
+
+test( 'a page view is on the wire before the engagement update that refers to it', function (): void {
+	// Page views sit in the batch queue; engagement updates go out immediately.
+	// Run at the production batch interval rather than the harness's short one,
+	// which is fast enough to hide the race entirely.
+	$report = runTrackerHarness( [ 'batchInterval' => 5000 ] );
+
+	$seenPages = [];
+
+	foreach ( $report['timeline'] as $beacon ) {
+		if ( 'pageview' === $beacon['kind'] ) {
+			foreach ( $beacon['paths'] as $path ) {
+				$seenPages[ $path ] = true;
+			}
+
+			continue;
+		}
+
+		if ( 'update' !== $beacon['kind'] ) {
+			continue;
+		}
+
+		foreach ( $beacon['paths'] as $path ) {
+			// updatePageView() matches the row by path, so an update that
+			// arrives first lands on nothing at all.
+			expect( $seenPages )->toHaveKey(
+				$path,
+				"An engagement update for '{$path}' was sent before that page's own page view",
+			);
+		}
 	}
 } );

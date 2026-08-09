@@ -86,7 +86,13 @@ class HeaderResolver extends AbstractSiteResolver
 				->first();
 		}
 
-		if ( is_numeric( $siteIdentifier ) ) {
+		// Deliberately stricter than is_numeric(), which accepts "12.5", "1e3"
+		// and " 12" — each of which casts to an int naming a different site, or
+		// none. TenantManager::currentId() guards its identifiers the same way;
+		// accepting looser ones here only moves the mis-attribution earlier.
+		// Anchored with \z rather than $, which in PCRE also matches before a
+		// trailing newline, so "12\n" would otherwise resolve site 12.
+		if ( 1 === preg_match( '/^\d+\z/', $siteIdentifier ) ) {
 			return Site::query()
 				->where( 'id', (int) $siteIdentifier )
 				->where( 'is_active', true )
@@ -169,7 +175,18 @@ class HeaderResolver extends AbstractSiteResolver
 			return null;
 		}
 
-		return trim( $peer );
+		$peer = trim( $peer );
+
+		// A dual-stack gateway presents an IPv4 peer as `::ffff:10.0.0.1`, and
+		// IpUtils::checkIp() does not match that against an IPv4 CIDR. The
+		// failure is closed rather than open — a legitimate gateway simply
+		// stops being trusted — but it is an availability trap either way, and
+		// the two notations name the same host.
+		if ( 1 === preg_match( '/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i', $peer, $matches ) ) {
+			return $matches[1];
+		}
+
+		return $peer;
 	}
 
 	/**

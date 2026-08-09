@@ -13,7 +13,9 @@ use ArtisanPackUI\Analytics\Jobs\ProcessEvent;
 use ArtisanPackUI\Analytics\Jobs\ProcessPageView;
 use ArtisanPackUI\Analytics\Models\AnonymousPageView;
 use ArtisanPackUI\Analytics\Models\Session;
+use ArtisanPackUI\Analytics\Models\Site;
 use ArtisanPackUI\Analytics\Models\Visitor;
+use ArtisanPackUI\Core\MultiTenancy\SiteContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -30,6 +32,13 @@ use Throwable;
  */
 class TrackingService
 {
+	/**
+	 * Longest path stored on an anonymous page view.
+	 *
+	 * @var int
+	 */
+	protected const MAX_ANONYMOUS_PATH_LENGTH = 512;
+
 	/**
 	 * Create a new TrackingService instance.
 	 *
@@ -347,14 +356,13 @@ class TrackingService
 
 			AnonymousPageView::create( [
 				'site_id'       => $siteId,
-				'path'          => $path,
+				'path'          => $this->normalizeAnonymousPath( $path ),
 				'title'         => $data['title'] ?? null,
 				'referrer_host' => $this->normalizeReferrerHost( $data['referrer_host'] ?? null ),
 				// Device *class* only — 'desktop' / 'mobile' / 'tablet'. The
 				// user agent string itself is never stored here; it is a
 				// meaningful component of a browser fingerprint.
 				'device_type'   => $this->deviceDetector->getDeviceType( $request->userAgent() ),
-				'country'       => null,
 				'tenant_id'     => $this->getTenantId( $request ),
 				'created_at'    => now(),
 			] );
@@ -464,11 +472,11 @@ class TrackingService
 			return false;
 		}
 
-		// Check DNT header
+		// Check DNT and GPC headers. Independently: a browser sending `DNT: 0`
+		// alongside `Sec-GPC: 1` is not withdrawing its GPC signal, and GPC is
+		// the one carrying legal weight under CCPA.
 		if ( config( 'artisanpack.analytics.privacy.respect_dnt', true ) ) {
-			$dnt = $request->header( 'DNT' ) ?? $request->header( 'Sec-GPC' );
-
-			if ( '1' === $dnt ) {
+			if ( '1' === $request->header( 'DNT' ) || '1' === $request->header( 'Sec-GPC' ) ) {
 				return false;
 			}
 		}
@@ -535,6 +543,39 @@ class TrackingService
 		}
 
 		return false;
+	}
+
+	/**
+	 * Reduce a path to the part that identifies the page.
+	 *
+	 * The anonymous table has no column meant to hold an identifier, but `path`
+	 * is free text, and a mis-wired client posting `/reset?token=…` would store
+	 * that token verbatim — in the one dataset whose whole promise is that it
+	 * carries nothing identifying. The query string and fragment are dropped
+	 * server-side, so the promise does not depend on the client behaving; this
+	 * is also what `pathMatches()` already compares exclusions against.
+	 *
+	 * The result is capped well inside the column so a hostile beacon cannot
+	 * make the INSERT itself fail against a Postgres btree index, whose tuples
+	 * cap out around 2704 bytes — reachable with 2048 multi-byte characters.
+	 *
+	 * @param string $path The path as posted by the client.
+	 *
+	 * @return string The path, without query string or fragment.
+	 *
+	 * @since 1.5.0
+	 */
+	protected function normalizeAnonymousPath( string $path ): string
+	{
+		$normalized = parse_url( $path, PHP_URL_PATH );
+
+		if ( ! is_string( $normalized ) || '' === $normalized ) {
+			// parse_url() returns false for a seriously malformed path and null
+			// for one that is only a query or fragment. Neither names a page.
+			$normalized = '/';
+		}
+
+		return mb_substr( $normalized, 0, self::MAX_ANONYMOUS_PATH_LENGTH );
 	}
 
 	/**
@@ -756,6 +797,11 @@ class TrackingService
 	/**
 	 * Get the tenant ID from the request.
 	 *
+	 * The shared site context answers first, mirroring the `TenantResolver`
+	 * middleware, so a request that resolved a site for every other package
+	 * writes that same site here. The deprecated single-resolver setting is
+	 * only consulted when nothing is in context.
+	 *
 	 * @param Request $request The HTTP request.
 	 *
 	 * @return int|string|null
@@ -764,17 +810,42 @@ class TrackingService
 	 */
 	protected function getTenantId( Request $request ): string|int|null
 	{
-		if ( ! config( 'artisanpack.analytics.multi_tenant.enabled', false ) ) {
+		if ( ! analyticsMultiTenancyEnabled() ) {
 			return null;
+		}
+
+		$siteId = app( SiteContext::class )->currentSiteId();
+
+		if ( null !== $siteId ) {
+			return $siteId;
 		}
 
 		// Check if a resolver is set
 		$resolver = config( 'artisanpack.analytics.multi_tenant.resolver' );
 
-		if ( null !== $resolver && class_exists( $resolver ) ) {
-			return app( $resolver )->resolve( $request );
+		if ( null === $resolver || ! is_string( $resolver ) || ! class_exists( $resolver ) ) {
+			return null;
 		}
 
-		return null;
+		$resolved = app( $resolver )->resolve( $request );
+
+		// The deprecated setting predates the contract, so what comes back may
+		// be a Site model rather than an identifier. Both are usable; anything
+		// else would be a TypeError swallowed by the caller's try/catch, losing
+		// the tenant on every single page view while only logging noise.
+		if ( $resolved instanceof Site ) {
+			return $resolved->id;
+		}
+
+		if ( null !== $resolved && ! is_string( $resolved ) && ! is_int( $resolved ) ) {
+			Log::warning( '[Analytics] The deprecated "multi_tenant.resolver" returned an unusable value.', [
+				'resolver' => $resolver,
+				'returned' => get_debug_type( $resolved ),
+			] );
+
+			return null;
+		}
+
+		return $resolved;
 	}
 }

@@ -65,7 +65,20 @@ Deliberately ignored, so numbers stay honest:
   would otherwise be counted twice when both options are on.
 
 Turn it off if your app already bridges its router's navigation events itself,
-otherwise both will fire:
+otherwise both will fire.
+
+Either set it server-side, which is what most applications want:
+
+```php
+// config/artisanpack/analytics.php
+'tracker' => [
+    'track_history_changes' => env( 'ANALYTICS_TRACK_HISTORY_CHANGES', true ),
+],
+```
+
+or override it for a single page. This global must be set *before* the tracker
+script loads; the served script merges its own config onto whatever is already
+there, so what the page set wins:
 
 ```javascript
 window.__ARTISANPACK_ANALYTICS_CONFIG__ = {

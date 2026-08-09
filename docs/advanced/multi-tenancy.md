@@ -462,8 +462,16 @@ class TeamBasedResolver extends AbstractSiteResolver
 `AbstractSiteResolver::currentSiteId()` is what core calls; it reads the request
 from the container and hands it to your `resolve()`, returning the site's ID.
 
+A resolver left exactly as it was keeps resolving in the meantime. Where the
+deprecated `artisanpack.analytics.multi_tenant.resolvers` list names a class
+that does not implement core's contract, the configuration bridge wraps it in
+`ArtisanPackUI\Analytics\Resolvers\LegacySiteResolverAdapter` — which calls
+your `resolve()` exactly as before — and logs a notice naming the class. Without
+that, core would instantiate the class into its chain, find it is not a
+`SiteResolver`, and fail on the first scoped query the application made.
+
 `SiteResolverInterface` and its `priority()` method are deprecated and will be
-removed in 2.0.
+removed in 2.0, and the adapter goes with them.
 
 ## Middleware
 

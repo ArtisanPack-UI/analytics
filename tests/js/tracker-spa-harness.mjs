@@ -158,15 +158,32 @@ const pathsOf = (list) => list.flatMap((b) =>
         : [b.data && b.data.path]
 ).filter(Boolean);
 
+// Every beacon in the order it left the page, across all steps. A
+// pageview/update that overtakes its own page view finds no row to update, and
+// updatePageView() silently no-ops — losing engagement for quickly-left pages.
+const timeline = [];
+
+const recordTimeline = () => beacons.forEach((b) => timeline.push({
+    url: String(b.url),
+    kind: isUpdate(b) ? 'update' : (isPageView(b) ? 'pageview' : 'other'),
+    paths: isUpdate(b) ? [b.data && b.data.path].filter(Boolean) : pathsOf([b]),
+}));
+
 await wait(80);
-const report = { initialPageViews: pathsOf(beacons.filter(isPageView)), steps: [] };
+recordTimeline();
+const report = { initialPageViews: pathsOf(beacons.filter(isPageView)), steps: [], timeline };
 
 async function step(label, fn) {
     beacons.length = 0;
     fn();
     await wait(80);
+    recordTimeline();
     report.steps.push({
         label,
+        // Beacon urls in the order they left the page. A pageview/update that
+        // overtakes its own page view finds no row to update, and the server
+        // silently no-ops — losing engagement for every quickly-left page.
+        beaconOrder: beacons.map((b) => String(b.url)),
         pageViewPaths: pathsOf(beacons.filter(isPageView)),
         engagementUpdates: beacons.filter(isUpdate).map((b) => ({
             path: b.data && b.data.path,

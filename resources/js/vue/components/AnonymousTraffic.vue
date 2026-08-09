@@ -14,7 +14,7 @@
   @since 1.5.0
 -->
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue';
+import { computed, getCurrentInstance, reactive, watch } from 'vue';
 import { Card, Table, Loading } from '@artisanpack-ui/vue';
 
 import { useAnalyticsApi } from '../composables/useAnalyticsApi';
@@ -91,6 +91,16 @@ const topPages = computed( () => ( data.value?.top_pages ?? [] ).slice( 0, norma
 const referringHosts = computed( () => ( data.value?.referring_hosts ?? [] ).slice( 0, normalizedLimit.value ) );
 const devices = computed( () => data.value?.device_breakdown ?? [] );
 
+// Only offer the toggle when a parent is listening for it. Rendering it
+// unconditionally emits into the void, showing a control that silently does
+// nothing; the React component already gates on its callback prop, and the two
+// have to behave the same way.
+const instance = getCurrentInstance();
+
+const hasIncludeAnonymousListener = computed(
+    () => Boolean( instance?.vnode.props?.onIncludeAnonymousChange ),
+);
+
 function handleIncludeAnonymousChange( event: Event ): void {
     emit( 'includeAnonymousChange', ( event.target as HTMLInputElement ).checked );
 }
@@ -130,7 +140,10 @@ function handleIncludeAnonymousChange( event: Event ): void {
                 anywhere on this dashboard.
             </p>
 
-            <label class="flex items-center gap-2 text-sm cursor-pointer select-none mb-4">
+            <label
+                v-if="hasIncludeAnonymousListener"
+                class="flex items-center gap-2 text-sm cursor-pointer select-none mb-4"
+            >
                 <input
                     type="checkbox"
                     class="toggle toggle-sm"
