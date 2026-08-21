@@ -24,12 +24,14 @@ use ArtisanPackUI\Analytics\Console\Commands\StatsCommand;
 use ArtisanPackUI\Analytics\Console\Commands\WhitelistCommand;
 use ArtisanPackUI\Analytics\Contracts\AnalyticsServiceInterface;
 use ArtisanPackUI\Analytics\Contracts\SiteResolverInterface;
+use ArtisanPackUI\Analytics\Events\PageViewTracked;
 use ArtisanPackUI\Analytics\Http\Middleware\AnalyticsThrottle;
 use ArtisanPackUI\Analytics\Http\Middleware\AuthenticateWithApiKey;
 use ArtisanPackUI\Analytics\Http\Middleware\PrivacyFilter;
 use ArtisanPackUI\Analytics\Http\Middleware\ResolveSite;
 use ArtisanPackUI\Analytics\Http\Middleware\TenantResolver;
 use ArtisanPackUI\Analytics\Jobs\AnalyzeBotTraffic;
+use ArtisanPackUI\Analytics\Listeners\ForwardPageViewToRemoteProviders;
 use ArtisanPackUI\Analytics\Resolvers\LegacySiteResolverAdapter;
 use ArtisanPackUI\Analytics\Services\AnalyticsQuery;
 use ArtisanPackUI\Analytics\Services\BotDetector;
@@ -52,9 +54,14 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Inertia\Inertia;
+use Livewire\Livewire;
+use Livewire\LivewireManager;
 
 /**
  * Service provider for the Analytics package.
@@ -65,8 +72,6 @@ use Illuminate\Support\ServiceProvider;
  * UI package conventions.
  *
  * @since   1.0.0
- *
- * @package ArtisanPackUI\Analytics
  */
 class AnalyticsServiceProvider extends ServiceProvider
 {
@@ -230,6 +235,7 @@ class AnalyticsServiceProvider extends ServiceProvider
         $this->registerRoutes();
         $this->registerCommands();
         $this->registerScheduledJobs();
+        $this->registerEventListeners();
         $this->registerBuiltInProviders();
         $this->registerLivewireComponents();
         $this->registerBladeDirectives();
@@ -344,7 +350,6 @@ class AnalyticsServiceProvider extends ServiceProvider
      * installation, putting analytics' shipped defaults in front of resolvers
      * the application chose deliberately.
      *
-     * @return void
      *
      * @since 1.5.0
      */
@@ -406,7 +411,7 @@ class AnalyticsServiceProvider extends ServiceProvider
      * name means core makes an adapter where it asked for the legacy class, and
      * the resolver keeps resolving through its existing `resolve()`.
      *
-     * @param array<int, mixed> $resolvers The configured legacy resolver list.
+     * @param  array<int, mixed>  $resolvers  The configured legacy resolver list.
      *
      * @return array<int, mixed> The same list, with legacy classes now resolvable.
      *
@@ -437,7 +442,7 @@ class AnalyticsServiceProvider extends ServiceProvider
                 '[Analytics] Adapting the deprecated site resolver ":resolver" onto the shared site-resolution'
                     . ' contract. Implement ArtisanPackUI\\Core\\Contracts\\SiteResolver, or extend'
                     . ' ArtisanPackUI\\Analytics\\Resolvers\\AbstractSiteResolver; this adapter goes away in 2.0.',
-                [ 'resolver' => $resolverClass ],
+                ['resolver' => $resolverClass],
             ) );
         }
 
@@ -453,18 +458,16 @@ class AnalyticsServiceProvider extends ServiceProvider
      * installers should override this gate to enforce a stricter policy.
      *
      * @since 1.3.0
-     *
-     * @return void
      */
     protected function registerAiGate(): void
     {
-        $gate = \Illuminate\Support\Facades\Gate::getFacadeRoot();
+        $gate = Gate::getFacadeRoot();
 
         if ( method_exists( $gate, 'has' ) && $gate->has( 'analytics.ai.use' ) ) {
             return;
         }
 
-        \Illuminate\Support\Facades\Gate::define(
+        Gate::define(
             'analytics.ai.use',
             static function ( $user = null ): bool {
                 return null !== $user;
@@ -481,22 +484,20 @@ class AnalyticsServiceProvider extends ServiceProvider
      * path is used.
      *
      * @since 1.3.0
-     *
-     * @return void
      */
     protected function registerAiLivewireComponents(): void
     {
-        if ( ! class_exists( \Livewire\Livewire::class ) ) {
+        if ( ! class_exists( Livewire::class ) ) {
             return;
         }
 
         // Use dot-notation for the sub-namespace segment so Livewire's finder
         // can round-trip the alias back to the `Ai\*` class. Hyphens between
         // words in the class name are fine — dots separate class segments.
-        \Livewire\Livewire::component( 'artisanpack-analytics::ai.insight-summary', Http\Livewire\Ai\InsightSummary::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::ai.anomaly-explanation', Http\Livewire\Ai\AnomalyExplanation::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::ai.segment-insight', Http\Livewire\Ai\SegmentInsight::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::ai.digest-subscription', Http\Livewire\Ai\DigestSubscription::class );
+        Livewire::component( 'artisanpack-analytics::ai.insight-summary', Http\Livewire\Ai\InsightSummary::class );
+        Livewire::component( 'artisanpack-analytics::ai.anomaly-explanation', Http\Livewire\Ai\AnomalyExplanation::class );
+        Livewire::component( 'artisanpack-analytics::ai.segment-insight', Http\Livewire\Ai\SegmentInsight::class );
+        Livewire::component( 'artisanpack-analytics::ai.digest-subscription', Http\Livewire\Ai\DigestSubscription::class );
     }
 
     /**
@@ -737,7 +738,7 @@ class AnalyticsServiceProvider extends ServiceProvider
         }
 
         // Only register Inertia routes if inertia-laravel is installed
-        if ( ! class_exists( \Inertia\Inertia::class ) ) {
+        if ( ! class_exists( Inertia::class ) ) {
             return;
         }
 
@@ -789,7 +790,7 @@ class AnalyticsServiceProvider extends ServiceProvider
             if ( (bool) config( 'artisanpack.analytics.bot_detection.enabled', true ) ) {
                 $interval = $this->botAnalysisIntervalMinutes();
 
-                $schedule->job( new AnalyzeBotTraffic() )
+                $schedule->job( new AnalyzeBotTraffic )
                     ->cron( sprintf( '*/%d * * * *', $interval ) )
                     ->name( 'analytics-analyze-bot-traffic' )
                     ->withoutOverlapping();
@@ -818,6 +819,24 @@ class AnalyticsServiceProvider extends ServiceProvider
     }
 
     /**
+     * Register the package's event listeners.
+     *
+     * Wires {@see PageViewTracked} — dispatched from the ingest pipeline — to
+     * {@see ForwardPageViewToRemoteProviders}, so page views collected by the
+     * JavaScript tracker reach every active provider, not just `local`. Without
+     * this, server-side forwarders listed in `active_providers` (such as the
+     * GA4 Measurement Protocol adapter) never saw ingested page views, because
+     * the ingest path writes straight to the local provider and only the
+     * `Analytics::trackPageView()` facade fans out to the others.
+     *
+     * @since 1.5.1
+     */
+    protected function registerEventListeners(): void
+    {
+        Event::listen( PageViewTracked::class, ForwardPageViewToRemoteProviders::class );
+    }
+
+    /**
      * Resolve the bot analysis interval, snapped to a divisor of 60 minutes.
      *
      * @return int A minute interval that divides evenly into an hour (1-30).
@@ -828,7 +847,7 @@ class AnalyticsServiceProvider extends ServiceProvider
     {
         $configured = max( 1, (int) config( 'artisanpack.analytics.bot_detection.analysis_interval', 15 ) );
 
-        $divisors = [ 1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30 ];
+        $divisors = [1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30];
         $interval = 1;
 
         foreach ( $divisors as $divisor ) {
@@ -881,14 +900,14 @@ class AnalyticsServiceProvider extends ServiceProvider
     protected function registerLivewireComponents(): void
     {
         // Only register if Livewire is available
-        if ( ! class_exists( \Livewire\Livewire::class ) ) {
+        if ( ! class_exists( Livewire::class ) ) {
             return;
         }
 
         // Livewire 4 supports addNamespace for automatic class resolution.
         // Check against LivewireManager (not the Facade) for method_exists.
-        if ( method_exists( \Livewire\LivewireManager::class, 'addNamespace' ) ) {
-            \Livewire\Livewire::addNamespace(
+        if ( method_exists( LivewireManager::class, 'addNamespace' ) ) {
+            Livewire::addNamespace(
                 namespace: 'artisanpack-analytics',
                 classNamespace: 'ArtisanPackUI\\Analytics\\Http\\Livewire',
                 classPath: __DIR__ . '/Http/Livewire',
@@ -899,24 +918,23 @@ class AnalyticsServiceProvider extends ServiceProvider
         }
 
         // Livewire 3 fallback: register each component individually.
-        \Livewire\Livewire::component( 'artisanpack-analytics::analytics-dashboard', Http\Livewire\AnalyticsDashboard::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::page-analytics', Http\Livewire\PageAnalytics::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::site-selector', Http\Livewire\SiteSelector::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::multi-tenant-dashboard', Http\Livewire\MultiTenantDashboard::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::platform-dashboard', Http\Livewire\PlatformDashboard::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::widgets.stats-cards', Http\Livewire\Widgets\StatsCards::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::widgets.visitors-chart', Http\Livewire\Widgets\VisitorsChart::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::widgets.top-pages', Http\Livewire\Widgets\TopPages::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::widgets.traffic-sources', Http\Livewire\Widgets\TrafficSources::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::widgets.realtime-visitors', Http\Livewire\Widgets\RealtimeVisitors::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::widgets.bot-traffic', Http\Livewire\Widgets\BotTraffic::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::widgets.anonymous-traffic', Http\Livewire\Widgets\AnonymousTraffic::class );
+        Livewire::component( 'artisanpack-analytics::analytics-dashboard', Http\Livewire\AnalyticsDashboard::class );
+        Livewire::component( 'artisanpack-analytics::page-analytics', Http\Livewire\PageAnalytics::class );
+        Livewire::component( 'artisanpack-analytics::site-selector', Http\Livewire\SiteSelector::class );
+        Livewire::component( 'artisanpack-analytics::multi-tenant-dashboard', Http\Livewire\MultiTenantDashboard::class );
+        Livewire::component( 'artisanpack-analytics::platform-dashboard', Http\Livewire\PlatformDashboard::class );
+        Livewire::component( 'artisanpack-analytics::widgets.stats-cards', Http\Livewire\Widgets\StatsCards::class );
+        Livewire::component( 'artisanpack-analytics::widgets.visitors-chart', Http\Livewire\Widgets\VisitorsChart::class );
+        Livewire::component( 'artisanpack-analytics::widgets.top-pages', Http\Livewire\Widgets\TopPages::class );
+        Livewire::component( 'artisanpack-analytics::widgets.traffic-sources', Http\Livewire\Widgets\TrafficSources::class );
+        Livewire::component( 'artisanpack-analytics::widgets.realtime-visitors', Http\Livewire\Widgets\RealtimeVisitors::class );
+        Livewire::component( 'artisanpack-analytics::widgets.bot-traffic', Http\Livewire\Widgets\BotTraffic::class );
+        Livewire::component( 'artisanpack-analytics::widgets.anonymous-traffic', Http\Livewire\Widgets\AnonymousTraffic::class );
     }
 
     /**
      * Register Blade directives for analytics.
      *
-     * @return void
      *
      * @since 1.0.0
      */
@@ -980,7 +998,7 @@ class AnalyticsServiceProvider extends ServiceProvider
         } );
 
         // Only register Livewire directives if Livewire is available
-        if ( class_exists( \Livewire\Livewire::class ) ) {
+        if ( class_exists( Livewire::class ) ) {
             // @analyticsDashboard - Render dashboard Livewire component
             Blade::directive( 'analyticsDashboard', function (): string {
                 return "<?php echo \\Livewire\\Livewire::mount('artisanpack-analytics::analytics-dashboard')->html(); ?>";
@@ -1022,7 +1040,6 @@ class AnalyticsServiceProvider extends ServiceProvider
     /**
      * Register the analytics API key authentication guard.
      *
-     * @return void
      *
      * @since 1.0.0
      */
@@ -1043,7 +1060,6 @@ class AnalyticsServiceProvider extends ServiceProvider
      * common analytics data (current site, consent status, analytics config)
      * is shared as Inertia shared props on all requests.
      *
-     * @return void
      *
      * @since 1.1.0
      */
@@ -1059,11 +1075,11 @@ class AnalyticsServiceProvider extends ServiceProvider
             return;
         }
 
-        if ( ! class_exists( \Inertia\Inertia::class ) ) {
+        if ( ! class_exists( Inertia::class ) ) {
             return;
         }
 
-        \Inertia\Inertia::share( 'analytics', function () {
+        Inertia::share( 'analytics', function () {
             $shared = [
                 'enabled'          => config( 'artisanpack.analytics.enabled', true ),
                 'consent_required' => config( 'artisanpack.analytics.privacy.consent_required', false ),
@@ -1091,6 +1107,6 @@ class AnalyticsServiceProvider extends ServiceProvider
             }
 
             return $shared;
-        } );
+        });
     }
 }

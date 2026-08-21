@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `PageViewTracked` event and `ForwardPageViewToRemoteProviders` listener, which route ingested page views to every active provider so server-side forwarders receive them (see Fixed).
+
+### Fixed
+
+- **Ingested page views now reach every active provider, not just `local`.** Page views collected by the JavaScript tracker are stored through the local provider on the ingest path (`TrackingService`), which never fanned out to the other providers listed in `active_providers` — only the `Analytics::trackPageView()` facade did, and beacon traffic never routes through it. A server-side forwarder such as the GA4 Measurement Protocol provider could therefore be configured correctly, listed as active, and report itself enabled, yet never receive a single ingested page view: forwarding looked broken with no error logged anywhere. The ingest pipeline now dispatches the new `PageViewTracked` event once a page view has been stored — from the `ProcessPageView` job for queued single beacons, the `ProcessBatchTracking` job for queued batches, and `TrackingService::dispatchPageView` itself when processing is synchronous — and `ForwardPageViewToRemoteProviders` forwards it to every active provider except `local` (which stored the row). Dispatching after persistence keeps a forwarder from ever holding a page view the local database is missing, and keeps the forwarding call on the worker rather than the ingest request whenever storage is queued. Custom events are unchanged, and the `Analytics::trackPageView()` facade keeps its own single fan-out and is not routed through this event, so facade callers do not double-send.
+
 ## [1.5.0] - 2026-08-09
 
 ### Security
