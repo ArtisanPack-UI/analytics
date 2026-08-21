@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare( strict_types=1 );
 
 namespace ArtisanPackUI\Analytics\Listeners;
 
@@ -23,10 +23,12 @@ use Throwable;
  * skipped so it can neither take down the others nor fail the caller.
  *
  * The listener is deliberately synchronous. {@see PageViewTracked} is
- * dispatched from wherever the page view was processed — inside the queued
- * `ProcessBatchTracking` job for batched beacons, on the request for a single
- * beacon — so the listener runs in that same context and forwards reliably
- * without depending on a separate queue worker for the `analytics` queue.
+ * dispatched only after the page view has been stored, from whichever context
+ * stored it — the `ProcessPageView` job for queued single beacons, the
+ * `ProcessBatchTracking` job for queued batches, and the request itself when
+ * processing is synchronous. The listener therefore runs in that same context
+ * and forwards reliably without depending on a separate queue worker for the
+ * `analytics` queue, and never forwards a page view the local store rejected.
  *
  * @since 1.5.1
  */
@@ -41,7 +43,8 @@ class ForwardPageViewToRemoteProviders
      */
     public function __construct(
         protected Analytics $analytics,
-    ) {}
+    ) {
+    }
 
     /**
      * Forward the page view to every active provider except `local`.
@@ -50,20 +53,20 @@ class ForwardPageViewToRemoteProviders
      *
      * @since 1.5.1
      */
-    public function handle(PageViewTracked $event): void
+    public function handle( PageViewTracked $event ): void
     {
-        foreach ($this->analytics->getActiveProviders() as $provider) {
-            if ($provider->getName() === 'local') {
+        foreach ( $this->analytics->getActiveProviders() as $provider ) {
+            if ( 'local' === $provider->getName() ) {
                 continue;
             }
 
             try {
-                $provider->trackPageView($event->data);
-            } catch (Throwable $e) {
-                Log::warning('Analytics page view forwarding failed', [
+                $provider->trackPageView( $event->data );
+            } catch ( Throwable $e ) {
+                Log::warning( 'Analytics page view forwarding failed', [
                     'provider' => $provider->getName(),
-                    'error' => $e->getMessage(),
-                ]);
+                    'error'    => $e->getMessage(),
+                ] );
             }
         }
     }

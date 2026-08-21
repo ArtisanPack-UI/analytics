@@ -1,17 +1,20 @@
 <?php
 
-declare(strict_types=1);
+declare( strict_types=1 );
 
 use ArtisanPackUI\Analytics\Analytics;
 use ArtisanPackUI\Analytics\Contracts\AnalyticsProviderInterface;
 use ArtisanPackUI\Analytics\Data\EventData;
 use ArtisanPackUI\Analytics\Data\PageViewData;
 use ArtisanPackUI\Analytics\Events\PageViewTracked;
+use ArtisanPackUI\Analytics\Jobs\ProcessPageView;
 use ArtisanPackUI\Analytics\Models\PageView;
+use ArtisanPackUI\Analytics\Providers\LocalAnalyticsProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+use Mockery;
 
-uses(RefreshDatabase::class);
+uses( RefreshDatabase::class );
 
 /**
  * A real browser User-Agent so the ingest bot filter lets the beacon through.
@@ -27,12 +30,14 @@ final class RecordingForwardProvider implements AnalyticsProviderInterface
     /** @var list<string> */
     public static array $pageViewPaths = [];
 
-    public function trackPageView(PageViewData $data): void
+    public function trackPageView( PageViewData $data ): void
     {
         self::$pageViewPaths[] = $data->path;
     }
 
-    public function trackEvent(EventData $data): void {}
+    public function trackEvent( EventData $data ): void
+    {
+    }
 
     public function isEnabled(): bool
     {
@@ -60,88 +65,127 @@ function activateRecordingForwarder(): void
 {
     RecordingForwardProvider::$pageViewPaths = [];
 
-    $analytics = app(Analytics::class);
-    $analytics->extend('recording_forward', fn (): AnalyticsProviderInterface => new RecordingForwardProvider);
+    $analytics = app( Analytics::class );
+    $analytics->extend( 'recording_forward', fn (): AnalyticsProviderInterface => new RecordingForwardProvider );
 
-    config()->set('artisanpack.analytics.active_providers', ['local', 'recording_forward']);
+    config()->set( 'artisanpack.analytics.active_providers', ['local', 'recording_forward'] );
 }
 
 /**
  * @param  array<string, mixed>  $overrides
+ *
  * @return array<string, mixed>
  */
-function pageViewPayload(array $overrides = []): array
+function pageViewPayload( array $overrides = [] ): array
 {
-    return array_merge([
+    return array_merge( [
         'visitor_id' => 'visitor-abc',
         'session_id' => '11111111-1111-4111-8111-111111111111',
-        'path' => '/docs/getting-started',
-        'title' => 'Getting Started',
-    ], $overrides);
+        'path'       => '/docs/getting-started',
+        'title'      => 'Getting Started',
+    ], $overrides );
 }
 
-test('forwards an ingested page view to every active provider except local', function (): void {
+test( 'forwards an ingested page view to every active provider except local', function (): void {
     activateRecordingForwarder();
 
     test()
-        ->withHeaders(['User-Agent' => FORWARDING_TEST_AGENT])
-        ->postJson('/api/analytics/pageview', pageViewPayload())
+        ->withHeaders( ['User-Agent' => FORWARDING_TEST_AGENT] )
+        ->postJson( '/api/analytics/pageview', pageViewPayload() )
         ->assertNoContent();
 
     // Local stored exactly one row — the local provider was skipped by the
     // forwarding listener, so it was not re-tracked into a duplicate.
-    expect(PageView::query()->where('path', '/docs/getting-started')->count())->toBe(1);
+    expect( PageView::query()->where( 'path', '/docs/getting-started' )->count() )->toBe( 1 );
 
     // The secondary provider received the same page view over the ingest path.
-    expect(RecordingForwardProvider::$pageViewPaths)->toBe(['/docs/getting-started']);
-});
+    expect( RecordingForwardProvider::$pageViewPaths )->toBe( ['/docs/getting-started'] );
+} );
 
-test('forwards batched page views to every active provider except local', function (): void {
+test( 'forwards batched page views to every active provider except local', function (): void {
     activateRecordingForwarder();
 
     test()
-        ->withHeaders(['User-Agent' => FORWARDING_TEST_AGENT])
-        ->postJson('/api/analytics/batch', [
+        ->withHeaders( ['User-Agent' => FORWARDING_TEST_AGENT] )
+        ->postJson( '/api/analytics/batch', [
             'items' => [
-                ['type' => 'pageview', 'data' => pageViewPayload(['path' => '/docs/a'])],
-                ['type' => 'pageview', 'data' => pageViewPayload(['path' => '/docs/b'])],
+                ['type' => 'pageview', 'data' => pageViewPayload( ['path' => '/docs/a'] )],
+                ['type' => 'pageview', 'data' => pageViewPayload( ['path' => '/docs/b'] )],
             ],
-        ])
+        ] )
         ->assertNoContent();
 
-    expect(RecordingForwardProvider::$pageViewPaths)->toEqualCanonicalizing(['/docs/a', '/docs/b']);
-});
+    expect( RecordingForwardProvider::$pageViewPaths )->toEqualCanonicalizing( ['/docs/a', '/docs/b'] );
+} );
 
-test('forwards page views processed through the queued batch job', function (): void {
+test( 'forwards page views processed through the queued batch job', function (): void {
     activateRecordingForwarder();
 
     // Queue the ingest processing so the batch runs through ProcessBatchTracking
     // rather than the synchronous TrackingService path. The test queue
     // connection is `sync`, so the dispatched job executes inline.
-    config()->set('artisanpack.analytics.local.queue_processing', true);
+    config()->set( 'artisanpack.analytics.local.queue_processing', true );
 
     test()
-        ->withHeaders(['User-Agent' => FORWARDING_TEST_AGENT])
-        ->postJson('/api/analytics/batch', [
+        ->withHeaders( ['User-Agent' => FORWARDING_TEST_AGENT] )
+        ->postJson( '/api/analytics/batch', [
             'items' => [
-                ['type' => 'pageview', 'data' => pageViewPayload(['path' => '/docs/queued-a'])],
-                ['type' => 'pageview', 'data' => pageViewPayload(['path' => '/docs/queued-b'])],
+                ['type' => 'pageview', 'data' => pageViewPayload( ['path' => '/docs/queued-a'] )],
+                ['type' => 'pageview', 'data' => pageViewPayload( ['path' => '/docs/queued-b'] )],
             ],
-        ])
+        ] )
         ->assertNoContent();
 
-    expect(RecordingForwardProvider::$pageViewPaths)->toEqualCanonicalizing(['/docs/queued-a', '/docs/queued-b']);
-});
+    expect( RecordingForwardProvider::$pageViewPaths )->toEqualCanonicalizing( ['/docs/queued-a', '/docs/queued-b'] );
+} );
 
-test('ingesting a page view dispatches the PageViewTracked event', function (): void {
-    Event::fake([PageViewTracked::class]);
+test( 'ingesting a page view dispatches the PageViewTracked event', function (): void {
+    Event::fake( [PageViewTracked::class] );
 
     test()
-        ->withHeaders(['User-Agent' => FORWARDING_TEST_AGENT])
-        ->postJson('/api/analytics/pageview', pageViewPayload())
+        ->withHeaders( ['User-Agent' => FORWARDING_TEST_AGENT] )
+        ->postJson( '/api/analytics/pageview', pageViewPayload() )
         ->assertNoContent();
 
-    Event::assertDispatched(PageViewTracked::class, function (PageViewTracked $event): bool {
-        return $event->data->path === '/docs/getting-started';
-    });
-});
+    Event::assertDispatched( PageViewTracked::class, function ( PageViewTracked $event ): bool {
+        return '/docs/getting-started' === $event->data->path;
+    } );
+} );
+
+test( 'forwards a queued single-beacon page view after ProcessPageView stores it', function (): void {
+    activateRecordingForwarder();
+
+    // Queue the ingest processing so the single beacon runs through
+    // ProcessPageView, which forwards only after storePageView() succeeds. The
+    // test queue connection is `sync`, so the job executes inline.
+    config()->set( 'artisanpack.analytics.local.queue_processing', true );
+
+    test()
+        ->withHeaders( ['User-Agent' => FORWARDING_TEST_AGENT] )
+        ->postJson( '/api/analytics/pageview', pageViewPayload() )
+        ->assertNoContent();
+
+    expect( PageView::query()->where( 'path', '/docs/getting-started' )->count() )->toBe( 1 );
+    expect( RecordingForwardProvider::$pageViewPaths )->toBe( ['/docs/getting-started'] );
+} );
+
+test( 'ProcessPageView forwards only when ingest requests it, so the facade path never double-sends', function (): void {
+    $data = new PageViewData( path: '/docs/facade', visitorId: 'visitor-abc' );
+
+    // The facade path dispatches ProcessPageView without the forward flag; it
+    // fans out to providers itself, so the job must not dispatch PageViewTracked.
+    $provider = Mockery::mock( LocalAnalyticsProvider::class );
+    $provider->shouldReceive( 'storePageView' )->once();
+
+    Event::fake( [PageViewTracked::class] );
+    ( new ProcessPageView( $data ) )->handle( $provider );
+    Event::assertNotDispatched( PageViewTracked::class );
+
+    // The ingest path opts in, so the job dispatches the event after storage.
+    $provider = Mockery::mock( LocalAnalyticsProvider::class );
+    $provider->shouldReceive( 'storePageView' )->once();
+
+    Event::fake( [PageViewTracked::class] );
+    ( new ProcessPageView( $data, null, true ) )->handle( $provider );
+    Event::assertDispatched( PageViewTracked::class );
+} );

@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare( strict_types=1 );
 
 namespace ArtisanPackUI\Analytics\Jobs;
 
@@ -58,7 +58,8 @@ class ProcessBatchTracking implements ShouldQueue
         public ?string $userAgent = null,
         public string|int|null $tenantId = null,
         public ?int $siteId = null,
-    ) {}
+    ) {
+    }
 
     /**
      * Execute the job.
@@ -67,16 +68,16 @@ class ProcessBatchTracking implements ShouldQueue
      *
      * @since 1.0.0
      */
-    public function handle(LocalAnalyticsProvider $provider): void
+    public function handle( LocalAnalyticsProvider $provider ): void
     {
-        foreach ($this->items as $item) {
+        foreach ( $this->items as $item ) {
             try {
-                $this->processItem($item, $provider);
-            } catch (Throwable $e) {
-                Log::warning('Failed to process batch item', [
+                $this->processItem( $item, $provider );
+            } catch ( Throwable $e ) {
+                Log::warning( 'Failed to process batch item', [
                     'error' => $e->getMessage(),
-                    'type' => $item['type'] ?? 'unknown',
-                ]);
+                    'type'  => $item['type'] ?? 'unknown',
+                ] );
             }
         }
     }
@@ -93,7 +94,7 @@ class ProcessBatchTracking implements ShouldQueue
         return [
             'analytics',
             'batch',
-            'items:'.count($this->items),
+            'items:' . count( $this->items ),
         ];
     }
 
@@ -105,7 +106,7 @@ class ProcessBatchTracking implements ShouldQueue
      *
      * @since 1.0.0
      */
-    protected function processItem(array $item, LocalAnalyticsProvider $provider): void
+    protected function processItem( array $item, LocalAnalyticsProvider $provider ): void
     {
         $type = $item['type'] ?? '';
         $data = $item['data'] ?? [];
@@ -113,35 +114,35 @@ class ProcessBatchTracking implements ShouldQueue
         // Merge in common data
         $data['ip_address'] = $data['ip_address'] ?? $this->ipAddress;
         $data['user_agent'] = $data['user_agent'] ?? $this->userAgent;
-        $data['tenant_id'] = $data['tenant_id'] ?? $this->tenantId;
-        $data['site_id'] = $data['site_id'] ?? $this->siteId;
+        $data['tenant_id']  = $data['tenant_id'] ?? $this->tenantId;
+        $data['site_id']    = $data['site_id'] ?? $this->siteId;
 
-        switch ($type) {
+        switch ( $type ) {
             case 'pageview':
-                $pageViewData = $this->createPageViewData($data);
-                $provider->storePageView($pageViewData, $this->siteId);
+                $pageViewData = $this->createPageViewData( $data );
+                $provider->storePageView( $pageViewData );
 
                 // Forward the batched page view to any secondary active
                 // provider (e.g. the GA4 Measurement Protocol forwarder). This
                 // is the queued-batch counterpart to the single-page-view
                 // forwarding in TrackingService::dispatchPageView; the listener
                 // skips the local provider, which stored the row above.
-                PageViewTracked::dispatch($pageViewData, $this->siteId);
+                PageViewTracked::dispatch( $pageViewData, $this->siteId );
                 break;
 
             case 'event':
-                $eventData = $this->createEventData($data);
-                $provider->storeEvent($eventData, $this->siteId);
+                $eventData = $this->createEventData( $data );
+                $provider->storeEvent( $eventData, $this->siteId );
                 break;
 
             default:
                 // Log without PII - only include safe metadata
-                Log::warning('Unknown batch item type', [
-                    'type' => $type,
-                    'has_path' => isset($data['path']),
-                    'has_name' => isset($data['name']),
-                    'data_keys' => array_keys($data),
-                ]);
+                Log::warning( 'Unknown batch item type', [
+                    'type'      => $type,
+                    'has_path'  => isset( $data['path'] ),
+                    'has_name'  => isset( $data['name'] ),
+                    'data_keys' => array_keys( $data ),
+                ] );
                 break;
         }
     }
@@ -153,34 +154,35 @@ class ProcessBatchTracking implements ShouldQueue
      *
      * @since 1.0.0
      */
-    protected function createPageViewData(array $data): PageViewData
+    protected function createPageViewData( array $data ): PageViewData
     {
         return new PageViewData(
-            path: $this->castToString($data['path'] ?? '/'),
-            title: $this->castToStringOrNull($data['title'] ?? null),
-            referrer: $this->castToStringOrNull($data['referrer'] ?? null),
-            sessionId: $this->castToStringOrNull($data['session_id'] ?? null),
-            visitorId: $this->castToStringOrNull($data['visitor_id'] ?? null),
-            ipAddress: $this->castToStringOrNull($data['ip_address'] ?? null),
-            userAgent: $this->castToStringOrNull($data['user_agent'] ?? null),
-            country: $this->castToStringOrNull($data['country'] ?? null),
-            deviceType: $this->castToStringOrNull($data['device_type'] ?? null),
-            browser: $this->castToStringOrNull($data['browser'] ?? null),
-            browserVersion: $this->castToStringOrNull($data['browser_version'] ?? null),
-            os: $this->castToStringOrNull($data['os'] ?? null),
-            osVersion: $this->castToStringOrNull($data['os_version'] ?? null),
-            screenWidth: $this->castToStringOrNull($data['screen_width'] ?? null),
-            screenHeight: $this->castToStringOrNull($data['screen_height'] ?? null),
-            viewportWidth: $this->castToStringOrNull($data['viewport_width'] ?? null),
-            viewportHeight: $this->castToStringOrNull($data['viewport_height'] ?? null),
-            utmSource: $this->castToStringOrNull($data['utm_source'] ?? null),
-            utmMedium: $this->castToStringOrNull($data['utm_medium'] ?? null),
-            utmCampaign: $this->castToStringOrNull($data['utm_campaign'] ?? null),
-            utmTerm: $this->castToStringOrNull($data['utm_term'] ?? null),
-            utmContent: $this->castToStringOrNull($data['utm_content'] ?? null),
-            loadTime: $this->castToFloatOrNull($data['load_time'] ?? null),
-            customData: is_array($data['custom_data'] ?? null) ? $data['custom_data'] : null,
+            path: $this->castToString( $data['path'] ?? '/' ),
+            title: $this->castToStringOrNull( $data['title'] ?? null ),
+            referrer: $this->castToStringOrNull( $data['referrer'] ?? null ),
+            sessionId: $this->castToStringOrNull( $data['session_id'] ?? null ),
+            visitorId: $this->castToStringOrNull( $data['visitor_id'] ?? null ),
+            ipAddress: $this->castToStringOrNull( $data['ip_address'] ?? null ),
+            userAgent: $this->castToStringOrNull( $data['user_agent'] ?? null ),
+            country: $this->castToStringOrNull( $data['country'] ?? null ),
+            deviceType: $this->castToStringOrNull( $data['device_type'] ?? null ),
+            browser: $this->castToStringOrNull( $data['browser'] ?? null ),
+            browserVersion: $this->castToStringOrNull( $data['browser_version'] ?? null ),
+            os: $this->castToStringOrNull( $data['os'] ?? null ),
+            osVersion: $this->castToStringOrNull( $data['os_version'] ?? null ),
+            screenWidth: $this->castToStringOrNull( $data['screen_width'] ?? null ),
+            screenHeight: $this->castToStringOrNull( $data['screen_height'] ?? null ),
+            viewportWidth: $this->castToStringOrNull( $data['viewport_width'] ?? null ),
+            viewportHeight: $this->castToStringOrNull( $data['viewport_height'] ?? null ),
+            utmSource: $this->castToStringOrNull( $data['utm_source'] ?? null ),
+            utmMedium: $this->castToStringOrNull( $data['utm_medium'] ?? null ),
+            utmCampaign: $this->castToStringOrNull( $data['utm_campaign'] ?? null ),
+            utmTerm: $this->castToStringOrNull( $data['utm_term'] ?? null ),
+            utmContent: $this->castToStringOrNull( $data['utm_content'] ?? null ),
+            loadTime: $this->castToFloatOrNull( $data['load_time'] ?? null ),
+            customData: is_array( $data['custom_data'] ?? null ) ? $data['custom_data'] : null,
             tenantId: $data['tenant_id'] ?? null,
+            siteId: $this->siteId,
         );
     }
 
@@ -191,9 +193,9 @@ class ProcessBatchTracking implements ShouldQueue
      *
      * @since 1.0.0
      */
-    protected function castToStringOrNull(mixed $value): ?string
+    protected function castToStringOrNull( mixed $value ): ?string
     {
-        if ($value === null || is_array($value)) {
+        if ( null === $value || is_array( $value ) ) {
             return null;
         }
 
@@ -207,9 +209,9 @@ class ProcessBatchTracking implements ShouldQueue
      *
      * @since 1.0.0
      */
-    protected function castToString(mixed $value): string
+    protected function castToString( mixed $value ): string
     {
-        if (is_array($value)) {
+        if ( is_array( $value ) ) {
             return '';
         }
 
@@ -223,13 +225,13 @@ class ProcessBatchTracking implements ShouldQueue
      *
      * @since 1.0.0
      */
-    protected function castToIntOrNull(mixed $value): ?int
+    protected function castToIntOrNull( mixed $value ): ?int
     {
-        if ($value === null || is_array($value)) {
+        if ( null === $value || is_array( $value ) ) {
             return null;
         }
 
-        if (! is_numeric($value)) {
+        if ( ! is_numeric( $value ) ) {
             return null;
         }
 
@@ -246,13 +248,13 @@ class ProcessBatchTracking implements ShouldQueue
      *
      * @since 1.0.0
      */
-    protected function castToFloatOrNull(mixed $value): ?float
+    protected function castToFloatOrNull( mixed $value ): ?float
     {
-        if ($value === null || is_array($value)) {
+        if ( null === $value || is_array( $value ) ) {
             return null;
         }
 
-        if (! is_numeric($value)) {
+        if ( ! is_numeric( $value ) ) {
             return null;
         }
 
@@ -266,18 +268,18 @@ class ProcessBatchTracking implements ShouldQueue
      *
      * @since 1.0.0
      */
-    protected function createEventData(array $data): EventData
+    protected function createEventData( array $data ): EventData
     {
         return new EventData(
-            name: $this->castToString($data['name'] ?? ''),
-            properties: is_array($data['properties'] ?? null) ? $data['properties'] : null,
-            sessionId: $this->castToStringOrNull($data['session_id'] ?? null),
-            visitorId: $this->castToStringOrNull($data['visitor_id'] ?? null),
-            path: $this->castToStringOrNull($data['path'] ?? null),
-            ipAddress: $this->castToStringOrNull($data['ip_address'] ?? null),
-            userAgent: $this->castToStringOrNull($data['user_agent'] ?? null),
-            value: $this->castToFloatOrNull($data['value'] ?? null),
-            category: $this->castToStringOrNull($data['category'] ?? null),
+            name: $this->castToString( $data['name'] ?? '' ),
+            properties: is_array( $data['properties'] ?? null ) ? $data['properties'] : null,
+            sessionId: $this->castToStringOrNull( $data['session_id'] ?? null ),
+            visitorId: $this->castToStringOrNull( $data['visitor_id'] ?? null ),
+            path: $this->castToStringOrNull( $data['path'] ?? null ),
+            ipAddress: $this->castToStringOrNull( $data['ip_address'] ?? null ),
+            userAgent: $this->castToStringOrNull( $data['user_agent'] ?? null ),
+            value: $this->castToFloatOrNull( $data['value'] ?? null ),
+            category: $this->castToStringOrNull( $data['category'] ?? null ),
             tenantId: $data['tenant_id'] ?? null,
         );
     }

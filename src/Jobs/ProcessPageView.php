@@ -5,6 +5,7 @@ declare( strict_types=1 );
 namespace ArtisanPackUI\Analytics\Jobs;
 
 use ArtisanPackUI\Analytics\Data\PageViewData;
+use ArtisanPackUI\Analytics\Events\PageViewTracked;
 use ArtisanPackUI\Analytics\Providers\LocalAnalyticsProvider;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -46,12 +47,22 @@ class ProcessPageView implements ShouldQueue
 	/**
 	 * Create a new job instance.
 	 *
-	 * @param PageViewData $data The page view data to process.
+	 * @param PageViewData $data               The page view data to process.
+	 * @param int|null     $siteId             The resolved site the page view belongs to.
+	 * @param bool         $forwardToProviders Whether to dispatch PageViewTracked
+	 *                                         after storage so the ingest page view
+	 *                                         reaches secondary active providers.
+	 *                                         Defaults to false so the facade path
+	 *                                         (LocalAnalyticsProvider::trackPageView),
+	 *                                         which fans out to providers itself, does
+	 *                                         not double-send.
 	 *
 	 * @since 1.0.0
 	 */
 	public function __construct(
 		public PageViewData $data,
+		public ?int $siteId = null,
+		public bool $forwardToProviders = false,
 	) {
 	}
 
@@ -65,6 +76,14 @@ class ProcessPageView implements ShouldQueue
 	public function handle( LocalAnalyticsProvider $provider ): void
 	{
 		$provider->storePageView( $this->data );
+
+		// Forward only after local persistence has succeeded, so a secondary
+		// provider never holds a page view the local database does not. Gated
+		// on the ingest flag so the facade path, which fans out to providers on
+		// its own, is not forwarded a second time here.
+		if ( $this->forwardToProviders ) {
+			PageViewTracked::dispatch( $this->data, $this->siteId );
+		}
 	}
 
 	/**

@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare( strict_types=1 );
 
 namespace ArtisanPackUI\Analytics\Events;
 
@@ -45,5 +45,6 @@ class PageViewTracked
     public function __construct(
         public PageViewData $data,
         public ?int $siteId = null,
-    ) {}
+    ) {
+    }
 }
