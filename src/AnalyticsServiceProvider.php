@@ -1,6 +1,6 @@
 <?php
 
-declare( strict_types=1 );
+declare(strict_types=1);
 
 namespace ArtisanPackUI\Analytics;
 
@@ -24,12 +24,14 @@ use ArtisanPackUI\Analytics\Console\Commands\StatsCommand;
 use ArtisanPackUI\Analytics\Console\Commands\WhitelistCommand;
 use ArtisanPackUI\Analytics\Contracts\AnalyticsServiceInterface;
 use ArtisanPackUI\Analytics\Contracts\SiteResolverInterface;
+use ArtisanPackUI\Analytics\Events\PageViewTracked;
 use ArtisanPackUI\Analytics\Http\Middleware\AnalyticsThrottle;
 use ArtisanPackUI\Analytics\Http\Middleware\AuthenticateWithApiKey;
 use ArtisanPackUI\Analytics\Http\Middleware\PrivacyFilter;
 use ArtisanPackUI\Analytics\Http\Middleware\ResolveSite;
 use ArtisanPackUI\Analytics\Http\Middleware\TenantResolver;
 use ArtisanPackUI\Analytics\Jobs\AnalyzeBotTraffic;
+use ArtisanPackUI\Analytics\Listeners\ForwardPageViewToRemoteProviders;
 use ArtisanPackUI\Analytics\Resolvers\LegacySiteResolverAdapter;
 use ArtisanPackUI\Analytics\Services\AnalyticsQuery;
 use ArtisanPackUI\Analytics\Services\BotDetector;
@@ -52,9 +54,14 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Inertia\Inertia;
+use Livewire\Livewire;
+use Livewire\LivewireManager;
 
 /**
  * Service provider for the Analytics package.
@@ -65,8 +72,6 @@ use Illuminate\Support\ServiceProvider;
  * UI package conventions.
  *
  * @since   1.0.0
- *
- * @package ArtisanPackUI\Analytics
  */
 class AnalyticsServiceProvider extends ServiceProvider
 {
@@ -81,7 +86,7 @@ class AnalyticsServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(
-            __DIR__ . '/../config/analytics.php',
+            __DIR__.'/../config/analytics.php',
             'artisanpack-analytics-temp',
         );
 
@@ -89,78 +94,78 @@ class AnalyticsServiceProvider extends ServiceProvider
         $this->mergeConfiguration();
 
         // Register the main Analytics manager
-        $this->app->singleton( Analytics::class, function ( $app ) {
-            return new Analytics( $app );
-        } );
+        $this->app->singleton(Analytics::class, function ($app) {
+            return new Analytics($app);
+        });
 
-        $this->app->singleton( 'analytics', function ( $app ) {
-            return $app->make( Analytics::class );
-        } );
+        $this->app->singleton('analytics', function ($app) {
+            return $app->make(Analytics::class);
+        });
 
         // Bind interface to implementation
-        $this->app->bind( AnalyticsServiceInterface::class, Analytics::class );
+        $this->app->bind(AnalyticsServiceInterface::class, Analytics::class);
 
         // Register the AnalyticsQuery service
-        $this->app->bind( AnalyticsQuery::class, function ( $app ) {
+        $this->app->bind(AnalyticsQuery::class, function ($app) {
             return new AnalyticsQuery(
-                $app->make( Analytics::class ),
+                $app->make(Analytics::class),
             );
-        } );
+        });
 
         // Register the GoalMatcher service
-        $this->app->bind( GoalMatcher::class, function ( $app ) {
+        $this->app->bind(GoalMatcher::class, function ($app) {
             return new GoalMatcher;
-        } );
+        });
 
         // Register the GoalService
-        $this->app->bind( GoalService::class, function ( $app ) {
+        $this->app->bind(GoalService::class, function ($app) {
             return new GoalService(
-                $app->make( GoalMatcher::class ),
+                $app->make(GoalMatcher::class),
             );
-        } );
+        });
 
         // Register the EventProcessor service
-        $this->app->bind( EventProcessor::class, function ( $app ) {
+        $this->app->bind(EventProcessor::class, function ($app) {
             return new EventProcessor(
-                $app->make( GoalMatcher::class ),
+                $app->make(GoalMatcher::class),
             );
-        } );
+        });
 
         // Register the FunnelAnalyzer service
-        $this->app->bind( FunnelAnalyzer::class, function ( $app ) {
+        $this->app->bind(FunnelAnalyzer::class, function ($app) {
             return new FunnelAnalyzer;
-        } );
+        });
 
         // Register the IpAnonymizer service
-        $this->app->singleton( IpAnonymizer::class, function () {
+        $this->app->singleton(IpAnonymizer::class, function () {
             return new IpAnonymizer;
-        } );
+        });
 
         // Register the ConsentService
-        $this->app->singleton( ConsentService::class, function ( $app ) {
+        $this->app->singleton(ConsentService::class, function ($app) {
             return new ConsentService(
-                $app->make( IpAnonymizer::class ),
+                $app->make(IpAnonymizer::class),
             );
-        } );
+        });
 
         // Register the DataExportService
-        $this->app->singleton( DataExportService::class, function () {
+        $this->app->singleton(DataExportService::class, function () {
             return new DataExportService;
-        } );
+        });
 
         // Register the DataDeletionService
-        $this->app->singleton( DataDeletionService::class, function () {
+        $this->app->singleton(DataDeletionService::class, function () {
             return new DataDeletionService;
-        } );
+        });
 
         // Register the PrivacyIntegration service
-        $this->app->singleton( PrivacyIntegration::class, function ( $app ) {
+        $this->app->singleton(PrivacyIntegration::class, function ($app) {
             return new PrivacyIntegration(
-                $app->make( DataExportService::class ),
-                $app->make( DataDeletionService::class ),
-                $app->make( ConsentService::class ),
+                $app->make(DataExportService::class),
+                $app->make(DataDeletionService::class),
+                $app->make(ConsentService::class),
             );
-        } );
+        });
 
         // Register TenantManager over the ecosystem's shared site context.
         //
@@ -168,11 +173,11 @@ class AnalyticsServiceProvider extends ServiceProvider
         // forgets scoped instances between Octane requests and between queue
         // jobs, so a site pinned by one job cannot scope the next job's data,
         // and neither can the Site model this manager caches.
-        $this->app->scoped( TenantManager::class, function ( $app ) {
+        $this->app->scoped(TenantManager::class, function ($app) {
             return new TenantManager(
-                $app->make( SiteContext::class ),
+                $app->make(SiteContext::class),
             );
-        } );
+        });
 
         // Register SiteSettingsService.
         //
@@ -180,23 +185,23 @@ class AnalyticsServiceProvider extends ServiceProvider
         // singleton captures the first job's scoped TenantManager and keeps
         // consulting it after the container has forgotten it, so a site pinned
         // by one queue job decides the settings the next job reads.
-        $this->app->scoped( SiteSettingsService::class, function ( $app ) {
+        $this->app->scoped(SiteSettingsService::class, function ($app) {
             return new SiteSettingsService(
-                $app->make( TenantManager::class ),
+                $app->make(TenantManager::class),
             );
-        } );
+        });
 
         // Register CrossTenantReporting
-        $this->app->singleton( CrossTenantReporting::class, function () {
+        $this->app->singleton(CrossTenantReporting::class, function () {
             return new CrossTenantReporting;
-        } );
+        });
 
         // Register the BotDetector service
-        $this->app->singleton( BotDetector::class, function ( $app ) {
+        $this->app->singleton(BotDetector::class, function ($app) {
             return new BotDetector(
-                $app->make( DeviceDetector::class ),
+                $app->make(DeviceDetector::class),
             );
-        } );
+        });
     }
 
     /**
@@ -230,6 +235,7 @@ class AnalyticsServiceProvider extends ServiceProvider
         $this->registerRoutes();
         $this->registerCommands();
         $this->registerScheduledJobs();
+        $this->registerEventListeners();
         $this->registerBuiltInProviders();
         $this->registerLivewireComponents();
         $this->registerBladeDirectives();
@@ -256,28 +262,28 @@ class AnalyticsServiceProvider extends ServiceProvider
     {
         return [
             'analytics.insight_summary' => [
-                'agent'       => InsightSummaryAgent::class,
-                'package'     => 'artisanpack-ui/analytics',
-                'label'       => __( 'Summarize insights' ),
-                'description' => __( 'Plain-language narrative summary of a date range with highlights and concerns.' ),
+                'agent' => InsightSummaryAgent::class,
+                'package' => 'artisanpack-ui/analytics',
+                'label' => __('Summarize insights'),
+                'description' => __('Plain-language narrative summary of a date range with highlights and concerns.'),
             ],
             'analytics.explain_anomaly' => [
-                'agent'       => AnomalyExplanationAgent::class,
-                'package'     => 'artisanpack-ui/analytics',
-                'label'       => __( 'Explain anomaly' ),
-                'description' => __( 'Rank likely causes of a detected traffic anomaly with evidence and next steps.' ),
+                'agent' => AnomalyExplanationAgent::class,
+                'package' => 'artisanpack-ui/analytics',
+                'label' => __('Explain anomaly'),
+                'description' => __('Rank likely causes of a detected traffic anomaly with evidence and next steps.'),
             ],
             'analytics.segment_insight' => [
-                'agent'       => SegmentInsightAgent::class,
-                'package'     => 'artisanpack-ui/analytics',
-                'label'       => __( 'Segment insight' ),
-                'description' => __( 'Surface patterns in a visitor segment relative to a baseline.' ),
+                'agent' => SegmentInsightAgent::class,
+                'package' => 'artisanpack-ui/analytics',
+                'label' => __('Segment insight'),
+                'description' => __('Surface patterns in a visitor segment relative to a baseline.'),
             ],
             'analytics.digest_email' => [
-                'agent'       => DigestEmailAgent::class,
-                'package'     => 'artisanpack-ui/analytics',
-                'label'       => __( 'Digest email' ),
-                'description' => __( 'Compose the AI narrative body of the opt-in weekly/monthly analytics digest.' ),
+                'agent' => DigestEmailAgent::class,
+                'package' => 'artisanpack-ui/analytics',
+                'label' => __('Digest email'),
+                'description' => __('Compose the AI narrative body of the opt-in weekly/monthly analytics digest.'),
             ],
         ];
     }
@@ -344,55 +350,54 @@ class AnalyticsServiceProvider extends ServiceProvider
      * installation, putting analytics' shipped defaults in front of resolvers
      * the application chose deliberately.
      *
-     * @return void
      *
      * @since 1.5.0
      */
     protected function bridgeLegacyMultiTenantConfig(): void
     {
-        if ( ! config( 'artisanpack.analytics.multi_tenant.enabled', false ) ) {
+        if (! config('artisanpack.analytics.multi_tenant.enabled', false)) {
             return;
         }
 
-        $config = $this->app->make( 'config' );
+        $config = $this->app->make('config');
 
-        if ( ! $config->get( 'artisanpack.core.multi_tenant.enabled', false ) ) {
-            $config->set( 'artisanpack.core.multi_tenant.enabled', true );
+        if (! $config->get('artisanpack.core.multi_tenant.enabled', false)) {
+            $config->set('artisanpack.core.multi_tenant.enabled', true);
         }
 
-        $legacyResolvers = $config->get( 'artisanpack.analytics.multi_tenant.resolvers', [] );
-        $sharedResolvers = $config->get( 'artisanpack.core.multi_tenant.resolvers', [] );
+        $legacyResolvers = $config->get('artisanpack.analytics.multi_tenant.resolvers', []);
+        $sharedResolvers = $config->get('artisanpack.core.multi_tenant.resolvers', []);
 
         // A shared list that is not a list is a configuration fault, and core
         // reports it as one when the resolver is built. Merging into it here
         // would turn that report into a confusing one about analytics.
-        if ( ! is_array( $legacyResolvers ) || [] === $legacyResolvers || ! is_array( $sharedResolvers ) ) {
+        if (! is_array($legacyResolvers) || $legacyResolvers === [] || ! is_array($sharedResolvers)) {
             return;
         }
 
         // A populated shared list is positive evidence the application migrated,
         // so leave the order it chose alone and say why nothing was carried over.
-        if ( [] !== array_values( $sharedResolvers ) ) {
-            Log::warning( __(
+        if (array_values($sharedResolvers) !== []) {
+            Log::warning(__(
                 '[Analytics] Ignoring the deprecated "artisanpack.analytics.multi_tenant.resolvers" list because'
-                    . ' "artisanpack.core.multi_tenant.resolvers" is already configured. Prepending onto it would'
-                    . ' reorder site resolution for every ArtisanPack UI package. Move any resolver you still need'
-                    . ' to the core list and remove the deprecated one.',
-            ) );
+                    .' "artisanpack.core.multi_tenant.resolvers" is already configured. Prepending onto it would'
+                    .' reorder site resolution for every ArtisanPack UI package. Move any resolver you still need'
+                    .' to the core list and remove the deprecated one.',
+            ));
 
             return;
         }
 
-        $merged = $this->adaptLegacySiteResolvers( array_values( $legacyResolvers ) );
+        $merged = $this->adaptLegacySiteResolvers(array_values($legacyResolvers));
 
-        $config->set( 'artisanpack.core.multi_tenant.resolvers', array_values( array_unique( $merged ) ) );
+        $config->set('artisanpack.core.multi_tenant.resolvers', array_values(array_unique($merged)));
 
-        Log::notice( __(
+        Log::notice(__(
             '[Analytics] Bridging the deprecated "artisanpack.analytics.multi_tenant" settings onto'
-                . ' "artisanpack.core.multi_tenant", which every ArtisanPack UI package now resolves sites from.'
-                . ' Move your resolvers to the core key and switch tenancy on there; support for the analytics'
-                . ' key will be removed in 2.0.',
-        ) );
+                .' "artisanpack.core.multi_tenant", which every ArtisanPack UI package now resolves sites from.'
+                .' Move your resolvers to the core key and switch tenancy on there; support for the analytics'
+                .' key will be removed in 2.0.',
+        ));
     }
 
     /**
@@ -406,39 +411,38 @@ class AnalyticsServiceProvider extends ServiceProvider
      * name means core makes an adapter where it asked for the legacy class, and
      * the resolver keeps resolving through its existing `resolve()`.
      *
-     * @param array<int, mixed> $resolvers The configured legacy resolver list.
-     *
+     * @param  array<int, mixed>  $resolvers  The configured legacy resolver list.
      * @return array<int, mixed> The same list, with legacy classes now resolvable.
      *
      * @since 1.5.0
      */
-    protected function adaptLegacySiteResolvers( array $resolvers ): array
+    protected function adaptLegacySiteResolvers(array $resolvers): array
     {
-        foreach ( $resolvers as $resolverClass ) {
-            if ( ! is_string( $resolverClass ) || ! class_exists( $resolverClass ) ) {
+        foreach ($resolvers as $resolverClass) {
+            if (! is_string($resolverClass) || ! class_exists($resolverClass)) {
                 continue;
             }
 
-            if ( is_a( $resolverClass, SiteResolver::class, true ) ) {
+            if (is_a($resolverClass, SiteResolver::class, true)) {
                 continue;
             }
 
-            if ( ! is_a( $resolverClass, SiteResolverInterface::class, true )
-                && ! method_exists( $resolverClass, 'resolve' ) ) {
+            if (! is_a($resolverClass, SiteResolverInterface::class, true)
+                && ! method_exists($resolverClass, 'resolve')) {
                 continue;
             }
 
             $this->app->bind(
                 $resolverClass,
-                fn (): LegacySiteResolverAdapter => new LegacySiteResolverAdapter( $resolverClass ),
+                fn (): LegacySiteResolverAdapter => new LegacySiteResolverAdapter($resolverClass),
             );
 
-            Log::notice( __(
+            Log::notice(__(
                 '[Analytics] Adapting the deprecated site resolver ":resolver" onto the shared site-resolution'
-                    . ' contract. Implement ArtisanPackUI\\Core\\Contracts\\SiteResolver, or extend'
-                    . ' ArtisanPackUI\\Analytics\\Resolvers\\AbstractSiteResolver; this adapter goes away in 2.0.',
-                [ 'resolver' => $resolverClass ],
-            ) );
+                    .' contract. Implement ArtisanPackUI\\Core\\Contracts\\SiteResolver, or extend'
+                    .' ArtisanPackUI\\Analytics\\Resolvers\\AbstractSiteResolver; this adapter goes away in 2.0.',
+                ['resolver' => $resolverClass],
+            ));
         }
 
         return $resolvers;
@@ -453,21 +457,19 @@ class AnalyticsServiceProvider extends ServiceProvider
      * installers should override this gate to enforce a stricter policy.
      *
      * @since 1.3.0
-     *
-     * @return void
      */
     protected function registerAiGate(): void
     {
-        $gate = \Illuminate\Support\Facades\Gate::getFacadeRoot();
+        $gate = Gate::getFacadeRoot();
 
-        if ( method_exists( $gate, 'has' ) && $gate->has( 'analytics.ai.use' ) ) {
+        if (method_exists($gate, 'has') && $gate->has('analytics.ai.use')) {
             return;
         }
 
-        \Illuminate\Support\Facades\Gate::define(
+        Gate::define(
             'analytics.ai.use',
-            static function ( $user = null ): bool {
-                return null !== $user;
+            static function ($user = null): bool {
+                return $user !== null;
             },
         );
     }
@@ -481,22 +483,20 @@ class AnalyticsServiceProvider extends ServiceProvider
      * path is used.
      *
      * @since 1.3.0
-     *
-     * @return void
      */
     protected function registerAiLivewireComponents(): void
     {
-        if ( ! class_exists( \Livewire\Livewire::class ) ) {
+        if (! class_exists(Livewire::class)) {
             return;
         }
 
         // Use dot-notation for the sub-namespace segment so Livewire's finder
         // can round-trip the alias back to the `Ai\*` class. Hyphens between
         // words in the class name are fine — dots separate class segments.
-        \Livewire\Livewire::component( 'artisanpack-analytics::ai.insight-summary', Http\Livewire\Ai\InsightSummary::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::ai.anomaly-explanation', Http\Livewire\Ai\AnomalyExplanation::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::ai.segment-insight', Http\Livewire\Ai\SegmentInsight::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::ai.digest-subscription', Http\Livewire\Ai\DigestSubscription::class );
+        Livewire::component('artisanpack-analytics::ai.insight-summary', Http\Livewire\Ai\InsightSummary::class);
+        Livewire::component('artisanpack-analytics::ai.anomaly-explanation', Http\Livewire\Ai\AnomalyExplanation::class);
+        Livewire::component('artisanpack-analytics::ai.segment-insight', Http\Livewire\Ai\SegmentInsight::class);
+        Livewire::component('artisanpack-analytics::ai.digest-subscription', Http\Livewire\Ai\DigestSubscription::class);
     }
 
     /**
@@ -510,13 +510,13 @@ class AnalyticsServiceProvider extends ServiceProvider
      */
     protected function mergeConfiguration(): void
     {
-        $packageDefaults = config( 'artisanpack-analytics-temp', [] );
+        $packageDefaults = config('artisanpack-analytics-temp', []);
 
         // Support standalone config at 'analytics.*' (without core package)
-        $standaloneConfig = config( 'analytics', [] );
+        $standaloneConfig = config('analytics', []);
 
         // Support core package integration at 'artisanpack.analytics.*'
-        $artisanpackConfig = config( 'artisanpack.analytics', [] );
+        $artisanpackConfig = config('artisanpack.analytics', []);
 
         // Merge with priority: artisanpack.analytics > analytics > package defaults
         $mergedConfig = array_replace_recursive(
@@ -525,7 +525,7 @@ class AnalyticsServiceProvider extends ServiceProvider
             $artisanpackConfig,
         );
 
-        config( ['artisanpack.analytics' => $mergedConfig] );
+        config(['artisanpack.analytics' => $mergedConfig]);
     }
 
     /**
@@ -540,21 +540,21 @@ class AnalyticsServiceProvider extends ServiceProvider
      */
     protected function publishConfiguration(): void
     {
-        if ( $this->app->runningInConsole() ) {
+        if ($this->app->runningInConsole()) {
             // For core package integration (config/artisanpack/analytics.php)
-            $this->publishes( [
-                __DIR__ . '/../config/analytics.php' => config_path( 'artisanpack/analytics.php' ),
-            ], 'analytics-config' );
+            $this->publishes([
+                __DIR__.'/../config/analytics.php' => config_path('artisanpack/analytics.php'),
+            ], 'analytics-config');
 
             // For standalone usage (config/analytics.php)
-            $this->publishes( [
-                __DIR__ . '/../config/analytics.php' => config_path( 'analytics.php' ),
-            ], 'analytics-config-standalone' );
+            $this->publishes([
+                __DIR__.'/../config/analytics.php' => config_path('analytics.php'),
+            ], 'analytics-config-standalone');
 
             // For core package scaffold command
-            $this->publishes( [
-                __DIR__ . '/../config/analytics.php' => config_path( 'artisanpack/analytics.php' ),
-            ], 'artisanpack-package-config' );
+            $this->publishes([
+                __DIR__.'/../config/analytics.php' => config_path('artisanpack/analytics.php'),
+            ], 'artisanpack-package-config');
         }
     }
 
@@ -565,12 +565,12 @@ class AnalyticsServiceProvider extends ServiceProvider
      */
     protected function publishMigrations(): void
     {
-        $this->loadMigrationsFrom( __DIR__ . '/../database/migrations' );
+        $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
 
-        if ( $this->app->runningInConsole() ) {
-            $this->publishes( [
-                __DIR__ . '/../database/migrations' => database_path( 'migrations' ),
-            ], 'analytics-migrations' );
+        if ($this->app->runningInConsole()) {
+            $this->publishes([
+                __DIR__.'/../database/migrations' => database_path('migrations'),
+            ], 'analytics-migrations');
         }
     }
 
@@ -581,12 +581,12 @@ class AnalyticsServiceProvider extends ServiceProvider
      */
     protected function publishViews(): void
     {
-        $this->loadViewsFrom( __DIR__ . '/../resources/views', 'artisanpack-analytics' );
+        $this->loadViewsFrom(__DIR__.'/../resources/views', 'artisanpack-analytics');
 
-        if ( $this->app->runningInConsole() ) {
-            $this->publishes( [
-                __DIR__ . '/../resources/views' => resource_path( 'views/vendor/artisanpack-analytics' ),
-            ], 'analytics-views' );
+        if ($this->app->runningInConsole()) {
+            $this->publishes([
+                __DIR__.'/../resources/views' => resource_path('views/vendor/artisanpack-analytics'),
+            ], 'analytics-views');
         }
     }
 
@@ -597,10 +597,10 @@ class AnalyticsServiceProvider extends ServiceProvider
      */
     protected function publishTracker(): void
     {
-        if ( $this->app->runningInConsole() ) {
-            $this->publishes( [
-                __DIR__ . '/../resources/js' => public_path( 'vendor/analytics/js' ),
-            ], 'analytics-tracker' );
+        if ($this->app->runningInConsole()) {
+            $this->publishes([
+                __DIR__.'/../resources/js' => public_path('vendor/analytics/js'),
+            ], 'analytics-tracker');
         }
     }
 
@@ -614,18 +614,18 @@ class AnalyticsServiceProvider extends ServiceProvider
      */
     protected function publishReactComponents(): void
     {
-        if ( $this->app->runningInConsole() ) {
-            $this->publishes( [
-                __DIR__ . '/../resources/js/react' => resource_path( 'js/vendor/artisanpack-analytics/react' ),
-                __DIR__ . '/../resources/js/types' => resource_path( 'js/vendor/artisanpack-analytics/types' ),
-            ], 'analytics-react' );
+        if ($this->app->runningInConsole()) {
+            $this->publishes([
+                __DIR__.'/../resources/js/react' => resource_path('js/vendor/artisanpack-analytics/react'),
+                __DIR__.'/../resources/js/types' => resource_path('js/vendor/artisanpack-analytics/types'),
+            ], 'analytics-react');
 
             // Focused publish tag for just the AI trigger components + hooks (since 1.3.0).
-            $this->publishes( [
-                __DIR__ . '/../resources/js/react/components/ai'       => resource_path( 'js/vendor/artisanpack-analytics/react/components/ai' ),
-                __DIR__ . '/../resources/js/react/hooks/useAiAgent.ts' => resource_path( 'js/vendor/artisanpack-analytics/react/hooks/useAiAgent.ts' ),
-                __DIR__ . '/../resources/js/react/hooks/useApi.ts'     => resource_path( 'js/vendor/artisanpack-analytics/react/hooks/useApi.ts' ),
-            ], 'analytics-react-ai' );
+            $this->publishes([
+                __DIR__.'/../resources/js/react/components/ai' => resource_path('js/vendor/artisanpack-analytics/react/components/ai'),
+                __DIR__.'/../resources/js/react/hooks/useAiAgent.ts' => resource_path('js/vendor/artisanpack-analytics/react/hooks/useAiAgent.ts'),
+                __DIR__.'/../resources/js/react/hooks/useApi.ts' => resource_path('js/vendor/artisanpack-analytics/react/hooks/useApi.ts'),
+            ], 'analytics-react-ai');
         }
     }
 
@@ -639,18 +639,18 @@ class AnalyticsServiceProvider extends ServiceProvider
      */
     protected function publishVueComponents(): void
     {
-        if ( $this->app->runningInConsole() ) {
-            $this->publishes( [
-                __DIR__ . '/../resources/js/vue'   => resource_path( 'js/vendor/artisanpack-analytics/vue' ),
-                __DIR__ . '/../resources/js/types' => resource_path( 'js/vendor/artisanpack-analytics/types' ),
-            ], 'analytics-vue' );
+        if ($this->app->runningInConsole()) {
+            $this->publishes([
+                __DIR__.'/../resources/js/vue' => resource_path('js/vendor/artisanpack-analytics/vue'),
+                __DIR__.'/../resources/js/types' => resource_path('js/vendor/artisanpack-analytics/types'),
+            ], 'analytics-vue');
 
             // Focused publish tag for just the AI trigger components + composables (since 1.3.0).
-            $this->publishes( [
-                __DIR__ . '/../resources/js/vue/components/ai'             => resource_path( 'js/vendor/artisanpack-analytics/vue/components/ai' ),
-                __DIR__ . '/../resources/js/vue/composables/useAiAgent.ts' => resource_path( 'js/vendor/artisanpack-analytics/vue/composables/useAiAgent.ts' ),
-                __DIR__ . '/../resources/js/vue/composables/useApi.ts'     => resource_path( 'js/vendor/artisanpack-analytics/vue/composables/useApi.ts' ),
-            ], 'analytics-vue-ai' );
+            $this->publishes([
+                __DIR__.'/../resources/js/vue/components/ai' => resource_path('js/vendor/artisanpack-analytics/vue/components/ai'),
+                __DIR__.'/../resources/js/vue/composables/useAiAgent.ts' => resource_path('js/vendor/artisanpack-analytics/vue/composables/useAiAgent.ts'),
+                __DIR__.'/../resources/js/vue/composables/useApi.ts' => resource_path('js/vendor/artisanpack-analytics/vue/composables/useApi.ts'),
+            ], 'analytics-vue-ai');
         }
     }
 
@@ -662,27 +662,27 @@ class AnalyticsServiceProvider extends ServiceProvider
     protected function registerMiddleware(): void
     {
         /** @var Router $router */
-        $router = $this->app->make( Router::class );
+        $router = $this->app->make(Router::class);
 
         // Register individual middleware
-        $router->aliasMiddleware( 'analytics.throttle', AnalyticsThrottle::class );
-        $router->aliasMiddleware( 'analytics.privacy', PrivacyFilter::class );
-        $router->aliasMiddleware( 'analytics.tenant', TenantResolver::class );
-        $router->aliasMiddleware( 'analytics.site', ResolveSite::class );
-        $router->aliasMiddleware( 'analytics.api-key', AuthenticateWithApiKey::class );
+        $router->aliasMiddleware('analytics.throttle', AnalyticsThrottle::class);
+        $router->aliasMiddleware('analytics.privacy', PrivacyFilter::class);
+        $router->aliasMiddleware('analytics.tenant', TenantResolver::class);
+        $router->aliasMiddleware('analytics.site', ResolveSite::class);
+        $router->aliasMiddleware('analytics.api-key', AuthenticateWithApiKey::class);
 
         // Register middleware group
-        $router->middlewareGroup( 'analytics', [
+        $router->middlewareGroup('analytics', [
             AnalyticsThrottle::class,
             PrivacyFilter::class,
             TenantResolver::class,
-        ] );
+        ]);
 
         // Register middleware group for API key authenticated routes
-        $router->middlewareGroup( 'analytics-api', [
+        $router->middlewareGroup('analytics-api', [
             AuthenticateWithApiKey::class,
             AnalyticsThrottle::class,
-        ] );
+        ]);
     }
 
     /**
@@ -697,13 +697,13 @@ class AnalyticsServiceProvider extends ServiceProvider
      */
     protected function registerRoutes(): void
     {
-        $routePrefix     = config( 'artisanpack.analytics.route_prefix', 'api/analytics' );
-        $routeMiddleware = config( 'artisanpack.analytics.route_middleware', ['api', 'analytics'] );
+        $routePrefix = config('artisanpack.analytics.route_prefix', 'api/analytics');
+        $routeMiddleware = config('artisanpack.analytics.route_middleware', ['api', 'analytics']);
 
         // Register API routes
-        Route::prefix( $routePrefix )
-            ->middleware( $routeMiddleware )
-            ->group( __DIR__ . '/../routes/api.php' );
+        Route::prefix($routePrefix)
+            ->middleware($routeMiddleware)
+            ->group(__DIR__.'/../routes/api.php');
 
         // Register web routes for the tracker script. These carry no
         // middleware and no dashboard gate: the script is a public static
@@ -712,7 +712,7 @@ class AnalyticsServiceProvider extends ServiceProvider
         // login page and left them untracked, and gating it on
         // `dashboard_route` meant an application that switched the dashboard
         // off lost tracking with it.
-        Route::group( [], __DIR__ . '/../routes/web.php' );
+        Route::group([], __DIR__.'/../routes/web.php');
 
         // Register dashboard routes based on the configured driver
         $this->registerDashboardRoutes();
@@ -729,20 +729,20 @@ class AnalyticsServiceProvider extends ServiceProvider
      */
     protected function registerDashboardRoutes(): void
     {
-        $driver         = config( 'artisanpack.analytics.dashboard_driver', 'livewire' );
-        $dashboardRoute = config( 'artisanpack.analytics.dashboard_route' );
+        $driver = config('artisanpack.analytics.dashboard_driver', 'livewire');
+        $dashboardRoute = config('artisanpack.analytics.dashboard_route');
 
-        if ( ! $dashboardRoute || 'inertia' !== $driver ) {
+        if (! $dashboardRoute || $driver !== 'inertia') {
             return;
         }
 
         // Only register Inertia routes if inertia-laravel is installed
-        if ( ! class_exists( \Inertia\Inertia::class ) ) {
+        if (! class_exists(Inertia::class)) {
             return;
         }
 
-        Route::middleware( config( 'artisanpack.analytics.dashboard_middleware', ['web', 'auth'] ) )
-            ->group( __DIR__ . '/../routes/inertia.php' );
+        Route::middleware(config('artisanpack.analytics.dashboard_middleware', ['web', 'auth']))
+            ->group(__DIR__.'/../routes/inertia.php');
     }
 
     /**
@@ -752,8 +752,8 @@ class AnalyticsServiceProvider extends ServiceProvider
      */
     protected function registerCommands(): void
     {
-        if ( $this->app->runningInConsole() ) {
-            $this->commands( [
+        if ($this->app->runningInConsole()) {
+            $this->commands([
                 InstallCommand::class,
                 InstallFrontendCommand::class,
                 StatsCommand::class,
@@ -767,7 +767,7 @@ class AnalyticsServiceProvider extends ServiceProvider
                 BotsListCommand::class,
                 WhitelistCommand::class,
                 DispatchDigestsCommand::class,
-            ] );
+            ]);
         }
     }
 
@@ -783,15 +783,15 @@ class AnalyticsServiceProvider extends ServiceProvider
      */
     protected function registerScheduledJobs(): void
     {
-        $this->app->booted( function (): void {
-            $schedule = $this->app->make( Schedule::class );
+        $this->app->booted(function (): void {
+            $schedule = $this->app->make(Schedule::class);
 
-            if ( (bool) config( 'artisanpack.analytics.bot_detection.enabled', true ) ) {
+            if ((bool) config('artisanpack.analytics.bot_detection.enabled', true)) {
                 $interval = $this->botAnalysisIntervalMinutes();
 
-                $schedule->job( new AnalyzeBotTraffic() )
-                    ->cron( sprintf( '*/%d * * * *', $interval ) )
-                    ->name( 'analytics-analyze-bot-traffic' )
+                $schedule->job(new AnalyzeBotTraffic)
+                    ->cron(sprintf('*/%d * * * *', $interval))
+                    ->name('analytics-analyze-bot-traffic')
                     ->withoutOverlapping();
             }
 
@@ -799,22 +799,40 @@ class AnalyticsServiceProvider extends ServiceProvider
             // enqueues SendDigestEmailJob for any user whose cadence window
             // is due. Host apps override the schedule (or opt out entirely)
             // via `artisanpack.analytics.digest.schedule`.
-            $digestSchedule = (string) config( 'artisanpack.analytics.digest.schedule', 'hourly' );
+            $digestSchedule = (string) config('artisanpack.analytics.digest.schedule', 'hourly');
 
-            if ( 'off' === $digestSchedule ) {
+            if ($digestSchedule === 'off') {
                 return;
             }
 
-            $entry = $schedule->command( 'analytics:dispatch-digests' )
-                ->name( 'analytics-dispatch-digests' )
+            $entry = $schedule->command('analytics:dispatch-digests')
+                ->name('analytics-dispatch-digests')
                 ->withoutOverlapping();
 
-            if ( method_exists( $entry, $digestSchedule ) ) {
+            if (method_exists($entry, $digestSchedule)) {
                 $entry->{$digestSchedule}();
             } else {
-                $entry->cron( $digestSchedule );
+                $entry->cron($digestSchedule);
             }
-        } );
+        });
+    }
+
+    /**
+     * Register the package's event listeners.
+     *
+     * Wires {@see PageViewTracked} — dispatched from the ingest pipeline — to
+     * {@see ForwardPageViewToRemoteProviders}, so page views collected by the
+     * JavaScript tracker reach every active provider, not just `local`. Without
+     * this, server-side forwarders listed in `active_providers` (such as the
+     * GA4 Measurement Protocol adapter) never saw ingested page views, because
+     * the ingest path writes straight to the local provider and only the
+     * `Analytics::trackPageView()` facade fans out to the others.
+     *
+     * @since 1.5.1
+     */
+    protected function registerEventListeners(): void
+    {
+        Event::listen(PageViewTracked::class, ForwardPageViewToRemoteProviders::class);
     }
 
     /**
@@ -826,13 +844,13 @@ class AnalyticsServiceProvider extends ServiceProvider
      */
     protected function botAnalysisIntervalMinutes(): int
     {
-        $configured = max( 1, (int) config( 'artisanpack.analytics.bot_detection.analysis_interval', 15 ) );
+        $configured = max(1, (int) config('artisanpack.analytics.bot_detection.analysis_interval', 15));
 
-        $divisors = [ 1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30 ];
+        $divisors = [1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30];
         $interval = 1;
 
-        foreach ( $divisors as $divisor ) {
-            if ( $divisor <= $configured ) {
+        foreach ($divisors as $divisor) {
+            if ($divisor <= $configured) {
                 $interval = $divisor;
             }
         }
@@ -848,24 +866,24 @@ class AnalyticsServiceProvider extends ServiceProvider
     protected function registerBuiltInProviders(): void
     {
         /** @var Analytics $analytics */
-        $analytics = $this->app->make( Analytics::class );
+        $analytics = $this->app->make(Analytics::class);
 
         // Register local provider
-        $analytics->extend( 'local', function ( $app ) {
-            return $app->make( Providers\LocalAnalyticsProvider::class );
-        } );
+        $analytics->extend('local', function ($app) {
+            return $app->make(Providers\LocalAnalyticsProvider::class);
+        });
 
         // Register external providers if their configurations exist
-        if ( config( 'artisanpack.analytics.providers.google.enabled' ) ) {
-            $analytics->extend( 'google', function ( $app ) {
-                return $app->make( Providers\GoogleAnalyticsProvider::class );
-            } );
+        if (config('artisanpack.analytics.providers.google.enabled')) {
+            $analytics->extend('google', function ($app) {
+                return $app->make(Providers\GoogleAnalyticsProvider::class);
+            });
         }
 
-        if ( config( 'artisanpack.analytics.providers.plausible.enabled' ) ) {
-            $analytics->extend( 'plausible', function ( $app ) {
-                return $app->make( Providers\PlausibleProvider::class );
-            } );
+        if (config('artisanpack.analytics.providers.plausible.enabled')) {
+            $analytics->extend('plausible', function ($app) {
+                return $app->make(Providers\PlausibleProvider::class);
+            });
         }
     }
 
@@ -881,42 +899,41 @@ class AnalyticsServiceProvider extends ServiceProvider
     protected function registerLivewireComponents(): void
     {
         // Only register if Livewire is available
-        if ( ! class_exists( \Livewire\Livewire::class ) ) {
+        if (! class_exists(Livewire::class)) {
             return;
         }
 
         // Livewire 4 supports addNamespace for automatic class resolution.
         // Check against LivewireManager (not the Facade) for method_exists.
-        if ( method_exists( \Livewire\LivewireManager::class, 'addNamespace' ) ) {
-            \Livewire\Livewire::addNamespace(
+        if (method_exists(LivewireManager::class, 'addNamespace')) {
+            Livewire::addNamespace(
                 namespace: 'artisanpack-analytics',
                 classNamespace: 'ArtisanPackUI\\Analytics\\Http\\Livewire',
-                classPath: __DIR__ . '/Http/Livewire',
-                classViewPath: __DIR__ . '/../resources/views/livewire',
+                classPath: __DIR__.'/Http/Livewire',
+                classViewPath: __DIR__.'/../resources/views/livewire',
             );
 
             return;
         }
 
         // Livewire 3 fallback: register each component individually.
-        \Livewire\Livewire::component( 'artisanpack-analytics::analytics-dashboard', Http\Livewire\AnalyticsDashboard::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::page-analytics', Http\Livewire\PageAnalytics::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::site-selector', Http\Livewire\SiteSelector::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::multi-tenant-dashboard', Http\Livewire\MultiTenantDashboard::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::platform-dashboard', Http\Livewire\PlatformDashboard::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::widgets.stats-cards', Http\Livewire\Widgets\StatsCards::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::widgets.visitors-chart', Http\Livewire\Widgets\VisitorsChart::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::widgets.top-pages', Http\Livewire\Widgets\TopPages::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::widgets.traffic-sources', Http\Livewire\Widgets\TrafficSources::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::widgets.realtime-visitors', Http\Livewire\Widgets\RealtimeVisitors::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::widgets.bot-traffic', Http\Livewire\Widgets\BotTraffic::class );
-        \Livewire\Livewire::component( 'artisanpack-analytics::widgets.anonymous-traffic', Http\Livewire\Widgets\AnonymousTraffic::class );
+        Livewire::component('artisanpack-analytics::analytics-dashboard', Http\Livewire\AnalyticsDashboard::class);
+        Livewire::component('artisanpack-analytics::page-analytics', Http\Livewire\PageAnalytics::class);
+        Livewire::component('artisanpack-analytics::site-selector', Http\Livewire\SiteSelector::class);
+        Livewire::component('artisanpack-analytics::multi-tenant-dashboard', Http\Livewire\MultiTenantDashboard::class);
+        Livewire::component('artisanpack-analytics::platform-dashboard', Http\Livewire\PlatformDashboard::class);
+        Livewire::component('artisanpack-analytics::widgets.stats-cards', Http\Livewire\Widgets\StatsCards::class);
+        Livewire::component('artisanpack-analytics::widgets.visitors-chart', Http\Livewire\Widgets\VisitorsChart::class);
+        Livewire::component('artisanpack-analytics::widgets.top-pages', Http\Livewire\Widgets\TopPages::class);
+        Livewire::component('artisanpack-analytics::widgets.traffic-sources', Http\Livewire\Widgets\TrafficSources::class);
+        Livewire::component('artisanpack-analytics::widgets.realtime-visitors', Http\Livewire\Widgets\RealtimeVisitors::class);
+        Livewire::component('artisanpack-analytics::widgets.bot-traffic', Http\Livewire\Widgets\BotTraffic::class);
+        Livewire::component('artisanpack-analytics::widgets.anonymous-traffic', Http\Livewire\Widgets\AnonymousTraffic::class);
     }
 
     /**
      * Register Blade directives for analytics.
      *
-     * @return void
      *
      * @since 1.0.0
      */
@@ -928,19 +945,19 @@ class AnalyticsServiceProvider extends ServiceProvider
         // prop, which emits it as a page-level override ahead of the tracker.
         // Until 1.5.0 the expression was accepted and then dropped on the floor,
         // because the component had no prop to receive it.
-        Blade::directive( 'analyticsScripts', function ( $expression ): string {
+        Blade::directive('analyticsScripts', function ($expression): string {
             $config = $expression ?: '[]';
 
             return "<?php echo view('artisanpack-analytics::components.tracker-script', ['config' => {$config}])->render(); ?>";
-        } );
+        });
 
         // @analyticsConsentBanner - Output consent banner
-        Blade::directive( 'analyticsConsentBanner', function (): string {
+        Blade::directive('analyticsConsentBanner', function (): string {
             return "<?php echo view('artisanpack-analytics::components.consent-banner')->render(); ?>";
-        } );
+        });
 
         // @analyticsConsent('type') / @endanalyticsConsent - Conditional consent block
-        Blade::directive( 'analyticsConsent', function ( $expression ): string {
+        Blade::directive('analyticsConsent', function ($expression): string {
             $category = $expression ?: "'analytics'";
 
             // Check consent from cookie (set by consent banner) for server-side rendering
@@ -959,48 +976,48 @@ class AnalyticsServiceProvider extends ServiceProvider
                     }
                 }
                 if ( \$__hasConsent ): ?>";
-        } );
+        });
 
-        Blade::directive( 'endanalyticsConsent', function (): string {
+        Blade::directive('endanalyticsConsent', function (): string {
             return '<?php endif; ?>';
-        } );
+        });
 
         // @analyticsPageView - Track page view inline
-        Blade::directive( 'analyticsPageView', function ( $expression ): string {
-            if ( '' === $expression || '()' === $expression ) {
+        Blade::directive('analyticsPageView', function ($expression): string {
+            if ($expression === '' || $expression === '()') {
                 return '<?php trackPageView(request()->path()); ?>';
             }
 
             return "<?php trackPageView({$expression}); ?>";
-        } );
+        });
 
         // @analyticsEvent - Track event inline
-        Blade::directive( 'analyticsEvent', function ( $expression ): string {
+        Blade::directive('analyticsEvent', function ($expression): string {
             return "<?php trackEvent({$expression}); ?>";
-        } );
+        });
 
         // Only register Livewire directives if Livewire is available
-        if ( class_exists( \Livewire\Livewire::class ) ) {
+        if (class_exists(Livewire::class)) {
             // @analyticsDashboard - Render dashboard Livewire component
-            Blade::directive( 'analyticsDashboard', function (): string {
+            Blade::directive('analyticsDashboard', function (): string {
                 return "<?php echo \\Livewire\\Livewire::mount('artisanpack-analytics::analytics-dashboard')->html(); ?>";
-            } );
+            });
 
             // @analyticsWidget - Render specific widget
-            Blade::directive( 'analyticsWidget', function ( $expression ): string {
+            Blade::directive('analyticsWidget', function ($expression): string {
                 $type = $expression ?: "'stats-cards'";
 
                 return "<?php echo \\Livewire\\Livewire::mount('artisanpack-analytics::widgets.' . {$type})->html(); ?>";
-            } );
+            });
 
             // @analyticsPageStats - Show page statistics for current or specified path
-            Blade::directive( 'analyticsPageStats', function ( $expression ): string {
-                if ( '' === $expression || '()' === $expression ) {
+            Blade::directive('analyticsPageStats', function ($expression): string {
+                if ($expression === '' || $expression === '()') {
                     return "<?php echo \\Livewire\\Livewire::mount('artisanpack-analytics::page-analytics', ['path' => request()->path()])->html(); ?>";
                 }
 
                 return "<?php echo \\Livewire\\Livewire::mount('artisanpack-analytics::page-analytics', ['path' => {$expression}])->html(); ?>";
-            } );
+            });
         }
     }
 
@@ -1015,25 +1032,24 @@ class AnalyticsServiceProvider extends ServiceProvider
     protected function registerPrivacyHooks(): void
     {
         /** @var PrivacyIntegration $privacyIntegration */
-        $privacyIntegration = $this->app->make( PrivacyIntegration::class );
+        $privacyIntegration = $this->app->make(PrivacyIntegration::class);
         $privacyIntegration->register();
     }
 
     /**
      * Register the analytics API key authentication guard.
      *
-     * @return void
      *
      * @since 1.0.0
      */
     protected function registerAuthGuard(): void
     {
-        Auth::extend( 'analytics-api', function ( $app, $name, array $config ) {
+        Auth::extend('analytics-api', function ($app, $name, array $config) {
             return new ApiKeyGuard(
-                $app->make( TenantManager::class ),
-                $app->make( 'request' ),
+                $app->make(TenantManager::class),
+                $app->make('request'),
             );
-        } );
+        });
     }
 
     /**
@@ -1043,37 +1059,36 @@ class AnalyticsServiceProvider extends ServiceProvider
      * common analytics data (current site, consent status, analytics config)
      * is shared as Inertia shared props on all requests.
      *
-     * @return void
      *
      * @since 1.1.0
      */
     protected function registerInertiaSharedData(): void
     {
-        $driver = config( 'artisanpack.analytics.dashboard_driver', 'livewire' );
+        $driver = config('artisanpack.analytics.dashboard_driver', 'livewire');
 
-        if ( 'inertia' !== $driver ) {
+        if ($driver !== 'inertia') {
             return;
         }
 
-        if ( ! config( 'artisanpack.analytics.inertia.share_data', true ) ) {
+        if (! config('artisanpack.analytics.inertia.share_data', true)) {
             return;
         }
 
-        if ( ! class_exists( \Inertia\Inertia::class ) ) {
+        if (! class_exists(Inertia::class)) {
             return;
         }
 
-        \Inertia\Inertia::share( 'analytics', function () {
+        Inertia::share('analytics', function () {
             $shared = [
-                'enabled'          => config( 'artisanpack.analytics.enabled', true ),
-                'consent_required' => config( 'artisanpack.analytics.privacy.consent_required', false ),
-                'dashboard_route'  => config( 'artisanpack.analytics.dashboard_route', 'analytics' ),
-                'realtime_enabled' => config( 'artisanpack.analytics.dashboard.realtime_enabled', true ),
+                'enabled' => config('artisanpack.analytics.enabled', true),
+                'consent_required' => config('artisanpack.analytics.privacy.consent_required', false),
+                'dashboard_route' => config('artisanpack.analytics.dashboard_route', 'analytics'),
+                'realtime_enabled' => config('artisanpack.analytics.dashboard.realtime_enabled', true),
             ];
 
             // Include current site info if multi-tenant is enabled
-            if ( analyticsMultiTenancyEnabled() ) {
-                $tenantManager = $this->app->make( TenantManager::class );
+            if (analyticsMultiTenancyEnabled()) {
+                $tenantManager = $this->app->make(TenantManager::class);
 
                 // current() rather than hasCurrent(): the latter only says an
                 // identifier is in context, and a sibling package can pin one
@@ -1081,16 +1096,16 @@ class AnalyticsServiceProvider extends ServiceProvider
                 // on every Inertia render.
                 $site = $tenantManager->current();
 
-                if ( null !== $site ) {
+                if ($site !== null) {
                     $shared['site'] = [
-                        'id'     => $site->id,
-                        'name'   => $site->name,
+                        'id' => $site->id,
+                        'name' => $site->name,
                         'domain' => $site->domain,
                     ];
                 }
             }
 
             return $shared;
-        } );
+        });
     }
 }
